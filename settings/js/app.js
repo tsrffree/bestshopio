@@ -3088,9 +3088,9 @@
           '</div>' +
         '</div>' + dnsGuide + '</div>';
     }).join('');
-    const input = (label, id, value, hint, placeholder, readOnly) =>
+    const input = (label, id, value, hint, placeholder, disabled) =>
       '<div style="margin-bottom:14px"><label class="nf-label" for="' + id + '">' + label + '</label>' +
-      '<input class="input" id="' + id + '" value="' + esc(value || '') + '"' + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + (readOnly ? ' readonly aria-readonly="true"' : '') + ' style="width:100%" />' +
+      '<input class="input nf-sender-input" id="' + id + '" value="' + esc(value || '') + '"' + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + (disabled ? ' disabled aria-disabled="true"' : '') + ' style="width:100%" />' +
       (hint ? '<div class="nf-hint">' + hint + '</div>' : '') + '</div>';
     const defaultDomain = sender.domains.find((d) => d.default) || null;
     const brandedDomain = sender.domains.find((d) => !d.default) || null;
@@ -3122,7 +3122,7 @@
       '<div class="nf-sender-layout">' +
         '<div class="panel card-pad"><div class="nf-section-title">From identity</div>' +
           input('From name', 'nf-sender-name', profile.fromName, 'Shown in the customer inbox for every transactional message.') +
-          input('Sender address', 'nf-sender-local', active && active.default ? nfSenderAddress() : profile.localPart, active ? (active.default ? 'BestShopio provisions this address for your store. Connect a custom domain to edit the address prefix.' : 'The address uses the active connected domain: @' + esc(active.domain) + '.') : 'This address will be ready after the sender domain is connected.', '', !!(active && active.default)) +
+          input('Sender address', 'nf-sender-local', active && active.default ? nfSenderAddress() : profile.localPart, active ? (active.default ? 'BestShopio provisions this address for your store. Connect a custom domain to edit the address prefix.' : 'The address uses the active connected domain: @' + esc(active.domain) + '.') : 'This address will be ready after the sender domain is connected.', '', !active || active.default) +
           input('Reply-to', 'nf-sender-reply', profile.replyTo, n.brand.contactEmail ? 'Leave blank to use your store service email.' : 'Leave blank to use your store registration email.', n.brand.contactEmail || n.brand.storeOwnerEmail) +
           '<button class="btn btn-primary" data-sender-save>Save sender identity</button></div>' +
         '<section class="nf-sender-domain-section"><div class="nf-section-title">Sending domain</div>' +
@@ -3274,6 +3274,8 @@
   .nf-sender-address { font-size: 13px; color: var(--ink); margin-top: 3px; }
   .nf-sender-card .btn { flex: none; }
   .nf-sender-layout { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+  .nf-sender-input:disabled { background: #f5f7fa; border-color: #e1e6ed; color: #8b95a7; cursor: not-allowed; opacity: 1; }
+  .nf-sender-input:disabled::placeholder { color: #a6afbd; }
   .nf-section-title { font-size: 14px; font-weight: 650; color: var(--ink); margin-bottom: 16px; }
   .nf-sender-domain-section { display: flex; flex-direction: column; gap: 12px; }
   .nf-sender-domain-section .nf-section-title { margin: 0 2px 2px; }
