@@ -14,12 +14,9 @@
    or empty. App.js reads this global; nothing here is sent anywhere. */
 window.DATA_SETTINGS = {
   // =========================================================================
-  // NOTIFICATIONS (V1.141) — transactional email config, per store.
-  //   Mirrors the PRD: shared brand tokens (eb_notification_brand) + per-event
-  //   editable templates (eb_notification_template) + a starter template library
-  //   (eb_notification_preset). Merge tags expand against order data; dynamic
-  //   "block" tags render structured sections so the body can't be broken.
-  //   Editing here is local-only (prototype) — nothing is sent anywhere.
+  // NOTIFICATIONS — store-level sender identity + native transactional email.
+  // Bestreach returns the verification records. This surface never owns the
+  // storefront/checkout domain, DNS, or SSL lifecycle.
   // =========================================================================
   notifications: {
     // shared brand — injected into every notification (set once, applies to all)
@@ -27,78 +24,54 @@ window.DATA_SETTINGS = {
       storeName: 'Lovocross',
       logo: { name: 'lovocross-email-logo.png', set: true },
       primaryColor: '#0066e6',
-      contactEmail: 'service@lovocross.com',
+      // A configured service inbox may be added later. Until then, transactional
+      // emails use the address of the account that registered this store.
+      contactEmail: '',
+      storeOwnerEmail: 'zjc66666@gmail.com',
       footerText: 'Lovocross · All rights reserved.',
       address: '2261 Market St, San Francisco, CA 94114, US',
     },
     // store languages — single language for now (Silixwear-ES retired). Framework keeps locale capability.
     locales: [ { code: 'en', label: 'English' } ],
-    // verified sending domain (custom domain DKIM is a roadmap item — see PRD §10)
-    sendingDomain: 'mail.bestshopio.com',
-    // merge tags offered by the "Insert variable" picker, by scope
-    mergeTags: {
-      common: ['store.name', 'store.url', 'store.contact_email', 'customer.name', 'customer.first_name', 'order.number', 'order.detail_url'],
-      order_paid: ['order.subtotal', 'order.shipping', 'order.total', 'order.currency', 'order.shipping_address', 'order.payment_method'],
-      order_shipped: ['shipment.tracking_number', 'shipment.carrier', 'shipment.tracking_url'],
-    },
-    // dynamic blocks (render to safe HTML — merchant inserts, never hand-codes the loop)
-    blocks: {
-      order_paid: [ { tag: 'block.order_summary', label: 'Order summary (items + totals)' }, { tag: 'block.shipping_address', label: 'Shipping address' }, { tag: 'block.line_items', label: 'Line items only' }, { tag: 'block.cta_button', label: 'Buttons (View order / Visit store)' } ],
-      order_shipped: [ { tag: 'block.tracking', label: 'Tracking module' }, { tag: 'block.shipment_items', label: 'Items in this shipment' }, { tag: 'block.cta_button', label: 'Buttons (View order / Visit store)' } ],
-    },
-    // starter template library (platform-provided presets)
-    presets: {
-      order_paid: [
-        { code: 'order_paid_minimal', name: 'Minimal', subject: 'Order #{{order.number}} confirmed',
-          body: '<h2 class="nf-h">Order confirmed</h2>\n<p class="nf-lead">Hi {{customer.first_name}}, we’ve received your order and payment. We’ll email you tracking the moment it ships.</p>\n{{block.order_summary}}' },
-        { code: 'order_paid_branded', name: 'Branded + thank-you', subject: 'Thank you for your order, {{customer.first_name}}!',
-          body: '<h2 class="nf-h">Thank you, {{customer.first_name}}</h2>\n<p class="nf-lead">Your {{store.name}} order is confirmed and being packed with care. We’ll be in touch the moment it’s on its way — we can’t wait for you to receive it.</p>\n{{block.cta_button}}\n{{block.order_summary}}\n{{block.shipping_address}}\n<p class="nf-fine">Questions about your order? Just reply to this email — a real person on our team will help you out.</p>' },
-      ],
-      order_shipped: [
-        { code: 'order_shipped_minimal', name: 'Minimal', subject: 'Your order #{{order.number}} is on its way',
-          body: '<h2 class="nf-h">Your order has shipped</h2>\n<p class="nf-lead">Good news {{customer.first_name}} — your order is on its way. Track it anytime with the link below.</p>\n{{block.tracking}}\n{{block.cta_button}}' },
-        { code: 'order_shipped_branded', name: 'Branded + items', subject: 'It’s on the way! Order #{{order.number}}',
-          body: '<h2 class="nf-h">Your order has shipped</h2>\n<p class="nf-lead">Your {{store.name}} order is on its way. We’ll let you know the moment it’s delivered.</p>\n{{block.tracking}}\n{{block.shipment_items}}\n{{block.cta_button}}' },
+    // One sender identity is shared by all shop transactional messages.
+    sender: {
+      activeDomainId: 'lovocross-bestshopio-default',
+      // Bestreach currently has no store-creation API. All BestShopio stores use
+      // this shared technical container; merchant/store ownership stays in BestShopio.
+      bestreachStoreId: 'bestshopio-shared-sender-store',
+      // The platform domain is shared. This store-owned prefix is provisioned once and cannot be edited.
+      platformLocalPart: 'lovocross',
+      profile: { fromName: 'Lovocross', localPart: 'lovocross', replyTo: '' },
+      domains: [
+        { id: 'lovocross-bestshopio-default', domain: 'mail.bestshopio.com', status: 'platform', default: true, records: [] },
       ],
     },
-    // event catalog (grouped). config = the editable per-event template instance.
+    deliveryLog: [],
     groups: [
-      { key: 'orders', label: 'Orders', events: [
+      { key: 'transactional', label: 'Transactional emails', events: [
         { code: 'order_paid', name: 'Order confirmation', cls: 'Transactional', priority: 'P0',
-          desc: 'Sent to the customer right after payment succeeds.',
-          config: { enabled: true, fromName: 'Lovocross', fromEmail: 'orders@mail.bestshopio.com', replyTo: 'service@lovocross.com',
-            subject: 'Order #{{order.number}} confirmed', preheader: 'Thanks for your purchase — here are your order details.', updatedAt: '2026-06-09',
-            body: '<h2 class="nf-h">Order confirmed</h2>\n<p class="nf-lead">Hi {{customer.first_name}}, thanks for your order. We’re getting it ready and will email you tracking as soon as it ships.</p>\n{{block.cta_button}}\n{{block.order_summary}}\n{{block.shipping_address}}' } },
+          desc: 'Sent to the customer right after a native store payment succeeds.',
+          config: { enabled: true, subject: 'Order #{{order.number}} confirmed', preheader: 'Thanks for your purchase — here are your order details.',
+            headline: 'Thank you for your order!', copy: 'We’ve received your payment and your order is being prepared. We’ll send tracking details when it ships.', updatedAt: '2026-07-27' } },
         { code: 'order_shipped', name: 'Shipping confirmation', cls: 'Transactional', priority: 'P0',
           desc: 'Sent when the order is fulfilled, with tracking details.',
-          config: { enabled: true, fromName: 'Lovocross', fromEmail: 'orders@mail.bestshopio.com', replyTo: 'service@lovocross.com',
-            subject: 'Your order #{{order.number}} is on its way', preheader: 'Your order has shipped — track it here.', updatedAt: '2026-06-09',
-            body: '<h2 class="nf-h">Your order has shipped</h2>\n<p class="nf-lead">Good news {{customer.first_name}} — your order is on its way. Track it anytime with the link below.</p>\n{{block.tracking}}\n{{block.cta_button}}' } },
-        { code: 'order_refunded', name: 'Refund processed', cls: 'Transactional', priority: 'P1',
+          config: { enabled: true, subject: 'A shipment from order #{{order.number}} is on the way', preheader: 'Your order is on the way. Track your shipment to see the delivery status.',
+            headline: 'Your order is on the way', copy: 'Your order is on the way. Track your shipment to see the delivery status.', updatedAt: '2026-07-27' } },
+        { code: 'order_refunded', name: 'Order refund', cls: 'Transactional', priority: 'P1',
           desc: 'Sent when a refund is approved for the customer.',
-          config: { enabled: false, fromName: 'Lovocross', fromEmail: 'orders@mail.bestshopio.com', replyTo: 'service@lovocross.com',
-            subject: 'Your refund for order #{{order.number}}', preheader: 'We’ve processed your refund.', updatedAt: '',
-            body: '<h2 class="nf-h">Refund processed</h2>\n<p class="nf-lead">Hi {{customer.first_name}}, we’ve processed a refund for order #{{order.number}}. It may take 3–5 business days to appear on your statement.</p>\n{{block.cta_button}}' } },
+          config: { enabled: false, subject: 'Refund notification', preheader: 'Total amount refunded: {{refund.amount}}. It may take up to 10 days for this refund to appear in your account.',
+            headline: 'Your order has been refunded', copy: 'Total amount refunded: {{refund.amount}}. It may take up to 10 days for this refund to appear in your account.', updatedAt: '' } },
       ] },
       { key: 'account', label: 'Account', events: [
         { code: 'account_welcome', name: 'Welcome', cls: 'Transactional', priority: 'P1',
           desc: 'Sent after a customer creates an account.',
-          config: { enabled: false, fromName: 'Lovocross', fromEmail: 'hello@mail.bestshopio.com', replyTo: 'service@lovocross.com',
-            subject: 'Welcome to {{store.name}}', preheader: 'Your account is ready.', updatedAt: '',
-            body: '<h2 class="nf-h">Welcome!</h2>\n<p class="nf-lead">Hi {{customer.first_name}}, welcome to {{store.name}}. Your account is ready — start exploring whenever you like.</p>\n{{block.cta_button}}' } },
-        { code: 'email_verification', name: 'Email verification code', cls: 'Transactional', priority: 'P1',
+          config: { enabled: false, subject: 'Customer account confirmation', preheader: 'You\'ve activated your customer account. Next time you shop with us, log in for faster checkout.',
+            headline: 'Welcome to {{store.name}}!', copy: 'You\'ve activated your customer account. Next time you shop with us, log in for faster checkout.', updatedAt: '' } },
+        { code: 'email_verification', name: 'Email verification code', cls: 'Transactional', priority: 'P1', required: true,
           desc: 'One-time code for sign-up and password reset.',
-          config: { enabled: false, fromName: 'Lovocross', fromEmail: 'hello@mail.bestshopio.com', replyTo: 'service@lovocross.com',
-            subject: 'Your {{store.name}} verification code', preheader: 'Use this code to continue.', updatedAt: '',
-            body: '<h2 class="nf-h">Verification code</h2>\n<p class="nf-lead">Hi {{customer.first_name}}, use the code below to verify your email. It expires in 10 minutes.</p>' } },
+          config: { enabled: true, subject: '{{verification.code}} is your code', preheader: 'Use this code to continue.',
+            headline: 'Verification code', copy: 'Hi {{customer.first_name}}, use the code below to verify your email. It expires in 10 minutes.', updatedAt: '' } },
       ] },
-      { key: 'marketing', label: 'Marketing', locked: true,
-        note: 'Marketing emails need consent management and an unsubscribe center. Coming in a later release.',
-        events: [
-          { code: 'abandoned_cart', name: 'Abandoned cart', cls: 'Marketing', priority: 'P2', desc: 'Remind shoppers who left items in their cart.' },
-          { code: 'back_in_stock', name: 'Back in stock', cls: 'Marketing', priority: 'P2', desc: 'Notify shoppers when a sold-out item returns.' },
-          { code: 'review_request', name: 'Review request', cls: 'Marketing', priority: 'P2', desc: 'Ask for a review after delivery.' },
-        ] },
     ],
   },
 

@@ -20,6 +20,7 @@
     truck:  svg('<path d="M10 17h4V5H2v12h2"/><path d="M14 9h4l4 4v4h-2"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/>'),
     chevR:  svg('<path d="m9 18 6-6-6-6"/>', 16),
     chevL:  svg('<path d="m15 18-6-6 6-6"/>', 18),
+    arrowLeft: svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 18),
     chevD:  svg('<path d="m6 9 6 6 6-6"/>', 16),
     plus:   svg('<path d="M12 5v14M5 12h14"/>', 16),
     image:  svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.35-4.35a2 2 0 0 0-2.83 0L5 19"/>', 18),
@@ -36,8 +37,222 @@
     info:   svg('<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>', 16),
   };
 
-  // ---- toast (same as orders) ----
-  const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
+  if (window.I18N && window.I18N.extend) {
+    window.I18N.extend({
+      'Manage the transactional messages your store sends automatically.': '管理店铺自动发送的事务邮件。',
+      'Sender identity': '发件身份',
+      'Manage sender identity': '管理发件身份',
+      'Verified': '已验证',
+      'Reply-to': '回复地址',
+      'Leave blank to use your store service email.': '留空时，默认使用店铺服务邮箱。',
+      'Leave blank to use your store registration email.': '留空时，默认使用店铺注册邮箱。',
+      'Sending domain': '发件域名',
+      'Status': '状态',
+      'Used for transactional email': '用于发送事务邮件',
+      'Available after activation': '设为当前发件域名后可用',
+      'Active sender domain': '当前发件域名',
+      'Used for all transactional emails': '当前用于发送全部事务邮件',
+      'Platform default sender': '平台默认发件人',
+      'Ready to use': '可立即使用',
+      'Domain connected': '域名已连接',
+      'This sending domain is now used automatically for transactional email.': '此发件域名现已自动用于发送事务邮件。',
+      'Connected sending domain': '已连接的发件域名',
+      'Customer emails continue to use the default sender until a branded domain is connected.': '在品牌发件域名连接前，客户邮件将继续使用默认发件人。',
+      'Available after connection': '连接后即可使用',
+      'Connected domains are selected automatically': '已连接域名会自动生效',
+      'Fix the DNS records in Domains, then verify again': '请在“域名”中修正 DNS 记录后重新验证',
+      'BestShopio provisions this address for your store. Connect a custom domain to edit the address prefix.': 'BestShopio 已为你的店铺生成此发件地址。连接自定义域名后，可编辑地址前缀。',
+      'The address uses the active connected domain:': '发件地址使用当前已连接域名：',
+      'This address will be ready after the sender domain is connected.': '发件域名连接后，此地址即可使用。',
+      'The default sender is ready to deliver transactional email. Add and connect a branded sender domain when you want to use your own domain.': '默认发件人已可发送事务邮件。需要使用自有域名时，可添加并连接品牌发件域名。',
+      'This connected domain is currently used for transactional email.': '此已连接域名当前用于发送事务邮件。',
+      'Store default sending domain': '店铺默认发件域名',
+      'This domain is created for your store and is ready to send transactional email.': '此域名由系统为你的店铺生成，可立即发送事务邮件。',
+      'Add branded sending domain': '添加品牌发件域名',
+      'Use your own domain to make your sender easier for customers to recognize. When it connects, it replaces the default sender automatically.': '使用自有域名，让顾客更容易识别你的品牌。域名连接成功后，会自动替代默认发件人。',
+      'Branded sending domain': '品牌发件域名',
+      'Manage branded sending domain': '管理品牌发件域名',
+      'This domain is used automatically for transactional email.': '此域名当前自动用于发送事务邮件。',
+      'Add the DNS records in Domains to complete verification.': '请在“域名”中添加 DNS 记录以完成验证。',
+      'Fix the DNS records in Domains, then verify again.': '请在“域名”中修正 DNS 记录后重新验证。',
+      'Add a sending domain': '添加发件域名',
+      'Back to domains': '返回域名列表',
+      'Verify later': '稍后验证',
+      'Having issues? View the setup guide': '遇到问题？查看配置指南',
+      'Add the records below for': '请为以下域名添加这些 DNS 记录：',
+      'We will verify them automatically.': '系统会自动验证这些记录。',
+      'Remove the current custom sending domain before adding another one.': '请先删除当前自定义发件域名，再添加新的域名。',
+      'The verification for': '将删除以下域名的验证：',
+      'Transactional emails will use the BestShopio default sender until you add and verify another domain.': '在添加并验证新的域名之前，事务邮件将使用 BestShopio 默认发件人。',
+      'After adding the records, click Verify now to check your sending domain.': '添加记录后，点击“立即验证”检查发件域名。',
+      'This sending domain is ready for transactional email. You can make it your current sender domain now or keep using the default sender.': '此发件域名已可用于事务邮件。你可以立即将其设为当前发件域名，或继续使用默认发件人。',
+      'Used by': '当前用于',
+      'Waiting for sender-domain verification': '等待发件域名验证',
+      'DNS records required for this candidate domain': '此候选域名需要配置 DNS 记录',
+      'Ready to use as active sender domain': '可设为当前发件域名',
+      'Not verified': '未验证',
+      'BestShopio default': 'BestShopio 默认',
+      'BestShopio default sender domain': 'BestShopio 默认发件域名',
+      'Platform-managed sender domain': '平台托管发件域名',
+      'Platform-generated default sender domain': '平台自动生成的默认发件域名',
+      'BestShopio is verifying this default domain. No DNS action is required.': 'BestShopio 正在验证此默认域名，无需配置 DNS。',
+      'Customer emails can send through this default domain.': '客户邮件可通过此默认域名立即发送。',
+      'The address uses the active BestShopio default domain:': '发件地址使用当前 BestShopio 默认域名：',
+      'BestShopio creates a default sender domain during store setup and verifies it automatically. Add a custom domain only if you want to replace the default sender domain.': 'BestShopio 会在建店时自动生成并验证默认发件域名。只有需要替换默认发件域名时，才添加自定义域名。',
+      'BestShopio creates a platform-managed default sender domain during store setup. It can send transactional email immediately. Add a custom domain only if you want to replace the default sender domain.': 'BestShopio 会在建店时自动生成平台托管的默认发件域名，可立即发送事务邮件。只有需要替换默认发件域名时，才添加自定义域名。',
+      'Verify a sender domain before enabling email notifications.': '请先验证一个发件域名，再启用邮件通知。',
+      'Add these records exactly at your DNS provider. Verification happens asynchronously; this prototype does not mark a pending domain as verified.': '请在你的 DNS 服务商处逐条添加这些记录。验证会异步完成；此原型不会将待验证域名标记为已验证。',
+      'Transactional emails': '事务邮件',
+      'Required': '必发',
+      'This required account email is always on.': '这封账户安全邮件始终开启。',
+      'Invoice': '发票',
+      'Download PDF': '下载 PDF',
+      'The order details, invoice and customer information are included automatically. You can use {{customer.first_name}} and {{order.number}} in this copy.': '订单明细、发票和客户信息会自动附带。正文中可使用 {{customer.first_name}} 和 {{order.number}}。',
+      'Sent to the customer right after a native store payment succeeds.': '原生店铺付款成功后立即发送给顾客。',
+      'Configure the sender name and reply-to address customers see on your emails.': '设置顾客在邮件中看到的发件人名称和回复地址。',
+      'From identity': '发件身份信息',
+      'Sender address': '发件地址',
+      'Sending domains': '发件域名',
+      'Add domain': '添加域名',
+      'Domains': '域名',
+      'Manage the public store address and email sender separately.': '分别管理店铺前台地址与邮件发件域名。',
+      'Storefront domains': '店铺前台域名',
+      'Used for your online store. Includes traffic routing and SSL.': '用于店铺前台访问，包含流量路由与 SSL。',
+      'SSL is automatic': 'SSL 自动配置',
+      'BestShopio issues and renews SSL certificates for every connected storefront domain. You never touch a certificate or a server.': 'BestShopio 会为每个已连接的店铺前台域名自动签发并续期 SSL 证书，无需手动管理证书或服务器。',
+      'Email sending domains': '邮件发件域名',
+      'Used for transactional email. It does not create a storefront or checkout address.': '用于发送事务邮件；它不会创建店铺前台或结账地址。',
+      'Sender domain': '发件域名',
+      'The email address customers see is': '客户看到的电子邮件地址将显示为',
+      '. Add a sending domain to make your brand more recognizable.': '。为了提高品牌辨识度，请添加发件域名。',
+      'Default sender active': '默认发件人已启用',
+      'Branded sender active': '品牌发件人已启用',
+      'Connected': '已连接',
+      'Connected · SSL active': '已连接 · SSL 已启用',
+      'Pending verification': '待验证',
+      'DNS error': 'DNS 错误',
+      'SSL pending': 'SSL 签发中',
+      'SSL failed': 'SSL 签发失败',
+      'Free store domain · always available': '免费店铺域名 · 始终可用',
+      'Primary domain': '主域名',
+      'Set as primary': '设为主域名',
+      'Redirect': '重定向',
+      'Waiting for DNS records': '等待 DNS 记录',
+      'DNS records not detected yet': '暂未检测到 DNS 记录',
+      'Verify now': '立即验证',
+      'View guide': '查看指引',
+      'View details': '查看详情',
+      'Verifying your sending domain…': '正在验证发件域名…',
+      'We’re checking the DNS records for': '正在检查以下域名的 DNS 记录：',
+      'This usually takes a few seconds.': '这通常只需几秒钟。',
+      'You can safely leave this page.': '你可以安全离开此页面。',
+      'Available variables': '可用变量',
+      'Click a variable to insert it at the cursor. Blocks are inserted into the email body.': '点击变量可插入到光标处；预置区块会插入邮件正文。',
+      'Only the variables and blocks listed here are supported.': '仅支持此处列出的变量和区块。',
+      'Customer': '顾客',
+      'Store': '店铺',
+      'Order': '订单',
+      'Order amounts': '订单金额',
+      'Addresses': '地址',
+      'Shipment': '物流',
+      'Refund': '退款',
+      'Prebuilt blocks': '预置区块',
+      'Copy': '复制',
+      'Variable inserted': '变量已插入',
+      'Variable copied': '变量已复制',
+      'DNS verified · issuing SSL certificate…': 'DNS 已验证 · 正在签发 SSL 证书…',
+      'Retry': '重试',
+      'Use a subdomain such as': '建议使用子域名，例如',
+      'We will show the verification records after you add it.': '添加后，我们会展示 DNS 验证记录。',
+      '. We will show the verification records after you add it.': '。添加后，我们会展示 DNS 验证记录。',
+      'Add these DNS records at your DNS provider. Verification will continue automatically after the records are found.': '请在你的 DNS 服务商处添加以下记录。检测到记录后会自动继续验证。',
+      'Copy': '复制',
+      'DNS record copied': 'DNS 记录已复制',
+      'Waiting for DNS': '等待 DNS',
+      'Active sender domain': '当前发件域名',
+      'View DNS records': '查看 DNS 记录',
+      'Email title': '邮件标题',
+      'Message': '邮件正文',
+      'Record test preview': '记录测试预览',
+      'Send test': '发送测试邮件',
+      'Edit code': '编辑代码',
+      'Notifications': '通知',
+      'Edit': '编辑',
+      'Localize': '本地化',
+      'Template variables': '模板变量',
+      'Email subject': '电子邮件主题',
+      'Email body (HTML)': '电子邮件正文（HTML）',
+      'Changes are saved while you edit. Use Preview to check the rendered email.': '编辑时会自动保存更改。使用“预览”检查渲染后的邮件。',
+      'You can use supported customer, order, and store variables in this template. Order, tracking, invoice, and address blocks are rendered safely when the email is sent.': '可在模板中使用受支持的顾客、订单和店铺变量。订单、物流、发票和地址区块会在发送时安全渲染。',
+      'Add another store language to create a localized template.': '添加其他店铺语言后，即可创建本地化模板。',
+      'Send test email': '发送测试邮件',
+      'Recipient': '收件人',
+      'Shown in the customer inbox for every transactional message.': '显示在每一封事务邮件的顾客收件箱中。',
+      'Customer replies go to this address.': '顾客回复会发送到此地址。',
+      'Save sender identity': '保存发件身份',
+      'The email delivery service supplies the DNS records when you add a candidate domain. Domains cannot be edited; add a new candidate, verify it, then make it active.': '添加候选域名后，邮件发送服务会提供 DNS 记录。域名创建后不可编辑；如需修改，请新建候选域名、完成验证后再设为当前域名。',
+      'Add sending domain': '添加发件域名',
+      'Create DNS records': '生成 DNS 记录',
+      'Domain': '域名',
+      'Remove sending domain?': '移除发件域名？',
+      'Remove domain': '移除域名',
+      'Complete the sender identity fields': '请填写完整的发件身份信息',
+      'Sender identity saved': '发件身份已保存',
+      'Active sender domain updated': '当前发件域名已更新',
+      'Sending domain removed': '发件域名已移除',
+      'Enter a valid domain': '请输入有效域名',
+      'This sending domain is already added': '该发件域名已添加',
+      'Configure DNS': '配置 DNS',
+      'Add these DNS records at your domain provider': '在你的域名服务商处添加以下 DNS 记录',
+      'Type': '类型',
+      'Name': '名称',
+      'Value': '记录值',
+      'Verify again': '再次验证',
+      "We couldn't detect your DNS records yet.": '暂未检测到你的 DNS 记录。',
+      'Double-check the records, then verify again.': '请检查记录是否正确后再次验证。',
+      'Connect your sending domain': '连接你的发件域名',
+      'Add the DNS records for': '请为以下域名添加 DNS 记录：',
+      '. We will verify them automatically.': '。系统会自动验证这些记录。',
+      'If verification does not pass': '如果验证未通过',
+      'DNS changes can take up to 30 minutes — sometimes a few hours — to take effect.': 'DNS 记录变更最多可能需要 30 分钟生效，偶尔也可能需要数小时。',
+      'Check that every record above is present exactly as shown.': '请确认以上每条记录均已添加，且内容与页面展示完全一致。',
+      'If your DNS provider supports proxying (for example, Cloudflare), set these verification records to DNS only.': '如果你的 DNS 服务商支持代理（例如 Cloudflare），请将这些验证记录设置为“仅 DNS”。',
+      'After updating the records, wait a few minutes and verify again.': '更新记录后，请等待几分钟再重新验证。',
+      'Got it': '知道了',
+      'Domain verification updated': '域名验证状态已更新',
+      'Send a test email with sample order data to check the recipient and message layout.': '向指定地址发送一封包含示例订单数据的测试邮件，用于检查收件人和邮件版式。',
+      'Test email sent': '测试邮件已发送'
+    });
+  }
+  if (window.I18N && window.I18N.addRules) {
+    window.I18N.addRules([
+      { re: /^The address uses the active connected domain: @(.+)\.$/, zh: function (m) { return '发件地址使用当前已连接域名：@' + m[1] + '。'; } },
+      { re: /^DNS records for (.+)$/, zh: function (m) { return m[1] + ' 的 DNS 记录'; } },
+      { re: /^DNS records created for (.+)$/, zh: function (m) { return '已为 ' + m[1] + ' 生成 DNS 记录'; } },
+      { re: /^Redirects to (.+) ·$/, zh: function (m) { return '重定向至 ' + m[1] + ' ·'; } },
+      { re: /^Waiting for DNS records ·$/, zh: function () { return '等待 DNS 记录 ·'; } },
+      { re: /^DNS records not detected yet ·$/, zh: function () { return '暂未检测到 DNS 记录 ·'; } },
+      { re: /^SSL issuance failed ·$/, zh: function () { return 'SSL 证书签发失败 ·'; } },
+      { re: /^Test email sent to (.+)$/, zh: function (m) { return '测试邮件已发送至 ' + m[1]; } }
+    ]);
+  }
+
+  // ---- toast (platform default: top, white card + green check) ----
+  const toast = (msg) => {
+    document.querySelectorAll('.settings-toast').forEach((el) => el.remove());
+    const t = document.createElement('div');
+    const icon = document.createElement('span');
+    const text = document.createElement('span');
+    icon.textContent = '✓';
+    text.textContent = msg;
+    t.className = 'settings-toast';
+    t.setAttribute('role', 'status');
+    t.append(icon, text);
+    t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1f2433;border:1px solid #e6e8ee;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:200;box-shadow:0 6px 20px rgba(20,30,55,.14)';
+    icon.style.cssText = 'color:#1f8f4e;display:inline-flex;font-weight:700';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+  };
 
   // ---- confirm dialog (mirrors Ant Modal.confirm) ----
   const confirm = (opts) => modal({
@@ -75,6 +290,7 @@
     root.innerHTML =
       '<style>' + STYLES + '</style>' +
       (centered ? '<div class="set-narrow">' + bodyHtml + '</div>' : bodyHtml);
+    if (window.I18N && window.I18N.apply) window.I18N.apply(root);
     // wire generic toggles (visual only)
     root.querySelectorAll('[data-toggle]').forEach((el) => el.onclick = () => el.classList.toggle('on'));
     // image upload tiles → open the OS file chooser (Store logo/ico/no-data, Checkout logo)
@@ -1770,6 +1986,8 @@
   let domainBinding = null; // { domain, ready, failed, phase } — prototype stand-in for the async Ops task
   let domainVerificationDomain = '';
   let domainVerificationAttempt = 0;
+  let emailSendingDomainId = null;
+  let emailSendingVerificationTimer = null;
 
   const DOMAIN_BADGE = {
     connected:            { cls: 'pill-green',  label: 'Connected' },
@@ -1829,6 +2047,9 @@
   .sp-input.err { border-color: var(--err); }
   .sp-err { margin-top: 6px; color: var(--err); font-size: 13px; }
   .sp-err:empty { display: none; }
+  .email-sending-domain-input.is-error { border-color: var(--err); box-shadow: 0 0 0 2px rgb(211 54 18 / 10%); }
+  .email-sending-domain-error { margin-top: 6px; color: var(--err); font-size: 12px; line-height: 1.5; }
+  .email-sending-domain-error:empty { display: none; }
   @media (max-width: 720px) { .dns-tr { grid-template-columns: 1fr; } .dns-th { display: none; } .dns-cell { border-bottom: 1px solid var(--hair); } .dom-row { flex-wrap: wrap; } }
   `;
 
@@ -1860,12 +2081,51 @@
         '<div class="dom-actions"><span class="pill ' + badge.cls + '"><span class="dot"></span>' + badge.label + sslSuffix + '</span>' + del + '</div>' +
       '</div>';
   }
+  function emailSendingDomainRowHtml(d) {
+    const sender = D.notifications.sender;
+    const profile = sender.profile || {};
+    const active = nfActiveDomain();
+    const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+    const isActive = !!active && active.id === d.id;
+    const senderAddress = (d.default ? sender.platformLocalPart : profile.localPart) + '@' + d.domain;
+    const badge = isActive
+      ? { cls: 'pill-green', label: 'Active sender domain' }
+      : d.status === 'connected'
+        ? { cls: 'pill-green', label: 'Connected' }
+        : d.status === 'dns_error'
+          ? { cls: 'pill-red', label: 'DNS error' }
+          : d.default
+            ? { cls: 'pill-gray', label: 'BestShopio default' }
+            : { cls: 'pill-orange', label: 'Pending verification' };
+    const meta = isActive
+      ? tx('Used for all transactional emails') + ' · ' + esc(senderAddress)
+      : d.default
+        ? tx('Platform default sender') + ' · ' + esc(senderAddress)
+        : d.status === 'connected'
+          ? tx('Used for all transactional emails') + ' · ' + esc(senderAddress)
+          : d.status === 'dns_error'
+          ? tx('DNS records not detected yet')
+            : tx('Waiting for DNS records');
+    const needsVerification = !d.default && ['pending_verification', 'dns_error'].includes(d.status);
+    const displayMeta = meta + (needsVerification
+      ? ' · <a data-email-verify-now="' + esc(d.id) + '">' + tx('Verify now') + '</a> · <a data-email-guide="' + esc(d.id) + '">' + tx('View guide') + '</a>'
+      : '');
+    const del = !d.default
+      ? '<button class="dom-link danger" data-remove-email-list="' + esc(d.id) + '">Delete</button>'
+      : '';
+    return '<div class="dom-row">' +
+      '<div class="dom-ico email">' + I.globe + '</div>' +
+      '<div class="dom-info"><div class="dom-name">' + esc(d.domain) + '</div><div class="dom-meta">' + displayMeta + '</div></div>' +
+      '<div class="dom-actions"><span class="pill ' + badge.cls + '"><span class="dot"></span>' + badge.label + '</span>' + del + '</div>' +
+    '</div>';
+  }
   function renderDomainList() {
     paint(
       '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
         pageHead('Domains', 'Connect a custom domain. SSL is issued and renewed automatically — you never touch a certificate.',
           '<button class="btn btn-primary" data-add-domain>Add domain</button>') +
         '<div class="dom-list">' + domainsData.map(domainRowHtml).join('') + '</div>' +
+        '<button class="email-sending-entry" data-email-sending><span class="email-sending-entry-ico">' + I.globe + '</span><span><strong>Email sending</strong><small>Manage the sender domain used for transactional emails. This does not create a storefront or checkout address.</small></span><span class="email-sending-entry-arrow">›</span></button>' +
         '<div class="set-note" style="margin-top:18px"><div style="font-weight:600;color:var(--ink);margin-bottom:4px">SSL is automatic</div>' +
           '<div class="muted" style="font-size:12.5px;line-height:1.5">BestShopio issues and renews SSL certificates for every connected domain. You never touch a certificate or a server.</div></div>' +
       '</div>',
@@ -1877,6 +2137,236 @@
     root.querySelectorAll('[data-verify]').forEach((b) => b.onclick = () => verifyDomain(b.getAttribute('data-verify')));
     root.querySelectorAll('[data-guide]').forEach((b) => b.onclick = () => { pendingDomain = b.getAttribute('data-guide'); location.hash = '#/settings/domains/add'; });
     root.querySelectorAll('[data-redirect]').forEach((b) => b.onclick = () => redirectDomain(b.getAttribute('data-redirect')));
+    root.querySelector('[data-email-sending]').onclick = () => { location.hash = '#/settings/domains/email-sending'; };
+  }
+
+  function renderDomainListByType() {
+    const listStyles = '<style>' + DOMAIN_STYLES + '.domain-page-sections{display:flex;flex-direction:column;gap:20px}.domain-type-head{display:flex;align-items:flex-start;gap:11px;margin:0 0 10px}.domain-type-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:#eef3ff;color:var(--brand);flex:none}.domain-type-icon.email{background:#edf8f2;color:#16875b}.domain-type-title{font-size:14px;font-weight:650;line-height:1.35;color:var(--ink)}.domain-type-copy{margin-top:2px;font-size:12.5px;line-height:1.5;color:var(--ink-muted)}.email-sending-summary{display:flex;align-items:center;gap:13px;width:100%;padding:16px 18px;box-sizing:border-box;border:1px solid var(--hair);border-radius:12px;background:#fff;color:var(--ink);font:inherit;text-align:left}.email-sending-summary-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:9px;background:#edf8f2;color:#16875b;flex:none}.email-sending-summary-main{flex:1;min-width:0}.email-sending-summary-title{font-size:14px;font-weight:650;line-height:1.4;color:var(--ink)}.email-sending-summary-copy{margin-top:3px;font-size:12.5px;line-height:1.5;color:var(--ink-muted)}.email-sending-summary-address{margin-top:5px;font-size:12.5px;font-weight:600;line-height:1.4;color:var(--ink-body);overflow-wrap:anywhere}.email-sending-summary-status{flex:none}@media(max-width:720px){.email-sending-summary{align-items:flex-start}.email-sending-summary-status{display:none}}</style>';
+    const senderDomains = D.notifications.sender.domains.slice().sort((a, b) => Number(!a.default) - Number(!b.default));
+    const hasCustomSenderDomain = senderDomains.some((d) => !d.default);
+    const emailDomainAction = hasCustomSenderDomain ? '' : '<button class="btn btn-primary" data-add-email-domain>Add sending domain</button>';
+    const emailDomainHeadClass = hasCustomSenderDomain ? 'domain-type-head' : 'domain-type-head domain-type-head-with-action';
+    paint(listStyles + '<style>.dom-ico.email{background:#edf8f2;color:#16875b}.dom-row.is-detail-link{cursor:pointer}.dom-row.is-detail-link:hover{background:#fbfdff}.dom-row.is-detail-link:focus{outline:2px solid #9fc3ff;outline-offset:-2px}.domain-type-head.domain-type-head-with-action{position:relative;padding-right:142px}.domain-type-head.domain-type-head-with-action>.btn{position:absolute;top:0;right:0;white-space:nowrap}</style><div class="dom-wrap domain-page-sections">' +
+      pageHead('Domains', 'Manage the public store address and email sender separately.', '<button class="btn btn-primary" data-add-domain>Add domain</button>') +
+      '<section><div class="domain-type-head"><span class="domain-type-icon">' + I.globe + '</span><div><div class="domain-type-title">Storefront domains</div><div class="domain-type-copy">Used for your online store. Includes traffic routing and SSL.</div></div></div><div class="dom-list">' + domainsData.map(domainRowHtml).join('') + '</div><div class="set-note" style="margin-top:18px"><div style="font-weight:600;color:var(--ink);margin-bottom:4px">SSL is automatic</div><div class="muted" style="font-size:12.5px;line-height:1.5">BestShopio issues and renews SSL certificates for every connected storefront domain. You never touch a certificate or a server.</div></div></section>' +
+      '<section><div class="' + emailDomainHeadClass + '"><span class="domain-type-icon email">' + I.globe + '</span><div><div class="domain-type-title">Email sending domains</div><div class="domain-type-copy">Used for transactional email. It does not create a storefront or checkout address.</div></div>' + emailDomainAction + '</div><div class="dom-list">' + senderDomains.map(emailSendingDomainRowHtml).join('') + '</div></section>' +
+    '</div>', false);
+    const addDomainButton = root.querySelector('[data-add-domain]');
+    const storefrontDomainHead = root.querySelector('.domain-type-head');
+    if (addDomainButton && storefrontDomainHead) {
+      storefrontDomainHead.classList.add('domain-type-head-with-action');
+      storefrontDomainHead.appendChild(addDomainButton);
+    }
+    root.querySelector('[data-add-domain]').onclick = openAddDomainModal;
+    const addEmailDomain = root.querySelector('[data-add-email-domain]');
+    if (addEmailDomain) addEmailDomain.onclick = openEmailSendingDomainModal;
+    root.querySelectorAll('[data-del]').forEach((b) => b.onclick = () => deleteDomain(b.getAttribute('data-del')));
+    root.querySelectorAll('[data-primary]').forEach((b) => b.onclick = () => setPrimaryDomain(b.getAttribute('data-primary')));
+    root.querySelectorAll('[data-verify]').forEach((b) => b.onclick = () => verifyDomain(b.getAttribute('data-verify')));
+    root.querySelectorAll('[data-guide]').forEach((b) => b.onclick = () => { pendingDomain = b.getAttribute('data-guide'); location.hash = '#/settings/domains/add'; });
+    root.querySelectorAll('[data-redirect]').forEach((b) => b.onclick = () => redirectDomain(b.getAttribute('data-redirect')));
+    root.querySelectorAll('[data-email-verify-now]').forEach((link) => link.onclick = (event) => {
+      event.stopPropagation();
+      startEmailSendingDomainVerification(link.getAttribute('data-email-verify-now'));
+    });
+    root.querySelectorAll('[data-email-guide]').forEach((link) => link.onclick = (event) => {
+      event.stopPropagation();
+      openEmailSendingDomainDetail(link.getAttribute('data-email-guide'));
+    });
+    root.querySelectorAll('[data-remove-email-list]').forEach((b) => b.onclick = () => {
+      const id = b.getAttribute('data-remove-email-list');
+      const d = D.notifications.sender.domains.find((x) => x.id === id);
+      if (!d) return;
+      const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+      confirm({ title: 'Remove sending domain?', content: tx('The verification for') + ' ' + esc(d.domain) + '。' + tx('Transactional emails will use the BestShopio default sender until you add and verify another domain.'), okText: 'Remove domain', danger: true, onOk: () => { const fallback = D.notifications.sender.domains.find((x) => x.default); if (D.notifications.sender.activeDomainId === id && fallback) D.notifications.sender.activeDomainId = fallback.id; D.notifications.sender.domains = D.notifications.sender.domains.filter((x) => x.id !== id); toast('Sending domain removed'); renderDomainListByType(); } });
+    });
+  }
+
+  function renderEmailSendingDomains() {
+    const n = D.notifications, sender = n.sender, profile = sender.profile;
+    const active = nfActiveDomain();
+    const senderAddressFor = (d) => (d.default ? sender.platformLocalPart : profile.localPart) + '@' + d.domain;
+    const emailStyles = '<style>' + DOMAIN_STYLES + '.email-sending-shell{display:flex;flex-direction:column;gap:16px}.email-sending-list{display:flex;flex-direction:column;gap:12px}.email-sending-card{border:1px solid var(--hair);border-radius:12px;background:#fff;overflow:hidden}.email-sending-card.is-active{border-color:#b9d2ff}.email-sending-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 20px}.email-sending-card-main{display:flex;gap:12px;min-width:0}.email-sending-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#eef3ff;color:var(--brand);flex:none}.email-sending-icon.is-active{background:#e9f8ef;color:#16875b}.email-sending-eyebrow{font-size:11.5px;font-weight:650;color:var(--ink-muted);margin-bottom:4px}.email-sending-domain{font-size:16px;line-height:1.4;font-weight:650;color:var(--ink);overflow-wrap:anywhere}.email-sending-note{font-size:12.5px;line-height:1.5;color:var(--ink-muted);margin-top:4px}.email-sending-status{flex:none}.email-sending-facts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:14px 20px 16px;border-top:1px solid var(--hair);background:#fbfcfe}.email-sending-fact small{display:block;font-size:11px;color:var(--ink-muted);margin-bottom:4px}.email-sending-fact strong{display:block;font-size:13px;line-height:1.45;color:var(--ink-body);font-weight:600;overflow-wrap:anywhere}.email-sending-dns{padding:0 20px 18px}.email-sending-dns-copy{margin:13px 0 12px;font-size:12.5px;line-height:1.5;color:var(--ink-muted)}.email-sending-dns-copy strong{color:var(--ink-body)}.email-sending-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 20px 18px}.email-sending-entry{display:flex;align-items:center;gap:12px;width:100%;margin-top:16px;padding:16px 18px;border:1px solid var(--hair);border-radius:10px;background:#fff;text-align:left;cursor:pointer;color:var(--ink)}.email-sending-entry:hover{border-color:#b9d2ff;background:#fbfdff}.email-sending-entry-ico{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:#eef3ff;color:var(--brand);flex:none}.email-sending-entry strong,.email-sending-entry small{display:block}.email-sending-entry strong{font-size:13.5px}.email-sending-entry small{margin-top:3px;font-size:12px;line-height:1.45;color:var(--ink-muted)}.email-sending-entry-arrow{margin-left:auto;font-size:24px;color:var(--ink-muted)}@media(max-width:720px){.email-sending-card-head{flex-direction:column}.email-sending-facts{grid-template-columns:1fr}.email-sending-actions{justify-content:flex-start;flex-wrap:wrap}.email-sending-dns{padding-left:12px;padding-right:12px}.email-sending-dns .dns-tr{grid-template-columns:1fr}.email-sending-dns .dns-th{display:none}}</style>';
+    const domainCard = (d) => {
+      const isActive = active && active.id === d.id;
+      const isPending = !d.default && (d.status === 'pending_verification' || d.status === 'dns_error');
+      const isConnected = !d.default && d.status === 'connected';
+      const badge = isActive
+        ? '<span class="pill pill-green"><span class="dot"></span>Active sender</span>'
+        : d.default
+          ? '<span class="pill pill-gray"><span class="dot"></span>Platform default</span>'
+          : isConnected
+            ? '<span class="pill pill-green"><span class="dot"></span>Connected</span>'
+            : d.status === 'dns_error'
+              ? '<span class="pill pill-red"><span class="dot"></span>DNS error</span>'
+              : '<span class="pill pill-orange"><span class="dot"></span>Pending verification</span>';
+      const note = isActive
+        ? 'Used for transactional email now.'
+        : d.default
+          ? 'Ready to use at any time as the store fallback sender.'
+          : isConnected
+            ? 'Used for transactional email now.'
+            : 'Add the verification records before this domain can become active.';
+      const records = isPending && (d.records || []).length
+        ? '<div class="email-sending-dns"><div class="email-sending-dns-copy"><strong>Verification records</strong> · Add these at your DNS provider. If BestShopio manages this DNS zone, the records are added automatically.</div><div class="dns-tbl"><div class="dns-tr dns-th"><div class="dns-cell">Type</div><div class="dns-cell">Name</div><div class="dns-cell">Value</div><div class="dns-cell"></div></div>' + (d.records || []).map((r) => '<div class="dns-tr"><div class="dns-cell dns-mono">' + esc(r.type) + '</div><div class="dns-cell dns-mono">' + esc(r.host) + '</div><div class="dns-cell dns-mono">' + esc(r.value) + '</div><div class="dns-cell"><button class="dns-copy" data-copy-email-dns="' + esc(r.type + ' ' + r.host + ' ' + r.value) + '">Copy</button></div></div>').join('') + '</div></div>'
+        : '';
+      const actions = !d.default
+        ? (isPending ? '<button class="btn btn-default" data-check-email-domain="' + esc(d.id) + '">' + (d.status === 'dns_error' ? 'Verify again' : 'Check verification') + '</button>' : '') + '<button class="btn btn-default" data-remove-email-domain="' + esc(d.id) + '">Remove</button>'
+        : '';
+      return '<section class="email-sending-card' + (isActive ? ' is-active' : '') + '"><div class="email-sending-card-head"><div class="email-sending-card-main"><span class="email-sending-icon' + (isActive ? ' is-active' : '') + '">' + (isActive ? I.check : I.globe) + '</span><div><div class="email-sending-eyebrow">' + (d.default ? 'Default sender domain' : 'Branded sender domain') + '</div><div class="email-sending-domain">' + esc(d.domain) + '</div><div class="email-sending-note">' + note + '</div></div></div><div class="email-sending-status">' + badge + '</div></div><div class="email-sending-facts"><div class="email-sending-fact"><small>Sender address</small><strong>' + esc(senderAddressFor(d)) + '</strong></div><div class="email-sending-fact"><small>Applies to</small><strong>All transactional emails</strong></div><div class="email-sending-fact"><small>DNS</small><strong>' + (d.default ? 'Platform managed' : d.dnsManagedByBestShopio ? 'Managed by BestShopio' : 'Managed externally') + '</strong></div></div>' + records + (actions ? '<div class="email-sending-actions">' + actions + '</div>' : '') + '</section>';
+    };
+    paint(emailStyles + '<div class="dom-wrap email-sending-shell"><div class="flex items-center gap-3 mb-4"><button class="back-btn" data-back-email-sending title="Back to domains">' + I.arrowLeft + '</button><div class="page-title" style="font-size:20px">Email sending</div></div><div class="email-sending-list">' + sender.domains.slice().sort((a, b) => Number(!a.default) - Number(!b.default)).map(domainCard).join('') + '</div></div>', false);
+    root.querySelector('[data-back-email-sending]').onclick = () => {
+      domainStep = null;
+      location.hash = '#/settings/domains';
+      renderDomainListByType();
+    };
+    root.querySelectorAll('[data-copy-email-dns]').forEach((el) => el.onclick = () => { try { navigator.clipboard.writeText(el.getAttribute('data-copy-email-dns')); } catch (e) {} toast('DNS record copied'); });
+    root.querySelectorAll('[data-check-email-domain]').forEach((el) => el.onclick = () => openEmailSendingDomainDetail(el.getAttribute('data-check-email-domain')));
+    root.querySelectorAll('[data-remove-email-domain]').forEach((el) => el.onclick = () => { const d = sender.domains.find((x) => x.id === el.getAttribute('data-remove-email-domain')); if (!d || d.default) return; const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text; modal({ title: 'Remove sending domain?', width: 460, okText: 'Remove domain', body: '<div class="muted" style="font-size:13px;line-height:1.6">' + tx('The verification for') + ' <b>' + esc(d.domain) + '</b>。' + tx('Transactional emails will use the BestShopio default sender until you add and verify another domain.') + '</div>', onOk: (m, close) => { const fallback = sender.domains.find((x) => x.default); if (sender.activeDomainId === d.id && fallback) sender.activeDomainId = fallback.id; sender.domains = sender.domains.filter((x) => x.id !== d.id); close(); toast('Sending domain removed'); renderEmailSendingDomains(); } }); });
+  }
+
+  function openEmailSendingDomainModal() {
+    const sender = D.notifications.sender;
+    if (sender.domains.some((d) => !d.default)) {
+      return toast(window.I18N && window.I18N.t ? window.I18N.t('Remove the current custom sending domain before adding another one.') : 'Remove the current custom sending domain before adding another one.');
+    }
+    const clearError = (m) => {
+      const input = m.querySelector('#email-sending-domain-input');
+      const error = m.querySelector('#email-sending-domain-error');
+      if (input) { input.classList.remove('is-error'); input.removeAttribute('aria-invalid'); }
+      if (error) error.textContent = '';
+    };
+    const showError = (m, message) => {
+      const input = m.querySelector('#email-sending-domain-input');
+      const error = m.querySelector('#email-sending-domain-error');
+      if (input) { input.classList.add('is-error'); input.setAttribute('aria-invalid', 'true'); input.focus(); }
+      if (error) error.textContent = window.I18N && window.I18N.t ? window.I18N.t(message) : message;
+    };
+    const dialog = modal({
+      title: 'Add sending domain', width: 520, okText: 'Add sending domain',
+      body: '<div class="muted" style="margin:0 0 20px;font-size:13px;line-height:1.6">Use a subdomain such as <b>mail.yourdomain.com</b>. We will show the verification records after you add it.</div><label class="nf-label" for="email-sending-domain-input" style="display:block;margin-bottom:12px">Sending domain</label><input class="input email-sending-domain-input" id="email-sending-domain-input" aria-describedby="email-sending-domain-error" placeholder="mail.yourdomain.com" style="width:100%" /><div class="email-sending-domain-error" id="email-sending-domain-error" role="alert"></div>',
+      onOk: (m, close) => {
+        const domain = ((m.querySelector('#email-sending-domain-input') || {}).value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        clearError(m);
+        if (!validDomain(domain)) return showError(m, 'Enter a valid domain');
+        if (sender.domains.some((d) => d.domain === domain)) return showError(m, 'This sending domain is already added');
+        const verificationId = 'brv_' + Date.now().toString(36);
+        const token = verificationId.slice(4);
+        const created = { id: 'domain-' + Date.now(), domain: domain, bestreachStoreId: sender.bestreachStoreId, bestreachVerificationId: verificationId, verificationAttempts: 0, status: 'pending_verification', dnsManagedByBestShopio: false, records: [{ type: 'CNAME', host: 'br.' + token + '._domainkey', value: 'br.' + token + '.dkim.sender-validation.net' }, { type: 'TXT', host: '_sender-verification', value: 'sender-verification=' + verificationId }] };
+        sender.domains.push(created);
+        emailSendingDomainId = created.id;
+        close();
+        location.hash = '#/settings/domains/email-sending-add';
+      }
+    });
+    const input = dialog.m.querySelector('#email-sending-domain-input');
+    if (input) input.addEventListener('input', () => clearError(dialog.m));
+  }
+  function currentEmailSendingDomain() {
+    const sender = D.notifications.sender;
+    return sender.domains.find((d) => d.id === emailSendingDomainId)
+      || sender.domains.find((d) => !d.default)
+      || null;
+  }
+  function openEmailSendingDomainDetail(id) {
+    const d = D.notifications.sender.domains.find((x) => x.id === id);
+    if (!d || d.default) return;
+    emailSendingDomainId = d.id;
+    location.hash = '#/settings/domains/email-sending-add';
+  }
+  function startEmailSendingDomainVerification(id) {
+    const d = D.notifications.sender.domains.find((x) => x.id === id);
+    if (!d || d.default || !['pending_verification', 'dns_error'].includes(d.status)) return;
+    emailSendingDomainId = d.id;
+    location.hash = '#/settings/domains/email-sending-verifying';
+  }
+  function verifyEmailSendingDomain(d, tx) {
+    if (!d || !['pending_verification', 'dns_error'].includes(d.status)) return;
+    d.verificationAttempts = Number(d.verificationAttempts || 0) + 1;
+    if (d.verificationAttempts === 1) {
+      d.status = 'dns_error';
+      toast(tx('We couldn\'t detect your DNS records yet.'));
+      location.hash = '#/settings/domains/email-sending-add';
+      return;
+    }
+    d.status = 'connected';
+    D.notifications.sender.activeDomainId = d.id;
+    toast(tx('Domain verification updated'));
+    location.hash = '#/settings/domains/email-sending-bound';
+  }
+  function renderEmailSendingDomainVerifying() {
+    const d = currentEmailSendingDomain();
+    if (!d) return backToDomainList();
+    const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+    const verificationHash = '#/settings/domains/email-sending-verifying';
+    paint(
+      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
+        '<div class="flex items-center gap-2 mb-4"><button class="back-btn" data-back-email-verifying title="Back to domains">' + I.arrowLeft + '</button><div class="page-title" style="font-size:20px">' + tx('Add a sending domain') + '</div></div>' +
+        '<div class="dstep"><span class="sp ok"><span class="sn">' + I.check + '</span>' + tx('Add a sending domain') + '</span><span class="ln"></span><span class="sp on"><span class="sn">2</span>' + tx('Configure DNS') + '</span><span class="ln"></span><span class="sp"><span class="sn">3</span>' + tx('Domain connected') + '</span></div>' +
+        '<div class="panel card-pad"><div class="dbound dbinding"><span class="ssl-spin"></span><div class="page-title" style="font-size:20px">' + tx('Verifying your sending domain…') + '</div><div class="muted" style="font-size:13.5px;margin-top:6px;line-height:1.6">' + tx('We’re checking the DNS records for') + ' <b>' + esc(d.domain) + '</b>。' + tx('This usually takes a few seconds.') + '</div><div class="muted" style="font-size:12.5px;margin-top:5px">' + tx('You can safely leave this page.') + '</div></div></div>' +
+      '</div>', false
+    );
+    root.querySelector('[data-back-email-verifying]').onclick = () => {
+      if (emailSendingVerificationTimer) window.clearTimeout(emailSendingVerificationTimer);
+      emailSendingVerificationTimer = null;
+      location.hash = '#/settings/domains';
+    };
+    if (emailSendingVerificationTimer) window.clearTimeout(emailSendingVerificationTimer);
+    emailSendingVerificationTimer = window.setTimeout(() => {
+      emailSendingVerificationTimer = null;
+      if (location.hash !== verificationHash || emailSendingDomainId !== d.id) return;
+      verifyEmailSendingDomain(d, tx);
+    }, 1200);
+  }
+  function backToDomainList() {
+    domainStep = null;
+    location.hash = '#/settings/domains';
+    renderDomainListByType();
+  }
+  function renderEmailSendingDomainDNS() {
+    const d = currentEmailSendingDomain();
+    if (!d) return backToDomainList();
+    const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+    const addSendingDomainLabel = tx('Add a sending domain');
+    const hasDnsError = d.status === 'dns_error';
+    const records = (d.records || []).map((record) =>
+      '<div class="dns-tr"><div class="dns-cell dns-mono">' + esc(record.type) + '</div><div class="dns-cell dns-mono">' + esc(record.host) + '</div><div class="dns-cell dns-mono">' + esc(record.value) + '</div><div class="dns-cell"><button class="dns-copy" data-copy-email-wizard="' + esc(record.type + ' ' + record.host + ' ' + record.value) + '">Copy</button></div></div>').join('');
+    paint(
+      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
+        '<div class="flex items-center gap-2 mb-4"><button class="back-btn" data-back-email-wizard title="Back to domains">' + I.arrowLeft + '</button><div class="page-title" style="font-size:20px">' + addSendingDomainLabel + '</div></div>' +
+        '<div class="dstep">' +
+          '<span class="sp ok"><span class="sn">' + I.check + '</span>' + addSendingDomainLabel + '</span><span class="ln"></span>' +
+          '<span class="sp on"><span class="sn">2</span>' + tx('Configure DNS') + '</span><span class="ln"></span>' +
+          '<span class="sp"><span class="sn">3</span>' + tx('Domain connected') + '</span>' +
+        '</div>' +
+        '<div class="panel card-pad">' +
+          '<div class="card-title">' + tx('Add these DNS records at your domain provider') + '</div>' +
+          '<div class="muted" style="font-size:13px;margin:4px 0 16px;line-height:1.5">' + tx('Add the records below for') + ' <b>' + esc(d.domain) + '</b>。' + tx('We will verify them automatically.') + '</div>' +
+          '<div class="dns-tbl"><div class="dns-tr dns-th"><div class="dns-cell">' + tx('Type') + '</div><div class="dns-cell">' + tx('Name') + '</div><div class="dns-cell">' + tx('Value') + '</div><div class="dns-cell"></div></div>' + records + '</div>' +
+          (hasDnsError ? '<div class="dns-fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div><b>' + tx('We couldn\'t detect your DNS records yet.') + '</b> ' + tx('Double-check the records, then verify again.') + '</div></div>' : '<div class="muted" style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:16px;line-height:1.5"><span class="ssl-spin"></span>' + tx('After adding the records, click Verify now to check your sending domain.') + '</div>') +
+          '<div class="flex items-center justify-between" style="margin-top:22px"><a class="lnk" data-email-wizard-guide style="font-size:13px;cursor:pointer">' + tx('Having issues? View the setup guide') + '</a><div class="flex" style="gap:10px"><button class="btn btn-gray" data-email-verify-later>' + tx('Verify later') + '</button><button class="btn btn-primary" data-email-verify-now>' + tx(hasDnsError ? 'Verify again' : 'Verify now') + '</button></div></div>' +
+        '</div>' +
+      '</div>', false);
+    root.querySelectorAll('[data-copy-email-wizard]').forEach((b) => b.onclick = () => { try { navigator.clipboard.writeText(b.getAttribute('data-copy-email-wizard')); } catch (e) {} toast('DNS record copied'); });
+    root.querySelector('[data-back-email-wizard]').onclick = backToDomainList;
+    root.querySelector('[data-email-verify-later]').onclick = backToDomainList;
+    root.querySelector('[data-email-verify-now]').onclick = () => startEmailSendingDomainVerification(d.id);
+    root.querySelector('[data-email-wizard-guide]').onclick = () => openEmailSendingDomainGuide(d);
+  }
+  function renderEmailSendingDomainBound() {
+    const d = currentEmailSendingDomain();
+    if (!d) return backToDomainList();
+    const isActive = D.notifications.sender.activeDomainId === d.id;
+    const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+    const addSendingDomainLabel = tx('Add a sending domain');
+    paint(
+      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
+        '<div class="flex items-center gap-2 mb-4"><button class="back-btn" data-back-email-wizard title="Back to domains">' + I.arrowLeft + '</button><div class="page-title" style="font-size:20px">' + addSendingDomainLabel + '</div></div>' +
+        '<div class="dstep"><span class="sp ok"><span class="sn">' + I.check + '</span>' + addSendingDomainLabel + '</span><span class="ln"></span><span class="sp ok"><span class="sn">' + I.check + '</span>' + tx('Configure DNS') + '</span><span class="ln"></span><span class="sp on"><span class="sn">3</span>' + tx('Domain connected') + '</span></div>' +
+        '<div class="panel card-pad"><div class="dbound"><div class="ck"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div class="page-title" style="font-size:20px">' + esc(d.domain) + ' · ' + tx('Domain connected') + '</div><div class="muted" style="font-size:13.5px;margin-top:6px;line-height:1.6">' + tx('This sending domain is now used automatically for transactional email.') + '</div><div style="margin-top:20px;display:flex;justify-content:center;gap:10px"><button class="btn btn-gray" data-back-email-wizard>' + tx('Back to domains') + '</button></div></div></div>' +
+      '</div>', false);
+    root.querySelectorAll('[data-back-email-wizard]').forEach((b) => b.onclick = backToDomainList);
   }
   function renderAddDomainDNS() {
     const dom = pendingDomain || 'yourdomain.com';
@@ -1884,7 +2374,7 @@
     const hasDnsError = !!entry && entry.status === 'dns_error';
     paint(
       '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
-        pageHead('Add a domain') +
+        '<div class="flex items-center gap-2 mb-4"><button class="back-btn" data-back-add-domain title="Back to domains">' + I.arrowLeft + '</button><div class="page-title" style="font-size:20px">Add a domain</div></div>' +
         '<div class="dstep">' +
           '<span class="sp ok"><span class="sn">' + I.check + '</span>Add a domain</span><span class="ln"></span>' +
           '<span class="sp on"><span class="sn">2</span>Configure DNS</span><span class="ln"></span>' +
@@ -1910,6 +2400,11 @@
       false
     );
     root.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { try { navigator.clipboard.writeText(b.getAttribute('data-copy')); } catch (e) {} toast('Copied'); });
+    root.querySelector('[data-back-add-domain]').onclick = () => {
+      domainStep = null;
+      location.hash = '#/settings/domains';
+      renderDomainListByType();
+    };
     root.querySelector('[data-verify-later]').onclick = () => { location.hash = '#/settings/domains'; };
     root.querySelector('[data-verify-now]').onclick = () => startDomainBinding(dom);
     root.querySelector('[data-guide-faq]').onclick = () => openDomainGuide();
@@ -2007,7 +2502,7 @@
         '</div></div>';
     paint(
       '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
-        pageHead('Add a domain') +
+        '<div class="flex items-center gap-2 mb-4"><button class="back-btn" data-back-domains title="Back to domains">' + I.arrowLeft + '</button><div class="page-title" style="font-size:20px">Add a domain</div></div>' +
         '<div class="dstep">' +
           '<span class="sp ok"><span class="sn">' + I.check + '</span>Add a domain</span><span class="ln"></span>' +
           (isCheckingDns
@@ -2020,18 +2515,22 @@
     );
     const retry = root.querySelector('[data-retry-binding]');
     if (retry) retry.onclick = () => startDomainBinding(dom);
-    root.querySelector('[data-back-domains]').onclick = () => {
+    root.querySelectorAll('[data-back-domains]').forEach((back) => back.onclick = () => {
       if (!isBinding) {
         pendingDomain = '';
         if (domainBinding && domainBinding.domain === dom) domainBinding = null;
       }
       location.hash = '#/settings/domains';
-    };
+    });
   }
   function renderDomains() {
+    if (domainStep === 'email-sending-add') return renderEmailSendingDomainDNS();
+    if (domainStep === 'email-sending-verifying') return renderEmailSendingDomainVerifying();
+    if (domainStep === 'email-sending-bound') return renderEmailSendingDomainBound();
+    if (domainStep === 'email-sending') return renderEmailSendingDomains();
     if (domainStep === 'add') return renderAddDomainDNS();
     if (domainStep === 'bound') return renderAddDomainBound();
-    return renderDomainList();
+    return renderDomainListByType();
   }
   function validDomain(v) {
     return /^(?!www\.)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(v);
@@ -2075,7 +2574,32 @@
     pendingDomain = dom;
     startDomainBinding(dom);
   }
-  // "Having issues? View the setup guide" — DNS records recap + troubleshooting.
+  // Email sender DNS guide. These are Bestreach-provided verification records,
+  // so the guide must not reuse the storefront A/CNAME + SSL instructions.
+  function openEmailSendingDomainGuide(domain) {
+    const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+    const records = (domain.records || []).map((record) =>
+      '<div class="dns-tr" style="grid-template-columns:96px 150px 1fr"><div class="dns-cell dns-mono">' + esc(record.type) + '</div><div class="dns-cell dns-mono">' + esc(record.host) + '</div><div class="dns-cell dns-mono">' + esc(record.value) + '</div></div>'
+    ).join('');
+    modal({
+      title: tx('Connect your sending domain'), width: 620, okText: tx('Got it'), hideCancel: true,
+      body:
+        '<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.6">' + tx('Add the DNS records for') + ' <b>' + esc(domain.domain) + '</b>' + tx('. We will verify them automatically.') + '</div>' +
+        '<div class="dns-tbl" style="margin-bottom:16px">' +
+          '<div class="dns-tr dns-th" style="grid-template-columns:96px 150px 1fr"><div class="dns-cell">' + tx('Type') + '</div><div class="dns-cell">' + tx('Name') + '</div><div class="dns-cell">' + tx('Value') + '</div></div>' + records +
+        '</div>' +
+        '<div style="font-weight:600;font-size:13.5px;color:var(--ink);margin-bottom:8px">' + tx('If verification does not pass') + '</div>' +
+        '<ul style="margin:0;padding:0;list-style:none;color:var(--ink-body);font-size:13px;line-height:1.75">' +
+          '<li>' + tx('DNS changes can take up to 30 minutes — sometimes a few hours — to take effect.') + '</li>' +
+          '<li>' + tx('Check that every record above is present exactly as shown.') + '</li>' +
+          '<li>' + tx('If your DNS provider supports proxying (for example, Cloudflare), set these verification records to DNS only.') + '</li>' +
+          '<li>' + tx('After updating the records, wait a few minutes and verify again.') + '</li>' +
+        '</ul>',
+      onOk: (m, close) => close(),
+    });
+  }
+
+  // "Having issues? View the setup guide" — storefront DNS recap + troubleshooting.
   function openDomainGuide() {
     modal({
       title: 'Connecting your domain', width: 580, okText: 'Got it', hideCancel: true,
@@ -2087,7 +2611,7 @@
           '<div class="dns-tr" style="grid-template-columns:96px 90px 1fr"><div class="dns-cell dns-mono">CNAME</div><div class="dns-cell dns-mono">www</div><div class="dns-cell dns-mono">' + PLATFORM_CNAME + '</div></div>' +
         '</div>' +
         '<div style="font-weight:600;font-size:13.5px;color:var(--ink);margin-bottom:8px">If it isn\'t verifying</div>' +
-        '<ul style="margin:0;padding-left:18px;color:var(--ink-body);font-size:13px;line-height:1.75">' +
+        '<ul style="margin:0;padding:0;list-style:none;color:var(--ink-body);font-size:13px;line-height:1.75">' +
           '<li>DNS changes can take up to 30 minutes — sometimes a few hours — to take effect. Wait, then verify again.</li>' +
           '<li>Remove any old A or CNAME record on <b>@</b> or <b>www</b> that points elsewhere.</li>' +
           '<li>If your domain is proxied (e.g. Cloudflare), set the records to <b>DNS only</b>, not proxied.</li>' +
@@ -2106,21 +2630,54 @@
   // ===========================================================================
   let notifSub = null;
   let notifDevice = 'desktop';
+  let notifEditorMode = 'preview';
+  let nfInsertTarget = 'nf-template';
+  let nfInsertSelection = { id: null, start: null, end: null };
 
   // sample order data the preview renders against (resolves {{merge.tags}})
   const NF_SAMPLE = {
     'customer.first_name': 'Emma', 'customer.name': 'Emma Johnson',
-    'order.number': '1042', 'order.detail_url': '#', 'order.currency': 'US$', 'order.date': 'June 10, 2026',
-    'order.subtotal': 'US$ 88.00', 'order.shipping': 'US$ 8.00', 'order.total': 'US$ 96.00',
+    'order.number': '1042', 'order.detail_url': '#', 'order.invoice_url': '#', 'order.currency': 'US$', 'order.date': 'June 10, 2026',
+    'order.subtotal': 'US$ 174.66', 'order.discount': '-US$ 5.00', 'order.discount_code': 'WELCOME5',
+    'order.shipping': 'Free', 'order.shipping_original': 'US$ 8.99', 'order.shipping_discount': '-US$ 8.99', 'order.shipping_discount_code': 'FREESHIP', 'order.tax': 'US$ 0.00',
+    'order.total': 'US$ 169.66', 'order.total_paid': 'US$ 84.88', 'order.total_discount': 'US$ 46.59',
     'order.shipping_address': 'Emma Johnson, 2261 Market St, San Francisco, CA 94114, US',
+    'order.billing_address': 'Emma Johnson, 2261 Market St, San Francisco, CA 94114, US',
+    'order.payment_brand': 'VISA', 'order.shipping_method': 'Standard shipping',
     'order.payment_method': 'Visa ···· 4242',
-    'shipment.tracking_number': 'LX123456789CN', 'shipment.carrier': 'YunExpress', 'shipment.tracking_url': '#',
+    'shipment.tracking_number': 'LX123456789CN', 'shipment.carrier': 'YunExpress', 'shipment.tracking_url': '#', 'shipment.estimated_delivery': 'June 14, 2026',
+    'refund.amount': 'US$ 84.78',
+    'refund.transactions': [
+      { method: 'Visa', amount: 'US$ 55.98' },
+      { method: 'Visa', amount: 'US$ 28.80' },
+    ],
   };
   const NF_ITEMS = [
-    { name: 'Aurora Knit Sweater', variant: 'Size M / Sand', qty: 1, price: 'US$ 58.00' },
-    { name: 'Everyday Crossbody Bag', variant: 'Caramel', qty: 1, price: 'US$ 30.00' },
+    {
+      kind: 'bundle', name: 'Coffee Office Pack', qty: 1, originalPrice: 'US$ 69.97', price: 'US$ 55.98',
+      subscription: { cadence: 'Delivery every 2 months' },
+      discounts: [{ label: 'Bundle discount', amount: '-US$ 7.99' }, { label: 'Subscription discount', amount: '-US$ 6.00' }],
+      children: [
+        { name: 'Signature Blend Coffee 500g', variant: 'Whole bean / 2 Pack', qty: 2 },
+        { name: 'Coffee Brew Guide', variant: 'Digital download', qty: 1 },
+      ],
+    },
+    {
+      kind: 'bundle', name: 'Focus Gum - Multipack', qty: 1, originalPrice: 'US$ 57.30', price: 'US$ 49.30',
+      discounts: [{ label: 'Bundle discount', amount: '-US$ 8.00' }],
+      children: [
+        { name: 'Neurix Focus & Energy Gum', variant: 'Mint / 12 Pack', qty: 2 },
+        { name: 'Neurix Focus & Energy Gum', variant: 'Citrus / 12 Pack', qty: 2 },
+      ],
+    },
+    {
+      name: 'Whey Protein 1kg', variant: 'Vanilla / 1kg', qty: 1, originalPrice: 'US$ 39.00', price: 'US$ 31.59',
+      subscription: { cadence: 'Delivery every 1 month' },
+      discounts: [{ label: 'Subscription discount', amount: '-US$ 3.90' }, { label: 'Product discount', amount: '-US$ 3.51' }],
+    },
+    { name: 'Daily Multivitamin (60 ct)', variant: '60 capsules', qty: 1, originalPrice: 'US$ 32.00', price: 'US$ 28.80', discounts: [{ label: 'Product discount', amount: '-US$ 3.20' }] },
+    { name: 'Stainless Steel Coffee Scoop', variant: '30 ml', qty: 1, price: 'US$ 8.99' },
   ];
-  const NF_CLS = { Transactional: '<span class="nf-cls t">Transactional</span>', Marketing: '<span class="nf-cls m">Marketing</span>', Internal: '<span class="nf-cls i">Internal</span>' };
   const nfStatusPill = (c) => c.enabled
     ? '<span class="pill pill-green"><span class="dot"></span>On</span>'
     : '<span class="pill pill-gray"><span class="dot"></span>Off</span>';
@@ -2129,13 +2686,102 @@
     for (const g of D.notifications.groups) { const e = (g.events || []).find((x) => x.code === code); if (e) return { ev: e, group: g }; }
     return null;
   }
+  function nfEditorPath(code, mode) {
+    const base = '#/settings/notifications/' + encodeURIComponent(code);
+    return mode === 'code' ? base + '/edit' : base;
+  }
+  function nfVariablePanel(ev) {
+    const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+    const isOrderEmail = ['order_paid', 'order_shipped', 'order_refunded'].includes(ev.code);
+    const item = (token, kind) =>
+      '<span class="nf-var-token"><button type="button" class="nf-var-insert" data-insert-token="' + esc(token) + '" data-token-kind="' + kind + '" title="' + tx('Click a variable to insert it at the cursor. Blocks are inserted into the email body.') + '"><code>{{' + esc(token) + '}}</code></button><button type="button" class="nf-var-copy" data-copy-token="' + esc(token) + '" title="' + tx('Copy') + '">' + tx('Copy') + '</button></span>';
+    const group = (title, tokens, kind) => tokens.length
+      ? '<div class="nf-var-group"><div class="nf-var-group-title">' + tx(title) + '</div><div class="nf-var-token-list">' + tokens.map((token) => item(token, kind)).join('') + '</div></div>'
+      : '';
+    const orderTokens = ['order.number', 'order.date', 'order.detail_url', 'order.currency'];
+    const amountTokens = ['order.subtotal', 'order.discount', 'order.shipping', 'order.tax', 'order.total', 'order.total_paid', 'order.total_discount'];
+    const addressTokens = ['order.shipping_address', 'order.billing_address', 'order.payment_brand', 'order.payment_method', 'order.shipping_method'];
+    const verificationTokens = ev.code === 'email_verification' ? ['verification.code'] : [];
+    const shipmentTokens = ev.code === 'order_shipped' ? ['shipment.tracking_number', 'shipment.carrier', 'shipment.tracking_url', 'shipment.estimated_delivery'] : [];
+    const refundTokens = ev.code === 'order_refunded' ? ['refund.amount'] : [];
+    const blockTokens = ev.code === 'account_welcome'
+      ? ['block.store_cta']
+      : ev.code === 'email_verification'
+        ? ['block.verification_code']
+        : ev.code === 'order_shipped'
+          ? ['block.cta_button', 'block.tracking', 'block.shipment_items']
+          : ev.code === 'order_refunded'
+            ? ['block.refund_summary']
+            : ['block.cta_button', 'block.order_summary', 'block.customer_information'];
+    return '<section class="nf-variable-panel"><div class="nf-variable-panel-head"><div><div class="nf-variable-panel-title">' + tx('Available variables') + '</div><div class="nf-variable-panel-copy">' + tx('Click a variable to insert it at the cursor. Blocks are inserted into the email body.') + '</div></div><div class="nf-variable-panel-note">' + tx('Only the variables and blocks listed here are supported.') + '</div></div><div class="nf-variable-grid">' +
+      group('Customer', ['customer.first_name', 'customer.name'], 'scalar') +
+      group('Store', ['store.name', 'store.url', 'store.contact_email'], 'scalar') +
+      group('Verification', verificationTokens, 'scalar') +
+      (isOrderEmail ? group('Order', orderTokens, 'scalar') + group('Order amounts', amountTokens, 'scalar') + group('Addresses', addressTokens, 'scalar') : '') +
+      group('Shipment', shipmentTokens, 'scalar') + group('Refund', refundTokens, 'scalar') + group('Prebuilt blocks', blockTokens, 'block') +
+    '</div></section>';
+  }
   const nfSwitch = (on, code) => '<label class="set-switch' + (on ? ' on' : '') + '" data-nf-toggle="' + code + '"><span class="set-knob"></span></label>';
+  function nfActiveDomain() {
+    const s = D.notifications.sender;
+    const active = (s.domains || []).find((d) => d.id === s.activeDomainId);
+    return active && (active.status === 'connected' || active.status === 'platform') ? active : null;
+  }
+  function nfSenderDomain() {
+    const s = D.notifications.sender;
+    return nfActiveDomain() || (s.domains || []).find((d) => d.default) || (s.domains || [])[0] || null;
+  }
+  function nfSenderAddress() {
+    const s = D.notifications.sender, d = nfSenderDomain();
+    const localPart = d && d.default
+      ? (s.platformLocalPart || s.profile.localPart || 'orders')
+      : (s.profile.localPart || s.platformLocalPart || 'orders');
+    return localPart + '@' + (d ? d.domain : '');
+  }
+  function nfStoreRegistrationEmail() {
+    const brand = D.notifications.brand || {};
+    return brand.storeOwnerEmail || '';
+  }
+  function nfReplyToAddress() {
+    const brand = D.notifications.brand || {};
+    // A merchant-configured Reply-to or service inbox wins. Bestreach does not
+    // receive mail, so a new store falls back to its registration email instead.
+    return D.notifications.sender.profile.replyTo || brand.contactEmail || nfStoreRegistrationEmail() || nfSenderAddress();
+  }
+  function nfBuildBody(ev, headline, copy) {
+    const opening = '<h2 class="nf-h">' + esc(headline || '') + '</h2><p class="nf-lead">' + esc(copy || '') + '</p>';
+    if (ev.code === 'account_welcome') return opening + '{{block.store_cta}}';
+    if (ev.code === 'email_verification') return '{{block.verification_code}}';
+    if (ev.code === 'order_paid') return opening + '{{block.cta_button}}\n{{block.order_summary}}\n{{block.customer_information}}';
+    if (ev.code === 'order_shipped') return opening + '{{block.cta_button}}\n{{block.tracking}}\n{{block.shipment_items}}';
+    if (ev.code === 'order_refunded') {
+      const refundCopy = esc(copy || '').replace(/\{\{\s*refund\.amount\s*\}\}/gi, '<strong>{{refund.amount}}</strong>');
+      return '<h2 class="nf-h">' + esc(headline || '') + '</h2><p class="nf-lead">' + refundCopy + '</p>{{block.refund_summary}}';
+    }
+    return opening + '{{block.cta_button}}\n{{block.order_summary}}\n{{block.shipping_address}}';
+  }
+  function nfTemplateSource(ev, headline, copy) {
+    return nfBuildBody(ev, headline, copy);
+  }
+  // Refund notices do not include an invoice. Strip a stale editor draft too,
+  // so the preview and its saved template stay consistent with that contract.
+  function nfSanitizeTemplate(ev, source) {
+    let body = String(source || '');
+    if (ev.code === 'order_paid' || ev.code === 'order_refunded') {
+      body = body.replace(/\s*\{\{\s*block\.invoice\s*\}\}\s*/gi, '\n');
+    }
+    if (ev.code === 'order_shipped') {
+      body = body.replace(/\s*\{\{\s*block\.delivery_estimate\s*\}\}\s*/gi, '\n');
+    }
+    return body;
+  }
 
   // resolve a scalar merge tag against brand + sample data
   function nfResolve(key, b) {
+    if (key === 'verification.code') return '482917';
     if (key === 'store.name') return b.storeName;
     if (key === 'store.url') return 'm.lovocross.com';
-    if (key === 'store.contact_email') return b.contactEmail;
+    if (key === 'store.contact_email') return nfReplyToAddress();
     if (key.indexOf('store.') === 0) return b.storeName;
     return NF_SAMPLE[key];
   }
@@ -2145,6 +2791,12 @@
     const panel = (label, inner) =>
       '<div style="background:#f7f8fa;border-radius:12px;padding:20px 22px;margin:0 0 16px">' +
         (label ? '<div style="font-size:12px;font-weight:600;letter-spacing:.04em;color:#9aa3b2;margin-bottom:14px">' + label + '</div>' : '') + inner + '</div>';
+    if (tag === 'block.verification_code') {
+      const code = String(nfResolve('verification.code', b) || '');
+      return '<section class="nf-verification-code"><p class="nf-verification-label">Your verification code:</p><div class="nf-verification-value">' + esc(code) + '</div><p class="nf-verification-note">This code can only be used once. It expires in 10 minutes.</p></section>';
+    }
+    if (tag === 'block.store_cta')
+      return '<div class="nf-email-actions nf-email-store-action"><a href="#" class="nf-email-button" style="background:' + color + '">Visit our store</a></div>';
     const itemsRows = (items) => items.map((it) => {
       const initial = esc(String(it.name || '·').trim().charAt(0));
       return '<div style="display:flex;align-items:center;gap:14px;padding:9px 0">' +
@@ -2155,23 +2807,84 @@
       '</div>';
     }).join('');
     const totalRow = (label, val) => '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;color:#6b7480"><span>' + label + '</span><span>' + val + '</span></div>';
+    const shopifyProductDiscount = (label, amount) => '<div class="nf-email-product-discount"><img src="settings/assets/shopify-discount-tag.png" alt="" aria-hidden="true"><span>' + esc(label) + (amount ? ' (' + esc(amount) + ')' : '') + '</span></div>';
+    const shopifyItemsRows = (items) => items.map((it) => {
+      const discounts = it.discounts || (it.discountCode ? [{ label: it.discountCode, amount: it.discountAmount }] : []);
+      const subscription = it.subscription
+        ? '<div class="nf-email-subscription"><span>Subscription</span><b>·</b><span>' + esc(it.subscription.cadence) + '</span></div>'
+        : '';
+      const componentRows = (it.children || []).map((child) =>
+        '<div class="nf-email-bundle-component"><div class="nf-email-bundle-component-image" aria-hidden="true"></div><div class="nf-email-bundle-component-copy"><div><span class="nf-email-included">Included</span><span class="nf-email-bundle-component-title">' + esc(child.name) + '&nbsp;&times;&nbsp;' + child.qty + '</span></div><div class="nf-email-bundle-component-variant">' + esc(child.variant) + '</div></div></div>'
+      ).join('');
+      return '<div class="nf-email-product-row' + (it.kind === 'bundle' ? ' is-bundle' : '') + '">' +
+        '<div class="nf-email-product-image" aria-hidden="true"></div>' +
+        '<div class="nf-email-product-copy"><div class="nf-email-product-title">' + (it.kind === 'bundle' ? '<span class="nf-email-bundle-badge">Bundle</span>' : '') + esc(it.name) + '&nbsp;&times;&nbsp;' + it.qty + '</div>' +
+          '<div class="nf-email-product-variant">' + esc(it.variant || '') + '</div>' + subscription + '<div class="nf-email-product-discounts">' + discounts.map((discount) => shopifyProductDiscount(discount.label, discount.amount)).join('') + '</div>' + componentRows + '</div>' +
+        '<div class="nf-email-product-price">' + (it.originalPrice ? '<del>' + esc(it.originalPrice) + '</del>' : '') + '<span>' + esc(it.price) + '</span></div>' +
+      '</div>';
+    }).join('');
+    const shopifyTotalRow = (label, val, strong) => '<div class="nf-email-total-row' + (strong ? ' is-strong' : '') + '"><span>' + label + '</span><span>' + val + '</span></div>';
+    const shopifyDiscountCode = (code, amount) => '<div class="nf-email-discount-code"><img src="settings/assets/shopify-discount-tag.png" alt="" aria-hidden="true"><span>' + esc(code) + (amount ? ' (' + esc(amount) + ')' : '') + '</span></div>';
+    const shopifyShippingRows = () => {
+      const freeShipping = NF_SAMPLE['order.shipping_discount_code'];
+      const shippingValue = freeShipping
+        ? '<span class="nf-email-shipping-original">' + esc(NF_SAMPLE['order.shipping_original']) + '</span><strong>Free</strong>'
+        : esc(NF_SAMPLE['order.shipping']);
+      return shopifyTotalRow('Shipping', shippingValue) + (freeShipping ? shopifyDiscountCode(freeShipping, NF_SAMPLE['order.shipping_discount']) : '');
+    };
+    const shopifyTotalDiscount = () => NF_SAMPLE['order.total_discount']
+      ? '<p class="nf-email-total-discount">You saved <span>' + esc(NF_SAMPLE['order.total_discount']) + '</span></p>'
+      : '';
+    const shopifyRefundTransactions = () => (NF_SAMPLE['refund.transactions'] || []).map((refund) =>
+      '<div class="nf-email-refund-payment-row"><div><span>Refund</span><small>' + esc(refund.method || '') + '</small></div><strong>-' + esc(refund.amount || '') + '</strong></div>'
+    ).join('');
+    const addressLines = (value) => esc(value || '').replace(/,\s*/g, '<br>');
+    const customerInfo = () =>
+      '<section class="nf-email-section nf-email-customer"><div class="nf-email-section-inner">' +
+        '<h3>Customer information</h3>' +
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="nf-email-customer-grid"><tr>' +
+          '<td width="50%" valign="top" style="padding:0 18px 26px 0"><div class="nf-email-info-title">Shipping address</div><div class="nf-email-info-value">' + addressLines(NF_SAMPLE['order.shipping_address']) + '</div></td>' +
+          '<td width="50%" valign="top" style="padding:0 0 26px 18px"><div class="nf-email-info-title">Billing address</div><div class="nf-email-info-value">' + addressLines(NF_SAMPLE['order.billing_address']) + '</div></td>' +
+        '</tr><tr>' +
+          '<td width="50%" valign="top" style="padding:0 18px 0 0"><div class="nf-email-info-title">Payment</div><div class="nf-email-info-value"><span class="nf-email-payment-brand">' + NF_SAMPLE['order.payment_brand'] + '</span>' + NF_SAMPLE['order.payment_method'] + '</div></td>' +
+          '<td width="50%" valign="top" style="padding:0 0 0 18px"><div class="nf-email-info-title">Shipping method</div><div class="nf-email-info-value">' + NF_SAMPLE['order.shipping_method'] + '</div></td>' +
+        '</tr></table>' +
+      '</div></section>';
     if (tag === 'block.cta_button')
-      return '<div style="margin:0 0 22px">' +
-        '<a href="#" style="display:inline-block;background:' + color + ';color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px">View your order</a>' +
-        '<a href="#" style="display:inline-block;color:' + color + ';font-size:14px;text-decoration:none;margin-left:18px">Visit our store</a></div>';
+      return '<div class="nf-email-actions">' +
+        '<a href="#" class="nf-email-button" style="background:' + color + '">View your order</a>' +
+        '<span class="nf-email-action-or">or</span><a href="#" class="nf-email-store-link" style="color:' + color + '">Visit our store</a></div>';
     if (tag === 'block.tracking')
-      return panel('Tracking number · ' + NF_SAMPLE['shipment.carrier'],
-        '<div style="font-size:18px;font-weight:700;color:#1f2430;letter-spacing:.02em;margin-bottom:16px">' + NF_SAMPLE['shipment.tracking_number'] + '</div>' +
-        '<a href="#" style="display:inline-block;background:' + color + ';color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:11px 22px;border-radius:8px">Track package</a>');
+      return '<p class="nf-email-tracking-note">' + esc(NF_SAMPLE['shipment.carrier']) + ' tracking number: <a href="' + esc(NF_SAMPLE['shipment.tracking_url']) + '" style="color:' + color + '">' + esc(NF_SAMPLE['shipment.tracking_number']) + '</a></p>';
+    if (tag === 'block.refund_summary')
+      return '<section class="nf-email-section nf-email-summary nf-email-refund-summary"><div class="nf-email-section-inner">' +
+        '<h3>Order summary</h3><div class="nf-email-product-list">' + shopifyItemsRows(NF_ITEMS) + '</div>' +
+        '<div class="nf-email-totals">' +
+          shopifyTotalRow('Subtotal', NF_SAMPLE['order.subtotal']) + shopifyTotalRow('Order discount', NF_SAMPLE['order.discount']) +
+          shopifyDiscountCode(NF_SAMPLE['order.discount_code'], NF_SAMPLE['order.discount']) +
+          shopifyShippingRows() + shopifyTotalRow('Taxes', NF_SAMPLE['order.tax']) +
+        '</div><div class="nf-email-total-divider">' + shopifyTotalRow('Total', NF_SAMPLE['order.total'], true) +
+          '<div class="nf-email-total-paid">' + shopifyTotalRow('Total paid', NF_SAMPLE['order.total_paid'], true) + '</div>' + shopifyTotalDiscount() + '</div>' +
+        '<div class="nf-email-refund-payments"><div class="nf-email-refund-payment-row"><div><span>Visa</span><small>ending in 4242</small></div><strong>' + NF_SAMPLE['order.total'] + '</strong></div>' +
+          shopifyRefundTransactions() + '</div>' +
+      '</div></section>';
     if (tag === 'block.order_summary')
-      return panel('Order summary', itemsRows(NF_ITEMS) +
-        '<div style="border-top:1px solid #e7eaef;margin-top:10px;padding-top:14px">' + totalRow('Subtotal', NF_SAMPLE['order.subtotal']) + totalRow('Shipping', NF_SAMPLE['order.shipping']) + '</div>' +
-        '<div style="border-top:1px solid #e7eaef;margin-top:12px;padding-top:14px;display:flex;justify-content:space-between;align-items:center">' +
-          '<span style="font-size:15px;font-weight:700;color:#1f2430">Total</span><span style="font-size:18px;font-weight:700;color:#1f2430">' + NF_SAMPLE['order.total'] + '</span></div>');
+      return '<section class="nf-email-section nf-email-summary"><div class="nf-email-section-inner">' +
+        '<h3>Order summary</h3><div class="nf-email-product-list">' + shopifyItemsRows(NF_ITEMS) + '</div>' +
+        '<div class="nf-email-totals">' +
+          shopifyTotalRow('Subtotal', NF_SAMPLE['order.subtotal']) + shopifyTotalRow('Order discount', NF_SAMPLE['order.discount']) +
+          shopifyDiscountCode(NF_SAMPLE['order.discount_code'], NF_SAMPLE['order.discount']) +
+          shopifyShippingRows() + shopifyTotalRow('Taxes', NF_SAMPLE['order.tax']) +
+        '</div><div class="nf-email-total-divider">' + shopifyTotalRow('Total', NF_SAMPLE['order.total'], true) +
+          '<div class="nf-email-total-paid">' + shopifyTotalRow('Total paid', NF_SAMPLE['order.total_paid'], true) + '</div>' + shopifyTotalDiscount() + '</div></div></section>';
+    if (tag === 'block.invoice')
+      return '<div class="nf-email-invoice"><div><div class="nf-email-info-title">Invoice</div><div class="nf-email-invoice-meta">#' + esc(NF_SAMPLE['order.number']) + ' · PDF</div></div><a href="' + esc(NF_SAMPLE['order.invoice_url']) + '" style="color:' + color + '">Download PDF</a></div>';
     if (tag === 'block.shipping_address')
       return panel('Shipping address', '<div style="font-size:14px;color:#5a6473;line-height:1.7">' + esc(NF_SAMPLE['order.shipping_address']) + '</div>');
+    if (tag === 'block.customer_information') return customerInfo();
     if (tag === 'block.line_items') return itemsRows(NF_ITEMS);
-    if (tag === 'block.shipment_items') return panel('Items in this shipment', itemsRows(NF_ITEMS));
+    if (tag === 'block.shipment_items')
+      return '<section class="nf-email-section nf-email-shipment"><div class="nf-email-section-inner"><h3>Items in this shipment</h3><div class="nf-email-product-list">' + shopifyItemsRows(NF_ITEMS) + '</div></div></section>';
     return '';
   }
   // expand a body string (blocks first, then scalar tags) -> preview HTML
@@ -2190,17 +2903,18 @@
     const color = b.primaryColor || '#0066e6';
     const mobile = st.device === 'mobile';
     const width = mobile ? 360 : 600;
-    const px = mobile ? 24 : 40;
-    return '<div class="email-card" style="width:' + width + 'px">' +
-      '<div style="height:4px;background:' + color + '"></div>' +
-      '<div style="padding:28px ' + px + 'px 22px;text-align:center;border-bottom:1px solid #eef0f4">' +
-        '<span style="font-size:20px;font-weight:700;letter-spacing:-.01em;color:#1f2430">' + esc(b.storeName || 'Your store') + '</span></div>' +
-      '<div style="padding:32px ' + px + 'px 8px">' + nfExpand(st.body, b) + '</div>' +
-      '<div style="padding:22px ' + px + 'px 28px;background:#fafbfc;border-top:1px solid #eef0f4;text-align:center">' +
-        '<div style="font-size:13px;color:#9aa3b2;line-height:1.7">Questions? Reply to this email or contact <a href="#" style="color:' + color + ';text-decoration:none">' + esc(b.contactEmail || '') + '</a></div>' +
-        (b.footerText ? '<div style="font-size:12px;color:#b8c0cd;margin-top:10px">' + esc(b.footerText) + '</div>' : '') +
-        (b.address ? '<div style="font-size:12px;color:#c7cdd8;margin-top:3px">' + esc(b.address) + '</div>' : '') +
-      '</div>' +
+    const isVerification = st.eventCode === 'email_verification';
+    const showsOrderNumber = st.eventCode !== 'account_welcome' && st.eventCode !== 'email_verification';
+    const header = isVerification
+      ? '<div class="nf-email-header"><div class="nf-email-inner"><a href="#" class="nf-email-shop-name">' + esc(b.storeName || 'Your store') + '</a></div></div>'
+      : '<div class="nf-email-header"><div class="nf-email-inner"><a href="#" class="nf-email-shop-name">' + esc(b.storeName || 'Your store') + '</a>' + (showsOrderNumber ? '<div class="nf-email-order-number">Order #' + esc(NF_SAMPLE['order.number']) + '</div>' : '') + '</div></div>';
+    const footer = isVerification
+      ? '<div class="nf-email-footer nf-verification-footer"><div class="nf-email-inner">© ' + esc(b.storeName || 'Your store') + '</div></div>'
+      : '<div class="nf-email-footer"><div class="nf-email-inner">If you have any questions, reply to this email or contact us at <a href="mailto:' + esc(nfReplyToAddress()) + '" style="color:' + color + '">' + esc(nfReplyToAddress()) + '</a></div></div>';
+    return '<div class="email-card' + (mobile ? ' is-mobile' : '') + (st.eventCode === 'order_shipped' ? ' is-shipment' : '') + (st.eventCode === 'order_refunded' ? ' is-refund' : '') + (isVerification ? ' is-verification' : '') + '" style="width:' + width + 'px">' +
+      header +
+      '<div class="nf-email-body">' + nfExpand(st.body, b) + '</div>' +
+      footer +
     '</div>';
   }
 
@@ -2209,19 +2923,19 @@
     const g = (id) => { const el = root.querySelector('#' + id); return el ? el.value : ''; };
     return {
       device: notifDevice,
-      fromName: g('nf-fromname') || ev.config.fromName,
-      fromEmail: g('nf-fromemail') || ev.config.fromEmail,
+      eventCode: ev.code,
+      fromName: D.notifications.sender.profile.fromName,
+      fromEmail: nfSenderAddress(),
       subject: g('nf-subject') || ev.config.subject,
-      body: (root.querySelector('#nf-body') ? root.querySelector('#nf-body').value : ev.config.body),
+      preheader: g('nf-preheader') || ev.config.preheader,
+      body: nfSanitizeTemplate(ev, g('nf-template') || ev.config.template || nfTemplateSource(ev, ev.config.headline, ev.config.copy)),
     };
   }
   function nfUpdatePreview(ev) {
     const b = D.notifications.brand;
     const st = nfReadForm(ev);
     const inbox = root.querySelector('#nf-inbox');
-    if (inbox) inbox.innerHTML =
-      '<div><span class="l">From </span><span class="v">' + esc(st.fromName) + '</span> <span class="l">&lt;' + esc(st.fromEmail) + '&gt;</span></div>' +
-      '<div style="margin-top:3px"><span class="l">Subject </span><span class="v">' + esc(nfText(st.subject, b)) + '</span></div>';
+    if (inbox) inbox.innerHTML = '<span class="l">Subject:</span><span class="v">' + esc(nfText(st.subject, b)) + '</span>';
     const stage = root.querySelector('#nf-stage');
     if (stage) { stage.innerHTML = nfCardHtml(b, st); nfFit(); }
   }
@@ -2238,34 +2952,39 @@
       stage.style.height = (card.offsetHeight * s + 36) + 'px';
     } catch (e) {}
   }
-  function insertAtCursor(el, text) {
-    const s = el.selectionStart || 0, e = el.selectionEnd || 0;
-    el.value = el.value.slice(0, s) + text + el.value.slice(e);
-    el.selectionStart = el.selectionEnd = s + text.length; el.focus();
-  }
-
   function renderNotifications() {
+    if (notifSub === 'sender') return renderNotifSender();
     if (notifSub) { const f = nfFindEvent(notifSub); if (f && !f.group.locked) return renderNotifEditor(f.ev); notifSub = null; }
     return renderNotifList();
   }
 
   function renderNotifList() {
     const n = D.notifications;
+    const sender = n.sender, activeDomain = nfActiveDomain(), senderDomain = nfSenderDomain(), senderAddress = nfSenderAddress();
+    const senderStatus = activeDomain
+      ? activeDomain.default
+        ? '<span class="pill pill-gray"><span class="dot"></span>BestShopio default</span>'
+        : '<span class="pill pill-green"><span class="dot"></span>Connected</span>'
+      : '<span class="pill pill-gray"><span class="dot"></span>Not verified</span>';
+    const senderDescription = activeDomain
+      ? activeDomain.default
+        ? '<span>Platform-managed sender domain</span> ' + esc(activeDomain.domain) + ' · <span>Customer emails can send through this default domain.</span>'
+        : '<span>Reply-to</span> ' + esc(nfReplyToAddress()) + ' · <span>Connected sending domain</span> ' + esc(activeDomain.domain)
+      : '<span>BestShopio default sender domain</span> ' + esc(senderDomain ? senderDomain.domain : '') + ' · <span>Customer emails continue to use the default sender until a branded domain is connected.</span>';
     const groupsHtml = n.groups.map((g) => {
       const rows = g.events.map((ev) => {
         if (g.locked) {
           return '<div class="nf-row locked">' +
             '<span class="nf-ico">' + I.globe + '</span>' +
-            '<div class="nf-main"><div class="nf-name">' + esc(ev.name) + ' ' + (NF_CLS[ev.cls] || '') + '</div><div class="nf-desc">' + esc(ev.desc) + '</div></div>' +
+            '<div class="nf-main"><div class="nf-name">' + esc(ev.name) + '</div><div class="nf-desc">' + esc(ev.desc) + '</div></div>' +
             '<div class="nf-right"><span class="pill pill-gray">Coming soon</span></div></div>';
         }
         const c = ev.config;
         return '<div class="nf-row" data-edit="' + ev.code + '">' +
           '<span class="nf-ico">' + I.globe + '</span>' +
-          '<div class="nf-main"><div class="nf-name">' + esc(ev.name) + ' ' + (NF_CLS[ev.cls] || '') + '</div>' +
+          '<div class="nf-main"><div class="nf-name">' + esc(ev.name) + '</div>' +
             '<div class="nf-desc">' + esc(ev.desc) + '</div></div>' +
-          '<div class="nf-meta">Email' + (c.updatedAt ? ' · edited ' + esc(c.updatedAt) : ' · not set up') + '</div>' +
-          '<div class="nf-right">' + nfStatusPill(c) + nfSwitch(c.enabled, ev.code) + '<span class="nf-chev">' + I.chevR + '</span></div>' +
+          '<div class="nf-right">' + (ev.required ? '<span class="pill pill-green"><span class="dot"></span>Required</span>' : nfStatusPill(c) + nfSwitch(c.enabled, ev.code)) + '<span class="nf-chev">' + I.chevR + '</span></div>' +
         '</div>';
       }).join('');
       return '<div class="nf-group">' +
@@ -2276,159 +2995,254 @@
 
     paint(
       '<style>' + NOTIF_STYLES + '</style>' +
-      pageHead('Notifications', 'Email your customers when key order events happen. These settings belong to this store only.') +
-      '<div class="set-note mb-4" style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span>' +
-        '<div class="muted" style="font-size:12.5px;line-height:1.5">Turn a notification on to start sending it. Edit the sender, subject and content — the live preview shows exactly what your customer receives. The logo, brand color and store name come from your <a class="lnk" href="#/settings/base">store settings</a>.</div></div>' +
-      groupsHtml,
+      '<div class="nf-list-shell">' +
+      pageHead('Notifications', 'Manage the transactional messages your store sends automatically.') +
+      '<div class="nf-sender-card mb-4">' +
+        '<div class="nf-sender-ico">' + I.globe + '</div>' +
+        '<div class="nf-main"><div class="nf-name">Sender identity ' + senderStatus + '</div>' +
+          '<div class="nf-sender-address">' + esc(sender.profile.fromName) + ' &lt;' + esc(senderAddress) + '&gt;</div>' +
+          '<div class="nf-desc">' + senderDescription + '</div></div>' +
+        '<button class="btn btn-default" data-sender-open>Manage sender identity</button>' +
+        '</div>' +
+      groupsHtml + '</div>',
       false
     );
 
     root.querySelectorAll('[data-nf-toggle]').forEach((el) => el.onclick = (e) => {
       e.stopPropagation();
       const f = nfFindEvent(el.getAttribute('data-nf-toggle')); if (!f) return;
-      const c = f.ev.config; c.enabled = !c.enabled;
+      if (f.ev.required) return;
+      const c = f.ev.config;
+      if (!c.enabled && !nfActiveDomain()) return toast('Verify a sender domain before enabling email notifications.');
+      c.enabled = !c.enabled;
       toast(c.enabled ? f.ev.name + ' turned on' : f.ev.name + ' turned off');
       renderNotifList();
     });
-    root.querySelectorAll('[data-edit]').forEach((el) => el.onclick = () => { notifSub = el.getAttribute('data-edit'); renderNotifications(); });
+    root.querySelectorAll('[data-edit]').forEach((el) => el.onclick = () => { location.hash = nfEditorPath(el.getAttribute('data-edit'), 'preview'); });
+    const senderOpen = root.querySelector('[data-sender-open]');
+    if (senderOpen) senderOpen.onclick = () => { location.hash = '#/settings/notifications/sender'; };
   }
 
-  function renderNotifEditor(ev) {
-    const n = D.notifications, c = ev.config, b = n.brand;
-    const tags = (n.mergeTags.common || []).concat(n.mergeTags[ev.code] || []);
-    const varOpts = '<option value="">Insert variable</option>' + tags.map((t) => '<option value="' + t + '">{{' + t + '}}</option>').join('');
-    const blockList = n.blocks[ev.code] || [];
-    const blockOpts = '<option value="">Insert block</option>' + blockList.map((bl) => '<option value="' + bl.tag + '">' + esc(bl.label) + '</option>').join('');
-
-    const fld = (label, id, value, hint, ph) =>
-      '<div style="margin-bottom:14px"><label class="nf-label" for="' + id + '">' + esc(label) + '</label>' +
-        '<input class="input" id="' + id + '" value="' + esc(value || '') + '" placeholder="' + esc(ph || '') + '" style="width:100%" />' +
-        (hint ? '<div class="nf-hint">' + esc(hint) + '</div>' : '') + '</div>';
-
-    const form =
-      '<div class="panel card-pad">' +
-        '<div class="flex items-center justify-between" style="margin-bottom:16px">' +
-          '<div><div class="nf-label" style="margin:0">Status</div><div class="nf-hint">' + (c.enabled ? 'This notification is being sent.' : 'Turn on to start sending.') + '</div></div>' +
-          nfSwitch(c.enabled, '__editor') +
-        '</div>' +
-        fld('From name', 'nf-fromname', c.fromName, '', 'Sender name') +
-        fld('From email', 'nf-fromemail', c.fromEmail, 'Must be an address on your verified sending domain (' + n.sendingDomain + '). Custom domains are on the roadmap.', 'orders@' + n.sendingDomain) +
-        fld('Reply-to', 'nf-replyto', c.replyTo, 'Customer replies go here.', 'service@example.com') +
-        fld('Subject', 'nf-subject', c.subject, '', 'Subject line') +
-        fld('Preheader', 'nf-preheader', c.preheader, 'The short preview text shown in the inbox after the subject.', 'Preview text') +
-        '<div><label class="nf-label">Email body</label>' +
-          '<div class="nf-toolbar">' +
-            '<select class="nf-insert input" data-no-ui id="nf-ins-var">' + varOpts + '</select>' +
-            (blockList.length ? '<select class="nf-insert input" data-no-ui id="nf-ins-block">' + blockOpts + '</select>' : '') +
-            '<button class="btn btn-gray" data-tpl type="button">Start from template</button>' +
+  function renderNotifSender() {
+    const n = D.notifications, sender = n.sender, profile = sender.profile, active = nfActiveDomain();
+    const domainRows = sender.domains.map((d) => {
+      const isActive = d.id === sender.activeDomainId;
+      const isDefault = !!d.default;
+      const needsDns = !isDefault && d.status !== 'connected';
+      const status = isDefault
+        ? '<span class="pill pill-gray"><span class="dot"></span>BestShopio default</span>'
+        : d.status === 'connected'
+          ? '<span class="pill pill-green"><span class="dot"></span>Connected</span>'
+          : d.status === 'dns_error'
+            ? '<span class="pill pill-red"><span class="dot"></span>DNS error</span>'
+            : '<span class="pill pill-orange"><span class="dot"></span>Pending verification</span>';
+      const primaryAction = isActive
+        ? ''
+        : isDefault
+          ? '<span class="nf-pending">Customer emails can send through this default domain.</span>'
+          : '<span class="nf-pending">Waiting for sender-domain verification</span>';
+      const domainSummary = isDefault
+        ? 'Platform-managed sender domain'
+        : d.status === 'connected'
+          ? 'Connected sending domain'
+          : d.status === 'dns_error'
+            ? 'DNS records not detected yet'
+            : 'Waiting for sender-domain verification';
+      const senderAddress = (isActive || d.status === 'connected')
+        ? ((isDefault ? sender.platformLocalPart : profile.localPart) + '@' + d.domain)
+        : '—';
+      const senderNote = isActive || d.status === 'connected' ? 'Used for transactional email' : 'Available after connection';
+      const statusValue = isActive
+        ? '<span class="pill pill-green"><span class="dot"></span>Active sender domain</span>'
+        : primaryAction;
+      const statusNote = isActive
+        ? 'Used for transactional email'
+        : d.status === 'connected'
+          ? 'Connected domains are selected automatically'
+          : d.status === 'dns_error'
+            ? 'Fix the DNS records in Domains, then verify again'
+          : 'Waiting for sender-domain verification';
+      const dnsRows = needsDns ? (d.records || []).map((r) =>
+        '<div class="nf-dns-row nf-dns-inline"><div class="nf-dns-cell">' + esc(r.type) + '</div><div class="nf-dns-cell nf-mono">' + esc(r.host) + '</div><div class="nf-dns-cell nf-mono">' + esc(r.value) + '</div><div class="nf-dns-cell nf-dns-copy-cell"><button class="nf-dns-copy" data-copy-dns-record="' + esc(r.type + ' ' + r.host + ' ' + r.value) + '">Copy</button></div></div>'
+      ).join('') : '';
+      const dnsGuide = needsDns
+        ? '<div class="nf-domain-dns"><div class="nf-dns-guide">Add these DNS records at your DNS provider. Verification will continue automatically after the records are found.</div><div class="nf-dns-table"><div class="nf-dns-row nf-dns-head nf-dns-inline nf-dns-inline-head"><div class="nf-dns-cell">Type</div><div class="nf-dns-cell">Host</div><div class="nf-dns-cell">Value</div><div class="nf-dns-cell"></div></div>' + dnsRows + '</div></div>'
+        : '';
+      const actions = isActive || isDefault ? '' : '<button class="btn btn-default" data-domain-remove="' + esc(d.id) + '">Remove</button>';
+      return '<div class="nf-domain-row' + (needsDns ? ' has-dns' : '') + '">' +
+        '<div class="nf-domain-main">' +
+          '<div class="nf-domain-header"><div class="nf-domain-field-label">Sending domain</div><div class="nf-domain-value">' + esc(d.domain) + ' ' + status + '</div><div class="nf-domain-cell-hint">' + domainSummary + '</div></div>' +
+          '<div class="nf-domain-facts">' +
+            '<div class="nf-domain-cell"><div class="nf-domain-field-label">Sender address</div><div class="nf-domain-value nf-domain-address">' + esc(senderAddress) + '</div><div class="nf-domain-cell-hint">' + senderNote + '</div></div>' +
+            '<div class="nf-domain-cell nf-domain-status"><div class="nf-domain-field-label">Status</div><div class="nf-domain-status-value">' + statusValue + '</div><div class="nf-domain-cell-hint">' + statusNote + '</div>' + (actions ? '<div class="nf-domain-actions">' + actions + '</div>' : '') + '</div>' +
           '</div>' +
-          '<textarea class="nf-body" id="nf-body" spellcheck="false">' + esc(c.body) + '</textarea>' +
-          '<div class="nf-hint">Edit the HTML and insert variables. Dynamic blocks (order summary, tracking…) render order data safely — you never write the loop.</div>' +
-        '</div>' +
-      '</div>';
-
-    const preview =
-      '<div class="nf-preview">' +
-        '<div class="nf-pv-head"><div class="nf-label" style="margin:0">Preview</div>' +
-          '<div class="nf-seg">' +
-            '<button data-dev="desktop" class="' + (notifDevice === 'desktop' ? 'on' : '') + '">Desktop</button>' +
-            '<button data-dev="mobile" class="' + (notifDevice === 'mobile' ? 'on' : '') + '">Mobile</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="nf-inbox" id="nf-inbox"></div>' +
-        '<div class="nf-stage" id="nf-stage"></div>' +
-      '</div>';
+        '</div>' + dnsGuide + '</div>';
+    }).join('');
+    const input = (label, id, value, hint, placeholder, readOnly) =>
+      '<div style="margin-bottom:14px"><label class="nf-label" for="' + id + '">' + label + '</label>' +
+      '<input class="input" id="' + id + '" value="' + esc(value || '') + '"' + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + (readOnly ? ' readonly aria-readonly="true"' : '') + ' style="width:100%" />' +
+      (hint ? '<div class="nf-hint">' + hint + '</div>' : '') + '</div>';
+    const defaultDomain = sender.domains.find((d) => d.default) || null;
+    const brandedDomain = sender.domains.find((d) => !d.default) || null;
+    const senderAddressFor = (d) => ((d && d.default ? sender.platformLocalPart : profile.localPart) || sender.platformLocalPart) + '@' + (d ? d.domain : '');
+    const defaultDomainCard = defaultDomain
+      ? '<article class="nf-sender-domain-card is-default"><div class="nf-sender-domain-card-head"><span class="nf-sender-domain-icon">' + I.globe + '</span><div class="nf-sender-domain-card-main"><div class="nf-sender-domain-card-title">Store default sending domain</div><div class="nf-sender-domain-card-address">' + esc(senderAddressFor(defaultDomain)) + '</div></div><span class="pill pill-gray"><span class="dot"></span>BestShopio default</span></div><p class="nf-sender-domain-card-copy">This domain is created for your store and is ready to send transactional email.</p></article>'
+      : '';
+    const brandedStatus = !brandedDomain
+      ? ''
+      : brandedDomain.status === 'connected'
+        ? '<span class="pill pill-green"><span class="dot"></span>Connected</span>'
+        : brandedDomain.status === 'dns_error'
+          ? '<span class="pill pill-red"><span class="dot"></span>DNS error</span>'
+          : '<span class="pill pill-orange"><span class="dot"></span>Pending verification</span>';
+    const brandedCopy = !brandedDomain
+      ? 'Use your own domain to make your sender easier for customers to recognize. When it connects, it replaces the default sender automatically.'
+      : brandedDomain.status === 'connected'
+        ? 'This domain is used automatically for transactional email.'
+        : brandedDomain.status === 'dns_error'
+          ? 'Fix the DNS records in Domains, then verify again.'
+          : 'Add the DNS records in Domains to complete verification.';
+    const brandedDomainCard = '<article class="nf-sender-domain-card is-branded' + (brandedDomain ? ' has-domain' : '') + '"><div class="nf-sender-domain-card-head"><span class="nf-sender-domain-icon is-branded">' + I.globe + '</span><div class="nf-sender-domain-card-main"><div class="nf-sender-domain-card-title">' + (brandedDomain ? 'Branded sending domain' : 'Add branded sending domain') + '</div>' + (brandedDomain ? '<div class="nf-sender-domain-card-address">' + esc(senderAddressFor(brandedDomain)) + '</div>' : '<p class="nf-sender-domain-card-copy is-inline">' + brandedCopy + '</p>') + '</div>' + brandedStatus + '</div>' + (brandedDomain ? '<p class="nf-sender-domain-card-copy">' + brandedCopy + '</p>' : '') + '<div class="nf-sender-domain-card-actions"><button class="btn ' + (brandedDomain ? 'btn-default' : 'btn-primary') + '" data-manage-sending-domain>' + (brandedDomain ? 'Manage branded sending domain' : 'Add branded sending domain') + '</button></div></article>';
 
     paint(
       '<style>' + NOTIF_STYLES + '</style>' +
-      '<div class="flex items-center justify-between mb-4" style="gap:12px">' +
-        '<div class="flex items-center gap-3">' +
-          '<button class="back-btn" data-back title="Back">' + I.chevL + '</button>' +
-          '<div><div class="page-title" style="font-size:18px">' + esc(ev.name) + '</div>' +
-            '<div class="muted" style="font-size:12.5px;margin-top:2px">' + (NF_CLS[ev.cls] || '') + ' · Email · sent automatically</div></div>' +
-        '</div>' +
-        '<div class="flex items-center gap-2">' +
-          '<button class="btn btn-default" data-test>Send test email</button>' +
-          '<button class="btn btn-primary" data-save>Save</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="nf-editor">' + form + preview + '</div>',
+      '<div class="nf-list-shell">' +
+      '<div class="flex items-center gap-3 mb-4"><button class="back-btn" data-back title="Back">' + I.chevL + '</button>' +
+        '<div><div class="page-title" style="font-size:18px">Sender identity</div><div class="muted" style="font-size:12.5px;margin-top:2px">Configure the sender name and reply-to address customers see on your emails.</div></div></div>' +
+      '<div class="nf-sender-layout">' +
+        '<div class="panel card-pad"><div class="nf-section-title">From identity</div>' +
+          input('From name', 'nf-sender-name', profile.fromName, 'Shown in the customer inbox for every transactional message.') +
+          input('Sender address', 'nf-sender-local', active && active.default ? nfSenderAddress() : profile.localPart, active ? (active.default ? 'BestShopio provisions this address for your store. Connect a custom domain to edit the address prefix.' : 'The address uses the active connected domain: @' + esc(active.domain) + '.') : 'This address will be ready after the sender domain is connected.', '', !!(active && active.default)) +
+          input('Reply-to', 'nf-sender-reply', profile.replyTo, n.brand.contactEmail ? 'Leave blank to use your store service email.' : 'Leave blank to use your store registration email.', n.brand.contactEmail || n.brand.storeOwnerEmail) +
+          '<button class="btn btn-primary" data-sender-save>Save sender identity</button></div>' +
+        '<section class="nf-sender-domain-section"><div class="nf-section-title">Sending domain</div>' +
+          defaultDomainCard + brandedDomainCard +
+        '</section>' +
+      '</div></div>',
       false
     );
 
-    nfUpdatePreview(ev);
-    setTimeout(nfFit, 0);
-
-    // back
-    root.querySelector('[data-back]').onclick = () => { notifSub = null; renderNotifications(); };
-    // status toggle in the form
-    const enSw = root.querySelector('[data-nf-toggle="__editor"]');
-    if (enSw) enSw.onclick = () => { enSw.classList.toggle('on'); c.enabled = enSw.classList.contains('on'); };
-    // device toggle
-    root.querySelectorAll('[data-dev]').forEach((bd) => bd.onclick = () => {
-      notifDevice = bd.getAttribute('data-dev');
-      root.querySelectorAll('[data-dev]').forEach((x) => x.classList.toggle('on', x === bd));
-      nfUpdatePreview(ev);
-    });
-    // live preview on edits
-    ['nf-fromname', 'nf-fromemail', 'nf-subject', 'nf-body'].forEach((id) => { const el = root.querySelector('#' + id); if (el) el.addEventListener('input', () => nfUpdatePreview(ev)); });
-    // variable / block inserters
-    const insVar = root.querySelector('#nf-ins-var');
-    if (insVar) insVar.onchange = () => { if (insVar.value) { insertAtCursor(root.querySelector('#nf-body'), '{{' + insVar.value + '}}'); insVar.selectedIndex = 0; nfUpdatePreview(ev); } };
-    const insBlk = root.querySelector('#nf-ins-block');
-    if (insBlk) insBlk.onchange = () => { if (insBlk.value) { insertAtCursor(root.querySelector('#nf-body'), '\n{{' + insBlk.value + '}}\n'); insBlk.selectedIndex = 0; nfUpdatePreview(ev); } };
-    // start from template
-    const tpl = root.querySelector('[data-tpl]'); if (tpl) tpl.onclick = () => openNotifTemplateModal(ev);
-    // test send
-    root.querySelector('[data-test]').onclick = () => openNotifTestModal(ev);
-    // save — the Status toggle controls sending; Save persists everything
-    root.querySelector('[data-save]').onclick = () => {
-      nfSaveFromForm(ev); toast('Saved');
+    root.querySelector('[data-back]').onclick = () => { location.hash = '#/settings/notifications'; };
+    root.querySelector('[data-sender-save]').onclick = () => {
+      const get = (id) => (root.querySelector('#' + id).value || '').trim();
+      const name = get('nf-sender-name'), rawLocalPart = get('nf-sender-local'), replyTo = get('nf-sender-reply');
+      const localPart = active && active.default
+        ? sender.platformLocalPart
+        : rawLocalPart.replace(/[^a-z0-9._+-]/gi, '').toLowerCase();
+      if (!name || !localPart) return toast('Complete the sender identity fields');
+      profile.fromName = name;
+      profile.localPart = localPart;
+      profile.replyTo = replyTo;
+      toast('Sender identity saved');
       if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
-      notifSub = null; renderNotifications();
+      renderNotifSender();
     };
+    root.querySelector('[data-manage-sending-domain]').onclick = () => { location.hash = '#/settings/domains'; };
+  }
+
+  function renderNotifEditor(ev) {
+    const c = ev.config;
+    const isCode = notifEditorMode === 'code';
+    const source = nfSanitizeTemplate(ev, c.template || nfTemplateSource(ev, c.headline, c.copy));
+    const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
+    const editLabel = tx('Edit code');
+    const crumbs = isCode ? editLabel : tx(ev.name);
+    const actions = isCode
+      ? '<button class="btn btn-primary" data-preview>Preview</button>'
+      : '<button class="btn btn-default" data-test>' + tx('Send test') + '</button><button class="btn btn-primary" data-code>Edit code</button>';
+    const preview =
+      '<section class="nf-shop-preview"><div class="nf-pv-head"><div class="nf-pv-title">Preview</div>' +
+        '<div class="nf-seg"><button data-dev="desktop" class="' + (notifDevice === 'desktop' ? 'on' : '') + '">Desktop</button><button data-dev="mobile" class="' + (notifDevice === 'mobile' ? 'on' : '') + '">Mobile</button></div></div>' +
+        '<div class="nf-inbox" id="nf-inbox"></div><div class="nf-stage" id="nf-stage"></div></section>';
+    const variablePanel = isCode ? nfVariablePanel(ev) : '';
+    const code =
+      '<section class="nf-code-page"><div class="nf-code-card"><div class="nf-code-card-title">Preview</div><label class="nf-label" for="nf-subject">Email subject</label><input class="input" id="nf-subject" value="' + esc(c.subject || '') + '" style="width:100%;margin:7px 0 16px" />' +
+        '<label class="nf-label" for="nf-template">Email body (HTML)</label><div class="nf-code-wrap"><div class="nf-code-gutter" aria-hidden="true">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14<br>15<br>16</div><textarea id="nf-template" class="nf-code" spellcheck="false" wrap="soft">' + esc(source) + '</textarea></div><div class="nf-hint" style="margin-top:10px">Changes are saved while you edit. Use Preview to check the rendered email.</div></div>' +
+      '<div class="nf-code-notice"><div class="nf-code-notice-title">Template variables</div><div>You can use supported customer, order, and store variables in this template. Order, tracking, invoice, and address blocks are rendered safely when the email is sent.</div></div>' +
+      variablePanel +
+      '</section>';
+
+    paint('<style>' + NOTIF_STYLES + '</style><div class="nf-shop-shell">' +
+      '<div class="nf-shop-head"><div class="flex items-center gap-3"><button class="back-btn" data-back title="Back">' + I.chevL + '</button><div class="nf-crumb">' + crumbs + '</div></div><div class="flex items-center gap-2">' + actions + '</div></div>' +
+      (isCode ? code : preview) + '</div>', false);
+
+    if (!isCode) { nfUpdatePreview(ev); setTimeout(nfFit, 0); }
+    root.querySelector('[data-back]').onclick = () => {
+      if (isCode) {
+        nfSaveFromForm(ev);
+        location.hash = nfEditorPath(ev.code, 'preview');
+        return;
+      }
+      location.hash = '#/settings/notifications';
+    };
+    root.querySelector('[data-code]')?.addEventListener('click', () => { location.hash = nfEditorPath(ev.code, 'code'); });
+    root.querySelector('[data-preview]')?.addEventListener('click', () => { nfSaveFromForm(ev); location.hash = nfEditorPath(ev.code, 'preview'); });
+    root.querySelector('[data-test]')?.addEventListener('click', () => openNotifTestModal(ev));
+    root.querySelectorAll('[data-dev]').forEach((bd) => bd.onclick = () => { notifDevice = bd.getAttribute('data-dev'); root.querySelectorAll('[data-dev]').forEach((x) => x.classList.toggle('on', x === bd)); nfUpdatePreview(ev); });
+    ['nf-subject', 'nf-template'].forEach((id) => {
+      const el = root.querySelector('#' + id);
+      if (!el) return;
+      const rememberTarget = () => {
+        nfInsertTarget = id;
+        const start = typeof el.selectionStart === 'number' ? el.selectionStart : el.value.length;
+        const end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+        nfInsertSelection = { id, start, end };
+      };
+      el.addEventListener('input', () => { rememberTarget(); nfSaveFromForm(ev); });
+      ['focus', 'click', 'keyup', 'select'].forEach((eventName) => el.addEventListener(eventName, rememberTarget));
+    });
+    root.querySelectorAll('[data-insert-token]').forEach((button) => button.onclick = () => {
+      const token = button.getAttribute('data-insert-token');
+      const isBlock = button.getAttribute('data-token-kind') === 'block';
+      const targetId = isBlock ? 'nf-template' : nfInsertTarget;
+      const field = root.querySelector('#' + targetId) || root.querySelector('#nf-template');
+      if (!field || !token) return;
+      const selection = nfInsertSelection.id === targetId && Number.isInteger(nfInsertSelection.start) && Number.isInteger(nfInsertSelection.end)
+        ? nfInsertSelection
+        : { start: field.value.length, end: field.value.length };
+      const before = field.value.slice(0, selection.start);
+      const after = field.value.slice(selection.end);
+      const value = '{{' + token + '}}';
+      field.value = before + value + after;
+      const caret = before.length + value.length;
+      field.focus();
+      field.setSelectionRange(caret, caret);
+      nfInsertTarget = targetId;
+      nfInsertSelection = { id: targetId, start: caret, end: caret };
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      toast((window.I18N && window.I18N.t ? window.I18N.t('Variable inserted') : 'Variable inserted'));
+    });
+    root.querySelectorAll('[data-copy-token]').forEach((button) => button.onclick = () => {
+      const token = button.getAttribute('data-copy-token');
+      if (!token) return;
+      try { navigator.clipboard.writeText('{{' + token + '}}'); } catch (e) {}
+      toast((window.I18N && window.I18N.t ? window.I18N.t('Variable copied') : 'Variable copied'));
+    });
   }
 
   // persist the form back into the event config (prototype: in-memory)
   function nfSaveFromForm(ev) {
     const g = (id) => { const el = root.querySelector('#' + id); return el ? el.value : undefined; };
     const c = ev.config;
-    ['fromName|nf-fromname', 'fromEmail|nf-fromemail', 'replyTo|nf-replyto', 'subject|nf-subject', 'preheader|nf-preheader'].forEach((p) => { const [k, id] = p.split('|'); const v = g(id); if (v !== undefined) c[k] = v; });
-    const body = root.querySelector('#nf-body'); if (body) c.body = body.value;
-    c.updatedAt = '2026-06-10';
-  }
-
-  function openNotifTemplateModal(ev) {
-    const presets = (D.notifications.presets[ev.code] || []);
-    const cards = presets.map((p, i) =>
-      '<label class="nf-tpl" data-tpl-pick="' + i + '">' +
-        '<div class="nf-tpl-thumb">' + esc(p.name.charAt(0)) + '</div>' +
-        '<div><div class="text-sm" style="font-weight:600;color:var(--ink)">' + esc(p.name) + '</div>' +
-          '<div class="muted" style="font-size:12px;margin-top:2px">' + esc(p.subject) + '</div></div>' +
-      '</label>').join('');
-    const ctrl = modal({
-      title: 'Start from a template', width: 520, hideCancel: false, okText: 'Cancel',
-      body: '<div class="muted mb-4" style="font-size:13px">Pick a starting point. You can edit everything afterwards — this replaces the current subject and body.</div><div class="nf-tpl-list">' + cards + '</div>',
-      onOk: (m, close) => close(),
-    });
-    ctrl.m.querySelectorAll('[data-tpl-pick]').forEach((el) => el.onclick = () => {
-      const p = presets[Number(el.getAttribute('data-tpl-pick'))];
-      const sub = root.querySelector('#nf-subject'); if (sub) sub.value = p.subject;
-      const body = root.querySelector('#nf-body'); if (body) body.value = p.body;
-      ctrl.close(); toast('Template applied'); nfUpdatePreview(ev);
-    });
+    ['subject|nf-subject', 'preheader|nf-preheader', 'headline|nf-headline', 'copy|nf-copy', 'template|nf-template'].forEach((p) => { const [k, id] = p.split('|'); const v = g(id); if (v !== undefined) c[k] = k === 'template' ? nfSanitizeTemplate(ev, v) : v; });
+    c.updatedAt = '2026-07-27';
   }
 
   function openNotifTestModal(ev) {
     modal({
-      title: 'Send a test email', width: 460, okText: 'Send test',
-      body: '<div class="muted mb-4" style="font-size:13px">We’ll send this notification with sample order data so you can check how it looks in a real inbox.</div>' +
-        field('Send to', window.SITE && window.SITE.email ? window.SITE.email : '', 'you@example.com'),
-      onOk: (m, close) => { const inp = m.querySelector('input'); const to = inp ? inp.value : ''; close(); toast(to ? 'Test email sent to ' + to : 'Test email sent'); },
+      title: 'Send test email', width: 460, okText: 'Send test',
+      body: '<div class="muted mb-4" style="font-size:13px;line-height:1.6">Send a test email with sample order data to check the recipient and message layout.</div>' +
+        field('Recipient', window.SITE && window.SITE.email ? window.SITE.email : '', 'you@example.com'),
+      onOk: (m, close) => {
+        const inp = m.querySelector('input'); const to = inp ? inp.value : '';
+        D.notifications.deliveryLog.push({ event: ev.code, recipient: to, recordedAt: new Date().toISOString() });
+        close(); toast(to ? 'Test email sent to ' + to : 'Test email sent');
+      },
     });
   }
 
   const NOTIF_STYLES = `
+  .nf-list-shell { width: 860px; max-width: 100%; margin: 0 auto; }
   .nf-group { margin-bottom: 22px; }
   .nf-group:last-child { margin-bottom: 0; }
   .nf-group-h { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); margin: 0 2px 8px; }
@@ -2443,46 +3257,207 @@
   .nf-main { flex: 1; min-width: 0; }
   .nf-name { font-size: 14px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
   .nf-desc { font-size: 12.5px; color: var(--ink-muted); margin-top: 2px; }
-  .nf-meta { font-size: 12px; color: var(--ink-muted); white-space: nowrap; }
-  .nf-cls { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9999px; }
-  .nf-cls.t { background: #e0f2ec; color: #00684a; }
-  .nf-cls.m { background: #ffedd5; color: #b45309; }
-  .nf-cls.i { background: #dbeafe; color: #2563eb; }
   .nf-right { display: flex; align-items: center; gap: 12px; flex: none; }
   .nf-chev { color: var(--ink-muted); display: inline-flex; }
-  @media (max-width: 760px) { .nf-meta { display: none; } }
+  .nf-sender-card { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid #cfe0ff; border-radius: 10px; background: #f8fbff; }
+  .nf-sender-ico { width: 36px; height: 36px; display: grid; place-items: center; flex: none; border-radius: 8px; background: #e6f0ff; color: var(--brand); }
+  .nf-sender-address { font-size: 13px; color: var(--ink); margin-top: 3px; }
+  .nf-sender-card .btn { flex: none; }
+  .nf-sender-layout { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+  .nf-section-title { font-size: 14px; font-weight: 650; color: var(--ink); margin-bottom: 16px; }
+  .nf-sender-domain-section { display: flex; flex-direction: column; gap: 12px; }
+  .nf-sender-domain-section .nf-section-title { margin: 0 2px 2px; }
+  .nf-sender-domain-card { border: 1px solid var(--hair); border-radius: 12px; padding: 17px 18px; background: #fff; box-shadow: 0 1px 2px rgb(21 32 51 / 3%); }
+  .nf-sender-domain-card.is-default { background: #fbfcff; }
+  .nf-sender-domain-card.is-branded { border-color: #cfe0ff; background: linear-gradient(135deg, #fbfdff 0%, #f5f9ff 100%); }
+  .nf-sender-domain-card.is-branded.has-domain { border-color: #cce9d9; background: linear-gradient(135deg, #fcfffd 0%, #f4fbf7 100%); }
+  .nf-sender-domain-card-head { display: flex; align-items: flex-start; gap: 12px; }
+  .nf-sender-domain-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 9px; background: #eef2f6; color: #64748b; }
+  .nf-sender-domain-icon.is-branded { background: #e6f0ff; color: var(--brand); }
+  .nf-sender-domain-card-main { flex: 1; min-width: 0; padding-top: 1px; }
+  .nf-sender-domain-card-title { color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.35; }
+  .nf-sender-domain-card-address { margin-top: 4px; color: var(--ink-body); font-size: 13px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+  .nf-sender-domain-card-copy { margin: 2px 0 0 48px; color: var(--ink-muted); font-size: 12.5px; line-height: 1.55; }
+  .nf-sender-domain-card-main .nf-sender-domain-card-copy.is-inline { margin: 3px 0 0; }
+  .nf-sender-domain-card-actions { display: flex; margin: 14px 0 0 48px; }
+  .nf-sender-domain-card-actions .btn { min-width: 132px; }
+  .nf-sender-ref { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 0 0 14px; border: 1px solid var(--hair); border-radius: 8px; background: var(--panel); }
+  .nf-copy { width: 100%; min-height: 150px; padding: 10px 12px; border: 1px solid var(--ctl); border-radius: 8px; resize: vertical; color: var(--ink); background: #fff; font: 13px/1.6 inherit; }
+  .nf-copy:focus { outline: none; border-color: var(--brand); }
+  .nf-domain-list { display: flex; flex-direction: column; gap: 10px; }
+  .nf-domain-row { display: flex; align-items: center; gap: 14px; padding: 0; border: 1px solid #dfe5ec; border-radius: 10px; background: #fff; overflow: hidden; }
+  .nf-domain-row.has-dns { display: block; padding: 0; overflow: hidden; }
+  .nf-domain-main { width: 100%; }
+  .nf-domain-header { padding: 18px 20px 16px; }
+  .nf-domain-facts { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(220px, .8fr); border-top: 1px solid #e8edf3; }
+  .nf-domain-cell { min-width: 0; padding: 16px 20px; }
+  .nf-domain-cell + .nf-domain-cell { border-left: 1px solid #e8edf3; }
+  .nf-domain-field-label { margin-bottom: 8px; color: #778294; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; }
+  .nf-domain-value { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.45; }
+  .nf-domain-value .pill, .nf-domain-status-value .pill { flex: none; white-space: nowrap; }
+  .nf-domain-address { overflow-wrap: anywhere; }
+  .nf-domain-cell-hint { margin-top: 5px; color: var(--ink-muted); font-size: 12px; line-height: 1.45; }
+  .nf-domain-status { background: #fbfcfe; }
+  .nf-domain-status-value { display: flex; align-items: center; min-height: 20px; }
+  .nf-domain-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+  .nf-pending { color: var(--ink-muted); font-size: 12px; }
+  .nf-dns-table { border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; }
+  .nf-dns-row { display: grid; grid-template-columns: 88px 160px minmax(0, 1fr); border-top: 1px solid var(--hair); }
+  .nf-dns-row.nf-dns-inline { grid-template-columns: 76px 148px minmax(0, 1fr) 64px; }
+  .nf-dns-row:first-child { border-top: 0; }
+  .nf-dns-head { background: var(--panel); font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+  .nf-dns-cell { min-width: 0; padding: 10px 12px; font-size: 12.5px; overflow-wrap: anywhere; }
+  .nf-mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .nf-domain-dns { border-top: 1px solid var(--hair); padding: 12px 14px 14px; background: #fbfdff; }
+  .nf-dns-guide { margin: 0 0 10px; color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
+  .nf-dns-copy-cell { display: flex; align-items: center; justify-content: flex-end; }
+  .nf-dns-copy { padding: 4px 8px; border: 1px solid var(--ctl); border-radius: 6px; background: #fff; color: var(--brand); font: inherit; font-size: 12px; cursor: pointer; }
+  .nf-dns-copy:hover { border-color: var(--brand); background: #f7faff; }
+  @media (max-width: 840px) { .nf-domain-facts { grid-template-columns: 1fr; } .nf-domain-cell + .nf-domain-cell { border-left: 0; border-top: 1px solid #e8edf3; } }
+  @media (max-width: 620px) { .nf-sender-card { align-items: flex-start; flex-wrap: wrap; } .nf-sender-card .btn { width: 100%; } .nf-sender-ref { align-items: flex-start; flex-direction: column; } .nf-sender-domain-card { padding: 15px; } .nf-sender-domain-card-head { gap: 10px; } .nf-sender-domain-card-copy, .nf-sender-domain-card-actions { margin-left: 0; } .nf-sender-domain-card-actions .btn { width: 100%; } .nf-dns-row { grid-template-columns: 68px 104px minmax(0, 1fr); } .nf-dns-row.nf-dns-inline { grid-template-columns: 58px minmax(0, 1fr) 54px; } .nf-dns-inline-head { display: none; } .nf-dns-row.nf-dns-inline > :nth-child(1) { grid-column: 1; grid-row: 1; } .nf-dns-row.nf-dns-inline > :nth-child(2) { grid-column: 2 / 4; grid-row: 1; } .nf-dns-row.nf-dns-inline > :nth-child(3) { grid-column: 2; grid-row: 2; } .nf-dns-row.nf-dns-inline > :nth-child(4) { grid-column: 3; grid-row: 2; } .nf-dns-cell { padding: 9px; font-size: 11.5px; } }
 
-  /* editor */
-  .nf-editor { display: grid; grid-template-columns: minmax(360px, 440px) minmax(0, 1fr); gap: 20px; align-items: start; }
-  @media (max-width: 1080px) { .nf-editor { grid-template-columns: 1fr; } }
+  /* Shopify-style notification editor */
+  .nf-shop-shell { width: min(860px, 100%); margin: 0 auto; }
+  .nf-shop-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 18px; }
+  .nf-crumb { color: var(--ink); font-size: 20px; font-weight: 650; line-height: 1.4; }
+  .nf-shop-preview, .nf-code-page { width: 100%; margin: 0 auto; }
+  .nf-shop-preview { padding: 12px 18px 18px; border: 1px solid var(--hair); border-radius: 12px; background: #fff; }
+  .nf-code-notice { margin: 16px 0; padding: 16px 18px; border: 1px solid var(--hair); border-radius: 12px; background: #fff; color: var(--ink-body); font-size: 13px; line-height: 1.65; }
+  .nf-code-notice-title { color: var(--ink); font-size: 14px; font-weight: 650; margin-bottom: 4px; }
+  .nf-variable-panel { margin: 0 0 16px; padding: 15px 18px 16px; border: 1px solid var(--hair); border-radius: 12px; background: #fff; }
+  .nf-variable-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+  .nf-variable-panel-title { color: var(--ink); font-size: 14px; font-weight: 650; line-height: 1.4; }
+  .nf-variable-panel-copy { margin-top: 3px; color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
+  .nf-variable-panel-note { max-width: 220px; color: var(--ink-muted); font-size: 11.5px; line-height: 1.45; text-align: right; }
+  .nf-variable-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .nf-var-group { min-width: 0; }
+  .nf-var-group-title { margin: 0 0 6px; color: var(--ink-body); font-size: 12px; font-weight: 600; }
+  .nf-var-token-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .nf-var-token { display: inline-flex; min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid #dfe5ed; border-radius: 6px; background: #f8fafc; }
+  .nf-var-insert { min-width: 0; max-width: 100%; overflow: hidden; border: 0; padding: 5px 7px; background: transparent; color: #2458a8; cursor: pointer; font: 12px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: left; }
+  .nf-var-insert:hover { background: #edf4ff; }
+  .nf-var-insert code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; }
+  .nf-var-copy { flex: none; border: 0; border-left: 1px solid #dfe5ed; padding: 5px 7px; background: #fff; color: var(--ink-muted); cursor: pointer; font-size: 11px; line-height: 1.35; }
+  .nf-var-copy:hover { color: var(--brand); background: #f7faff; }
+  .nf-code-card { padding: 18px; border: 1px solid var(--hair); border-radius: 12px; background: #fff; }
+  .nf-code-card-title { color: var(--ink); font-size: 14px; font-weight: 650; margin: 0 0 16px; }
+  .nf-code-wrap { display: grid; grid-template-columns: 44px minmax(0, 1fr); min-height: 420px; border: 1px solid var(--ctl); border-radius: 8px; overflow: hidden; background: #fbfbfc; }
+  .nf-code-gutter { padding: 12px 9px; border-right: 1px solid var(--hair); color: #9aa3b2; background: #f7f8fa; text-align: right; font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; user-select: none; }
+  .nf-code { width: 100%; min-height: 420px; border: 0; outline: 0; resize: vertical; padding: 12px 14px; color: #263041; background: transparent; font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; tab-size: 2; }
+  @media (max-width: 620px) { .nf-shop-head { align-items: flex-start; flex-direction: column; } .nf-shop-head > .flex:last-child { width: 100%; flex-wrap: wrap; } .nf-shop-head .btn { flex: 1; } .nf-shop-preview, .nf-code-card { padding: 12px; } .nf-code-wrap, .nf-code { min-height: 340px; } .nf-variable-panel { padding: 13px; } .nf-variable-panel-head { flex-direction: column; gap: 5px; } .nf-variable-panel-note { max-width: none; text-align: left; } .nf-variable-grid { grid-template-columns: 1fr; gap: 12px; } }
   .nf-label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin: 0 0 6px; }
   .nf-hint { font-size: 11.5px; color: var(--ink-muted); margin-top: 5px; line-height: 1.5; }
-  .nf-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-  .nf-insert { height: 32px; width: auto; min-width: 140px; padding: 0 10px; }
-  .nf-body { width: 100%; min-height: 220px; font: 12.5px/1.6 ui-monospace, Menlo, Consolas, monospace; padding: 10px 12px; border: 1px solid var(--ctl); border-radius: 8px; resize: vertical; color: var(--ink); background: #fff; }
-  .nf-body:focus { outline: none; border-color: var(--brand); }
 
   /* preview */
-  .nf-preview { position: sticky; top: 8px; }
-  .nf-pv-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .nf-pv-head { display: flex; min-height: 40px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .nf-pv-title { display: flex; align-items: center; align-self: stretch; color: var(--ink); font-size: 13px; font-weight: 600; line-height: 1.35; }
   .nf-seg { display: inline-flex; border: 1px solid var(--ctl); border-radius: 8px; overflow: hidden; }
   .nf-seg button { border: none; background: #fff; padding: 6px 14px; font-size: 12.5px; color: var(--ink-body); cursor: pointer; }
   .nf-seg button + button { border-left: 1px solid var(--ctl); }
   .nf-seg button.on { background: var(--brand); color: #fff; }
   .nf-inbox { border: 1px solid var(--hair); border-bottom: none; border-radius: 10px 10px 0 0; background: #fff; padding: 10px 14px; font-size: 12.5px; }
-  .nf-inbox .l { color: var(--ink-muted); } .nf-inbox .v { color: var(--ink); font-weight: 500; }
+  .nf-inbox .l { color: var(--ink-muted); } .nf-inbox .v { margin-left: 6px; color: var(--ink); font-weight: 500; }
   .nf-stage { border: 1px solid var(--hair); border-radius: 0 0 10px 10px; background: #eef1f5; padding: 18px 12px; overflow: hidden; }
-  .email-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgb(16 24 40 / 8%); overflow: hidden; margin: 0 auto; font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .email-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgb(16 24 40 / 8%); overflow: hidden; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; }
   .email-card .nf-h { margin: 0 0 10px; font-size: 22px; font-weight: 700; color: #1f2430; letter-spacing: -.01em; }
   .email-card .nf-lead { margin: 0 0 22px; font-size: 15px; color: #5a6473; line-height: 1.7; }
   .email-card .nf-fine { margin: 18px 0 0; font-size: 13px; color: #9aa3b2; line-height: 1.7; }
+  /* Shopify notification geometry: header, content, summary, customer information and footer. */
+  .email-card { border-radius: 0; box-shadow: none; color: #777; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif; }
+  .email-card .nf-email-inner { box-sizing: border-box; padding: 32px 40px; }
+  .email-card .nf-email-header { background: #fff; }
+  .email-card .nf-email-header .nf-email-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .email-card .nf-email-shop-name { color: #000; font-size: 20px; font-weight: 500; line-height: 1.25; text-decoration: none; }
+  .email-card .nf-email-order-number { color: #999; font-size: 14px; line-height: 1.45; text-align: right; white-space: nowrap; }
+  .email-card .nf-email-body { padding: 34px 40px 0; }
+  .email-card .nf-h { margin: 0 0 10px; color: #000; font-size: 24px; font-weight: 400; letter-spacing: 0; line-height: 1.333; }
+  .email-card .nf-lead { margin: 0; color: #777; font-size: 16px; line-height: 1.5; }
+  .email-card .nf-email-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 30px 0 0; }
+  .email-card .nf-email-button { display: inline-block; box-sizing: border-box; border-radius: 4px; color: #fff; font-size: 14px; font-weight: 600; line-height: 1.2; padding: 14px 22px; text-decoration: none; }
+  .email-card .nf-email-action-or { color: #737373; font-size: 14px; }
+  .email-card .nf-email-store-link { font-size: 14px; text-decoration: none; }
+  .email-card .nf-email-estimate { margin: 18px 0 0; color: #545454; font-size: 14px; line-height: 1.6; }
+  .email-card .nf-email-tracking-note { margin: 28px 0 0; color: #737373; font-size: 13px; line-height: 1.6; }
+  .email-card .nf-email-tracking-note a { text-decoration: none; }
+  .email-card .nf-email-section { margin: 36px -40px 0; background: #fff; }
+  .email-card .nf-email-section-inner { padding: 32px 40px; }
+  .email-card .nf-email-section h3 { margin: 0 0 21px; color: #000; font-size: 20px; font-weight: 400; line-height: 1.3; }
+  .email-card .nf-email-product-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid #e6e6e6; }
+  .email-card .nf-email-product-row:first-child { border-top: 0; padding-top: 0; }
+  .email-card .nf-email-product-row.is-bundle { align-items: flex-start; }
+  .email-card .nf-email-product-image { display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; flex: none; box-sizing: border-box; border: 1px solid #dedede; border-radius: 4px; background: #f6f6f6; font-size: 16px; font-weight: 600; }
+  .email-card .nf-email-product-copy { min-width: 0; flex: 1; }
+  .email-card .nf-email-product-title, .email-card .nf-email-product-price { color: #555; font-size: 16px; font-weight: 500; line-height: 1.35; }
+  .email-card .nf-email-bundle-badge { display: inline-block; margin: 0 7px 0 0; padding: 1px 5px; border-radius: 3px; background: #f0f4ff; color: #526bba; font-size: 11px; font-weight: 600; line-height: 1.35; vertical-align: 1px; }
+  .email-card .nf-email-product-variant { margin-top: 3px; color: #999; font-size: 14px; line-height: 1.4; }
+  .email-card .nf-email-subscription { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 5px; color: #777; font-size: 13px; line-height: 1.4; }
+  .email-card .nf-email-subscription span:first-child { color: #555; font-weight: 500; }
+  .email-card .nf-email-subscription b { color: #aaa; font-size: 12px; }
+  .email-card .nf-email-product-discounts { margin-top: 4px; }
+  .email-card .nf-email-product-discount { display: flex; align-items: center; gap: 5px; margin-top: 3px; color: #777; font-size: 14px; line-height: 1.35; }
+  .email-card .nf-email-product-discount img { display: block; width: 16px; height: 16px; flex: none; }
+  .email-card .nf-email-bundle-component { display: flex; align-items: flex-start; gap: 9px; margin: 10px 0 0; padding: 10px 0 0 10px; border-top: 1px solid #f0f0f0; }
+  .email-card .nf-email-bundle-component-image { width: 36px; height: 36px; flex: none; box-sizing: border-box; border: 1px solid #e4e4e4; border-radius: 3px; background: #fafafa; }
+  .email-card .nf-email-bundle-component-copy { min-width: 0; flex: 1; }
+  .email-card .nf-email-included { display: inline-block; margin: 0 6px 0 0; color: #777; font-size: 11px; font-weight: 600; line-height: 1.4; }
+  .email-card .nf-email-bundle-component-title { color: #666; font-size: 13px; font-weight: 500; line-height: 1.4; }
+  .email-card .nf-email-bundle-component-variant { margin-top: 2px; color: #999; font-size: 12px; line-height: 1.4; }
+  .email-card .nf-email-product-price { white-space: nowrap; }
+  .email-card .nf-email-product-row.is-bundle .nf-email-product-price { padding-top: 1px; }
+  .email-card .nf-email-product-price { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .email-card .nf-email-product-price del { color: #999; font-size: 14px; font-weight: 400; }
+  .email-card .nf-email-totals { width: 60%; margin: 22px 0 0 auto; }
+  .email-card .nf-email-total-row { display: flex; justify-content: space-between; gap: 18px; padding: 4px 0; color: #777; font-size: 16px; line-height: 1.2; }
+  .email-card .nf-email-total-row > span:last-child { color: #555; font-weight: 600; text-align: right; white-space: nowrap; }
+  .email-card .nf-email-total-row.is-strong { color: #777; font-size: 16px; font-weight: 400; line-height: 1.25; }
+  .email-card .nf-email-total-row.is-strong > span:last-child { color: #555; font-size: 20px; font-weight: 600; }
+  .email-card .nf-email-total-paid .nf-email-total-row.is-strong > span:last-child { font-size: 16px; }
+  .email-card .nf-email-discount-code { display: flex; align-items: center; gap: 6px; padding: 4px 0 6px 6px; color: #777; font-size: 14px; line-height: 1.35; }
+  .email-card .nf-email-discount-code img { display: block; width: 18px; height: 18px; flex: none; }
+  .email-card .nf-email-total-row > span:last-child { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 10px; }
+  .email-card .nf-email-total-row .nf-email-shipping-original { color: #777; font-weight: 400; text-decoration: line-through; }
+  .email-card .nf-email-total-row strong { color: #555; font-weight: 600; }
+  .email-card .nf-email-total-divider { width: 60%; margin: 20px 0 0 auto; padding-top: 20px; border-top: 1px solid #dedede; }
+  .email-card .nf-email-total-paid { margin-top: 14px; }
+  .email-card .nf-email-total-discount { margin: 10px 0 0; color: #777; font-size: 16px; line-height: 1.1; text-align: right; }
+  .email-card .nf-email-refund-payments { width: 60%; margin: 20px 0 0 auto; padding-top: 18px; border-top: 1px solid #dedede; }
+  .email-card .nf-email-refund-payment-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 5px 0; color: #737373; font-size: 14px; line-height: 1.45; }
+  .email-card .nf-email-refund-payment-row span, .email-card .nf-email-refund-payment-row small { display: block; }
+  .email-card .nf-email-refund-payment-row small { margin-top: 1px; color: #8b8b8b; font-size: 12px; }
+  .email-card .nf-email-refund-payment-row strong { color: #545454; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .email-card .nf-email-invoice { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0; padding: 22px 0; border-bottom: 1px solid #e6e6e6; }
+  .email-card .nf-email-info-title { margin: 0 0 5px; color: #555; font-size: 16px; font-weight: 500; line-height: 1.2; }
+  .email-card .nf-email-invoice-meta, .email-card .nf-email-info-value { color: #777; font-size: 16px; line-height: 1.5; }
+  .email-card .nf-email-invoice a { font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+  .email-card .nf-email-payment-brand { display: inline-block; margin-right: 7px; padding: 1px 4px; border: 1px solid #dedede; border-radius: 2px; color: #2457a6; font-size: 10px; font-weight: 700; line-height: 1.2; vertical-align: 1px; }
+  .email-card .nf-email-footer { margin-top: 36px; border-top: 1px solid #e6e6e6; color: #737373; font-size: 13px; line-height: 1.6; text-align: center; }
+  .email-card.is-refund .nf-email-footer { margin-top: 20px; }
+  .email-card.is-verification .nf-email-header .nf-email-inner { justify-content: center; padding: 44px 40px 30px; }
+  .email-card.is-verification .nf-email-shop-name { font-size: 30px; font-weight: 600; letter-spacing: .12em; }
+  .email-card.is-verification .nf-email-body { padding: 0 40px; }
+  .email-card .nf-verification-code { margin: 0; padding: 14px 0 6px; color: #000; text-align: center; }
+  .email-card .nf-verification-label { margin: 0; font-size: 16px; line-height: 1.5; }
+  .email-card .nf-verification-value { margin: 9px 0 0; padding-left: .24em; color: #000; font-size: 23px; font-weight: 600; letter-spacing: .24em; line-height: 1.3; }
+  .email-card .nf-verification-note { margin: 15px 0 0; color: #111; font-size: 14px; line-height: 1.5; }
+  .email-card.is-verification .nf-email-footer { margin-top: 34px; border-top: 0; color: #777; font-size: 12px; }
+  .email-card.is-verification .nf-email-footer .nf-email-inner { padding: 0 40px 32px; }
+  .email-card.is-shipment .nf-email-section-inner { padding-bottom: 24px; }
+  .email-card.is-shipment .nf-email-footer { margin-top: 24px; }
+  .email-card .nf-email-footer a { text-decoration: none; }
+  .email-card.is-mobile .nf-email-inner, .email-card.is-mobile .nf-email-body, .email-card.is-mobile .nf-email-section-inner { padding-left: 24px; padding-right: 24px; }
+  .email-card.is-mobile .nf-email-section { margin-left: -24px; margin-right: -24px; }
+  .email-card.is-mobile .nf-email-totals, .email-card.is-mobile .nf-email-total-divider, .email-card.is-mobile .nf-email-refund-payments { width: 100%; }
+  .email-card.is-mobile .nf-email-header .nf-email-inner { gap: 12px; }
+  .email-card.is-mobile.is-verification .nf-email-header .nf-email-inner { padding: 34px 24px 24px; }
+  .email-card.is-mobile.is-verification .nf-email-body { padding: 0 24px; }
+  .email-card.is-mobile .nf-email-shop-name { font-size: 18px; }
+  .email-card.is-mobile .nf-email-product-row { align-items: flex-start; gap: 10px; }
+  .email-card.is-mobile .nf-email-product-image { width: 48px; height: 48px; }
+  .email-card.is-mobile .nf-email-customer-grid, .email-card.is-mobile .nf-email-customer-grid tbody, .email-card.is-mobile .nf-email-customer-grid tr, .email-card.is-mobile .nf-email-customer-grid td { display: block; width: 100% !important; box-sizing: border-box; }
+  .email-card.is-mobile .nf-email-customer-grid td { padding: 0 0 22px !important; }
+  .email-card.is-mobile .nf-email-customer-grid tr:last-child td:last-child { padding-bottom: 0 !important; }
   .nf-unktag { background: #fff4d6; color: #92660a; border-radius: 4px; padding: 0 4px; font-size: .92em; }
 
-  /* template picker */
-  .nf-tpl-list { display: flex; flex-direction: column; gap: 10px; }
-  .nf-tpl { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--hair); border-radius: 10px; cursor: pointer; }
-  .nf-tpl:hover { border-color: var(--brand); background: #fcfdff; }
-  .nf-tpl-thumb { width: 40px; height: 40px; border-radius: 8px; background: #e6f0ff; color: var(--brand); font-weight: 700; display: grid; place-items: center; flex: none; }
   `;
 
   const ROUTES = {
@@ -2526,6 +3501,7 @@
       ? (sub === 'new' ? 'new' : Number(decodeURIComponent(sub))) : null;
     domainStep = (key === 'domains' && sub) ? sub : null;
     notifSub = (key === 'notifications' && sub != null && sub !== '') ? decodeURIComponent(sub) : null;
+    notifEditorMode = key === 'notifications' && notifSub && parts[2] === 'edit' ? 'code' : 'preview';
     ROUTES[key]();
     wireDirty();
     if (root && root.parentElement) root.parentElement.scrollTop = 0;
