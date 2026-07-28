@@ -52,6 +52,7 @@
       'Available after activation': '设为当前发件域名后可用',
       'Active sender domain': '当前发件域名',
       'Used for all transactional emails': '当前用于发送全部事务邮件',
+      'Free store domain · always available · Used for all transactional emails': '免费店铺域名 · 始终可用 · 用于全部事务邮件',
       'Platform default sender': '平台默认发件人',
       'Ready to use': '可立即使用',
       'Domain connected': '域名已连接',
@@ -2089,7 +2090,7 @@
     const isActive = !!active && active.id === d.id;
     const senderAddress = (d.default ? sender.platformLocalPart : profile.localPart) + '@' + d.domain;
     const badge = isActive
-      ? { cls: 'pill-green', label: 'Active sender domain' }
+      ? { cls: 'pill-green', label: 'Connected' }
       : d.status === 'connected'
         ? { cls: 'pill-green', label: 'Connected' }
         : d.status === 'dns_error'
@@ -2097,10 +2098,10 @@
           : d.default
             ? { cls: 'pill-gray', label: 'BestShopio default' }
             : { cls: 'pill-orange', label: 'Pending verification' };
-    const meta = isActive
-      ? tx('Used for all transactional emails') + ' · ' + esc(senderAddress)
-      : d.default
-        ? tx('Platform default sender') + ' · ' + esc(senderAddress)
+    const meta = d.default
+      ? tx('Free store domain · always available · Used for all transactional emails')
+      : isActive
+        ? tx('Used for all transactional emails') + ' · ' + esc(senderAddress)
         : d.status === 'connected'
           ? tx('Used for all transactional emails') + ' · ' + esc(senderAddress)
           : d.status === 'dns_error'
@@ -2115,7 +2116,7 @@
       : '';
     return '<div class="dom-row">' +
       '<div class="dom-ico email">' + I.globe + '</div>' +
-      '<div class="dom-info"><div class="dom-name">' + esc(d.domain) + '</div><div class="dom-meta">' + displayMeta + '</div></div>' +
+      '<div class="dom-info"><div class="dom-name">' + esc(d.default ? senderAddress : d.domain) + '</div><div class="dom-meta">' + displayMeta + '</div></div>' +
       '<div class="dom-actions"><span class="pill ' + badge.cls + '"><span class="dot"></span>' + badge.label + '</span>' + del + '</div>' +
     '</div>';
   }
@@ -2176,9 +2177,18 @@
     root.querySelectorAll('[data-remove-email-list]').forEach((b) => b.onclick = () => {
       const id = b.getAttribute('data-remove-email-list');
       const d = D.notifications.sender.domains.find((x) => x.id === id);
-      if (!d) return;
+      if (!d || d.default) return;
       const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
-      confirm({ title: 'Remove sending domain?', content: tx('The verification for') + ' ' + esc(d.domain) + '。' + tx('Transactional emails will use the BestShopio default sender until you add and verify another domain.'), okText: 'Remove domain', danger: true, onOk: () => { const fallback = D.notifications.sender.domains.find((x) => x.default); if (D.notifications.sender.activeDomainId === id && fallback) D.notifications.sender.activeDomainId = fallback.id; D.notifications.sender.domains = D.notifications.sender.domains.filter((x) => x.id !== id); toast('Sending domain removed'); renderDomainListByType(); } });
+      const content = tx('The verification for') + ' ' + esc(d.domain) + '。' + tx('Transactional emails will use the BestShopio default sender until you add and verify another domain.');
+      confirm({ title: 'Remove sending domain?', content: content, okText: 'Delete', danger: true, onOk: () => {
+        const sender = D.notifications.sender;
+        const fallback = sender.domains.find((x) => x.id !== id && (x.default || x.status === 'connected')) || null;
+        if (sender.activeDomainId === id) sender.activeDomainId = fallback ? fallback.id : '';
+        sender.domains = sender.domains.filter((x) => x.id !== id);
+        if (emailSendingDomainId === id) emailSendingDomainId = '';
+        toast('Sending domain removed');
+        renderDomainListByType();
+      } });
     });
   }
 
