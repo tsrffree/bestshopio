@@ -1,50 +1,115 @@
-/* Checkout · Header — the brand logo bar at the very top of the checkout. Real checkouts open with
-   the store's logo (the storefront nav is stripped on checkout), so this gives the merchant a place
-   to put it. Configurable logo image (or text wordmark fallback), alignment, height, optional
-   secure-checkout line + bottom divider. Full-width — sits above the two-column body. */
+/* Checkout · Header (PRD §5.1) — brand bar at the top of the checkout.
+   Composable model: a structural axis (Logo alignment) + independent content
+   modules (Trust message / Contact / Cart). Each module is an on/off toggle so
+   the layout is extensible — new modules slot into the start / center / end
+   regions without inventing a new fixed-combo enum. No nav / search / account
+   (focused, trustworthy transaction environment). Logo falls back to the store
+   brand name (AURA). */
 (function () {
-  const OS = window.OS;
-  OS.css('checkout-header', [
-    '.ck-hd{box-sizing:border-box}.ck-hd *{box-sizing:border-box}',
-    '.ck-hd .ckh-in{display:flex;flex-direction:column;gap:7px}',
-    '.ck-hd.left .ckh-in{align-items:flex-start}.ck-hd.center .ckh-in{align-items:center}',
-    '.ck-hd .ckh-logo{display:block;width:auto;object-fit:contain}',
-    '.ck-hd .ckh-word{font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1}',
-    '.ck-hd .ckh-ph{display:grid;place-items:center;border:1.5px dashed #cfd5dd;border-radius:7px;color:#9aa3af;font-size:11.5px;font-weight:600;padding:0 14px}',
-    '.ck-hd .ckh-secure{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.62}',
-    '.ck-hd .ckh-secure svg{width:13px;height:13px}',
-  ].join(''));
+  if (!window.OS) return;
+  const { esc, icon } = OS;
 
   OS.register('checkout-header', {
-    name: 'Checkout header', group: 'commerce', icon: 'image',
+    name: 'Header', icon: 'image',
+    // Required component: can't be moved/deleted, but visibility is toggled from the tree's
+    // eye icon (s.hidden) instead of a "Show header" setting — keeps show/hide consistent.
+    hideable: true,
     schema: [
-      { key: 'logo_image', control: 'image', label: 'Logo image', default: '', info: 'Blank shows the text wordmark below.' },
-      { key: 'logo_text', control: 'text', label: 'Logo text (fallback)', default: 'AURA', visibleWhen: (s) => !s.logo_image },
-      { key: 'logo_height', control: 'range', label: 'Logo height', min: 20, max: 72, step: 1, unit: 'px', default: 34 },
-      { key: 'align', control: 'segmented', label: 'Alignment', default: 'center', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }] },
-      { key: 'show_secure', control: 'toggle', label: 'Secure-checkout line', default: false },
-      { key: 'divider', control: 'toggle', label: 'Bottom divider', default: true },
+      { sub: 'Logo' },
+      { key: 'logo_image', label: 'Logo image', control: 'image', default: '', info: 'JPG / PNG / WebP / SVG. Falls back to the store brand name.' },
+      { key: 'logo_width', label: 'Logo width · PC', control: 'range', min: 40, max: 300, step: 1, unit: 'px', default: 120 },
+      { key: 'logo_width_mobile', label: 'Logo width · Mobile', control: 'range', min: 40, max: 240, step: 1, unit: 'px', default: 100 },
+      { key: 'logo_position', label: 'Logo alignment', control: 'select', default: 'left', info: 'The structural axis of the header. Left / Right anchor the logo to a side; Center pins it to the middle.', options: [
+        { value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' } ] },
+      { sub: 'Trust message' },
+      { key: 'show_trust_text', label: 'Show trust message', control: 'toggle', default: true, info: 'Reassures buyers the checkout is secure.' },
+      { key: 'trust_text', label: 'Text', control: 'text', default: 'Secure checkout', placeholder: 'Secure checkout', visibleWhen: (v) => v.show_trust_text !== false },
+      { sub: 'Secure badge' },
+      { key: 'show_secure_badge', label: 'Show secure badge', control: 'toggle', default: false, info: 'A small padlock chip — extra reassurance next to the cart.' },
+      { key: 'secure_text', label: 'Text', control: 'text', default: 'SSL secure', placeholder: 'SSL secure', visibleWhen: (v) => !!v.show_secure_badge },
+      { sub: 'Contact' },
+      { key: 'show_contact_info', label: 'Show contact', control: 'toggle', default: false, info: 'Shows a “need help?” block (title + email / phone).' },
+      { key: 'contact_title', label: 'Title', control: 'text', default: 'Need help?', visibleWhen: (v) => !!v.show_contact_info },
+      { key: 'contact_email', label: 'Email', control: 'text', default: '', placeholder: 'support@store.com', visibleWhen: (v) => !!v.show_contact_info },
+      { key: 'contact_phone', label: 'Phone', control: 'text', default: '', placeholder: '+1 555 000 0000', visibleWhen: (v) => !!v.show_contact_info },
+      // Cart is meaningless on the Thank you page (order already placed), so the whole Cart
+      // config is hidden there — the Thank you header is otherwise identical to Checkout.
+      { sub: 'Cart', visibleWhen: (v, ctx) => !(ctx && ctx.isThankyou) },
+      { key: 'show_cart_icon', label: 'Show cart icon', control: 'toggle', default: true, info: 'A cart shortcut pinned to the end of the header.', visibleWhen: (v, ctx) => !(ctx && ctx.isThankyou) },
       { sub: 'Colors' },
-      { key: 'background', control: 'color', label: 'Background', default: 'transparent', allowTransparent: true },
+      { key: 'background_color', label: 'Background color', control: 'color', default: '', info: 'Leave empty to inherit Checkout settings → Header.' },
+      { key: 'text_color', label: 'Text color', control: 'color', default: '' },
+      { key: 'accent_color', label: 'Accent color', control: 'color', default: '', info: 'Cart icon, links.' },
+      { key: 'show_divider', label: 'Show divider', control: 'toggle', default: true },
+      { sub: 'Advanced' },
+      { key: 'custom_css', label: 'Custom CSS', control: 'custom_css', default: '', info: 'Applies to this header only.' },
     ],
-    render: function (s, blocks, ctx) {
-      const t = ctx.tokens, mob = ctx.mob, c = t.colors || {};
-      const padH = OS.ckPad(t, mob);
-      const h = OS.clamp(s.logo_height, 20, 72, 34);
-      const align = s.align === 'left' ? 'left' : 'center';
-      const hc = c.heading_color || '#1a1a1a';
-      let logo;
-      if (s.logo_image) {
-        logo = '<img class="ckh-logo" src="' + OS.esc(s.logo_image) + '" alt="" style="height:' + h + 'px">';
-      } else if (s.logo_text) {
-        logo = '<span class="ckh-word" style="font-family:' + OS.headingFamily(t) + ';font-size:' + Math.round(h * 0.62) + 'px;color:' + hc + '">' + OS.esc(s.logo_text) + '</span>';
+    render(s, blocks, ctx) {
+      const tk = ctx.tokens || {}; const L = tk.layout || {};
+      const mob = ctx.mob;
+      const store = (ctx.checkout && ctx.checkout.storeName) || 'AURA';
+      const bg = s.background_color || 'var(--ck-h-bg)';
+      const txt = s.text_color || 'var(--ck-h-text)';
+      const accent = s.accent_color || 'var(--ck-h-accent)';
+      const height = (mob ? (tk.header && tk.header.header_height_mobile) || 56 : (tk.header && tk.header.header_height_pc) || 64);
+      const lw = (mob ? s.logo_width_mobile : s.logo_width) || 110;
+      const maxw = (L.page_max_width_pc || 980);
+      const axis = s.logo_position || 'left'; // left | center | right
+      const center = axis === 'center';
+
+      // Width drives the logo size; height follows aspect ratio and the header row
+      // grows to fit (see min-height below). For the text fallback we map the same
+      // width slider onto the brand font-size so the control is never a no-op.
+      const logo = s.logo_image
+        ? '<img src="' + esc(s.logo_image) + '" alt="' + esc(store) + '" style="width:' + lw + 'px;height:auto;display:block;object-fit:contain">'
+        : '<span class="ck-logo" style="color:' + txt + ';font-size:' + Math.max(14, Math.round(lw * 0.18)) + 'px">' + esc(store) + '</span>';
+
+      // Independent content modules — hidden on mobile to protect the compact bar.
+      const trust = (s.show_trust_text !== false && s.trust_text && !mob)
+        ? '<div class="ck-trust" style="color:' + txt + '">' + esc(s.trust_text) + '</div>' : '';
+
+      const secure = (s.show_secure_badge && s.secure_text && !mob)
+        ? '<div class="ck-h-secure" style="color:' + txt + '">' + icon('lock') + '<span>' + esc(s.secure_text) + '</span></div>' : '';
+
+      // Title stacks above the email / phone so a taller header reads as Need help? ▸ contacts.
+      const ccLinks = (s.contact_email || s.contact_phone)
+        ? '<div class="ck-h-cc-links">' +
+            (s.contact_email ? '<a href="mailto:' + esc(s.contact_email) + '" style="color:' + accent + '">' + esc(s.contact_email) + '</a>' : '') +
+            (s.contact_phone ? '<a href="tel:' + esc(s.contact_phone) + '" style="color:' + accent + '">' + esc(s.contact_phone) + '</a>' : '') +
+          '</div>' : '';
+      const contact = (s.show_contact_info && (s.contact_title || s.contact_email || s.contact_phone) && !mob)
+        ? '<div class="ck-h-contact" style="color:' + accent + '">' +
+            (s.contact_title ? '<span class="ck-h-ct" style="color:' + txt + '">' + esc(s.contact_title) + '</span>' : '') +
+            ccLinks +
+          '</div>' : '';
+
+      // No cart on the Thank you page (order already placed) — the rest of the header
+      // stays identical to Checkout.
+      const showCart = s.show_cart_icon && ctx.checkoutPage !== 'thankyou';
+      const cart = showCart ? '<a class="ck-h-cart" style="color:' + accent + '">' + icon('cart') + '</a>' : '';
+      const cluster = secure + contact + cart; // secondary modules travel together
+
+      // Three regions: start / center / end. Module placement depends on the axis.
+      let c1 = '', c2 = '', c3 = '';
+      if (mob) {
+        c2 = logo; c3 = cart;
+      } else if (center) {
+        c2 = logo + trust + secure + contact; c3 = cart;
+      } else if (axis === 'right') {
+        c1 = cluster; c2 = trust; c3 = logo;
       } else {
-        logo = '<span class="ckh-ph" style="height:' + h + 'px">Add your logo</span>';
+        c1 = logo; c2 = trust; c3 = cluster;
       }
-      const secure = s.show_secure ? '<div class="ckh-secure" style="color:' + (c.text_color || '#1a1a1a') + '">' + OS.icon('lock') + 'Secure checkout</div>' : '';
-      const border = s.divider ? ';border-bottom:1px solid ' + (c.border_color || '#ededf0') : '';
-      return '<div class="ck-hd ' + align + '" style="background:' + OS.bgOrTransparent(s.background) + ';font-family:' + OS.bodyFamily(t) + ';padding:' + (mob ? 16 : 20) + 'px ' + padH + 'px' + border + '">' +
-        '<div class="ckh-in">' + logo + secure + '</div></div>';
+
+      const divider = s.show_divider !== false && (tk.header ? tk.header.header_divider !== false : true);
+      const inStyle = 'min-height:' + height + 'px;padding-top:8px;padding-bottom:8px;max-width:' + maxw + 'px;background:' + bg;
+      const inner = '<div class="ck-header-in" style="' + inStyle + '">' +
+        '<div class="ck-h-slot start">' + c1 + '</div>' +
+        '<div class="ck-h-slot center">' + c2 + '</div>' +
+        '<div class="ck-h-slot end">' + c3 + '</div>' +
+        '</div>';
+      const css = s.custom_css ? '<style>' + s.custom_css + '</style>' : '';
+      return '<div class="ck-header' + (divider ? ' divline' : '') + '" style="background:' + bg + ';color:' + txt + '">' + inner + css + '</div>';
     },
   });
 })();

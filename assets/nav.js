@@ -129,7 +129,7 @@ window.ROUTE_MODULE = {
   home: 'home', orders: 'orders', products: 'products', collections: 'collections',
   reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
-  'online-store': 'online-store', google: 'google', facebook: 'facebook', settings: 'settings',
+  'online-store': 'online-store', checkout: 'online-store', google: 'google', facebook: 'facebook', settings: 'settings',
   apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles',
 };
 

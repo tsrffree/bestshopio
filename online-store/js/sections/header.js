@@ -22,6 +22,8 @@
     '.hdx .hd-icons{display:flex;align-items:center;gap:8px;flex:none}',
     '.hdx .hd-ic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:inherit;background:none;border:0}',
     '.hdx .hd-ic:hover{background:rgba(0,0,0,.06)}.hdx .hd-ic svg{width:20px;height:20px}',
+    '.hdx.trans .hd-ic:hover{background:rgba(255,255,255,.18)}',
+    '.hdx.trans .hd-drop,.hdx.trans .hd-drawer{color:#111}',
     '.hdx .hd-pill{font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}',
     '.hdx .hd-search{flex:1;max-width:520px;margin:0 auto}',
     '.hdx .hd-hamb{display:none;background:none;border:0;cursor:pointer;color:inherit;padding:0}',
@@ -67,7 +69,8 @@
     defaults: () => ({}),
     render: function (s, blocks, ctx) {
       const t = ctx.tokens, mob = ctx.mob;
-      const bg = OS.bgOrTransparent(s.background), fg = s.text_color || '#111';
+      const trans = !!ctx.transparentHeader;
+      const bg = trans ? 'transparent' : OS.bgOrTransparent(s.background), fg = trans ? '#ffffff' : (s.text_color || '#111');
       const padH = OS.pagePad(t, mob), maxW = OS.pageWidth(t);
       const isSearch = s.variant === 'search';
       const menu = menuOf(s);
@@ -101,7 +104,7 @@
       }
       const secondRow = (!mob && (isSearch || s.layout === 'logoTopCenter')) ? '<div style="padding-bottom:12px">' + nav + '</div>' : '';
       const drawer = mob ? drawerHtml(menu, fg) : '';
-      return '<div class="hdx' + (mob ? ' mob' : '') + '" style="background:' + bg + ';' + (s.border_bottom ? 'border-bottom:1px solid ' + ((t.colors && t.colors.border_color) || '#eee') + ';' : '') + 'font-family:' + OS.bodyFamily(t) + '">' +
+      return '<div class="hdx' + (mob ? ' mob' : '') + (trans ? ' trans' : '') + '" style="background:' + bg + ';' + ((s.border_bottom && !trans) ? 'border-bottom:1px solid ' + ((t.colors && t.colors.border_color) || '#eee') + ';' : '') + 'font-family:' + OS.bodyFamily(t) + '">' +
         '<div class="hd-inner" style="max-width:' + maxW + 'px;padding:0 ' + padH + 'px"><div class="hd-bar">' + bar + '</div>' + secondRow + '</div>' + drawer + '</div>';
     },
     hydrate: function (root) {

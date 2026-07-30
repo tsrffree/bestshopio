@@ -166,6 +166,9 @@
   }
   function loadModule(id) {
     if (loaded[id]) return loaded[id];
+    // Online store is a self-contained Theme editor. Version it independently so
+    // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
+    var moduleV = id === 'online-store' ? '20260730themesync1' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every
     // other lazily loaded module.
     var chain = id === 'analytics'
@@ -178,9 +181,9 @@
     });
     chain = chain.then(function () {
       if (id === 'subscriptions' && window.DATA_SUBS) return;
-      return loadScript(id + '/js/data.js?v=' + V);
+      return loadScript(id + '/js/data.js?v=' + moduleV);
     }).catch(function () {}); // optional
-    chain = chain.then(function () { return loadScript(id + '/js/app.js?v=' + V); });    // required
+    chain = chain.then(function () { return loadScript(id + '/js/app.js?v=' + moduleV); });    // required
     loaded[id] = chain;
     return loaded[id];
   }
