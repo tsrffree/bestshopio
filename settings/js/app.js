@@ -183,7 +183,7 @@
       'Template variables': '模板变量',
       'Email subject': '电子邮件主题',
       'Email body (HTML)': '电子邮件正文（HTML）',
-      'Changes are saved while you edit. Use Preview to check the rendered email.': '编辑时会自动保存更改。使用“预览”检查渲染后的邮件。',
+      'Use Preview to check the rendered email.': '使用“预览”检查渲染后的邮件。',
       'You can use supported customer, order, and store variables in this template. Order, tracking, invoice, and address blocks are rendered safely when the email is sent.': '可在模板中使用受支持的顾客、订单和店铺变量。订单、物流、发票和地址区块会在发送时安全渲染。',
       'Add another store language to create a localized template.': '添加其他店铺语言后，即可创建本地化模板。',
       'Send test email': '发送测试邮件',
@@ -3167,7 +3167,7 @@
     const variablePanel = isCode ? nfVariablePanel(ev) : '';
     const code =
       '<section class="nf-code-page"><div class="nf-code-card"><div class="nf-code-card-title">Preview</div><label class="nf-label" for="nf-subject">Email subject</label><input class="input" id="nf-subject" value="' + esc(c.subject || '') + '" style="width:100%;margin:7px 0 16px" />' +
-        '<label class="nf-label" for="nf-template">Email body (HTML)</label><div class="nf-code-wrap"><div class="nf-code-gutter" aria-hidden="true">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14<br>15<br>16</div><textarea id="nf-template" class="nf-code" spellcheck="false" wrap="soft">' + esc(source) + '</textarea></div><div class="nf-hint" style="margin-top:10px">Changes are saved while you edit. Use Preview to check the rendered email.</div></div>' +
+        '<label class="nf-label" for="nf-template">Email body (HTML)</label><div class="nf-code-wrap"><div class="nf-code-gutter" aria-hidden="true">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14<br>15<br>16</div><textarea id="nf-template" class="nf-code" spellcheck="false" wrap="soft">' + esc(source) + '</textarea></div><div class="nf-hint" style="margin-top:10px">Use Preview to check the rendered email.</div></div>' +
       '<div class="nf-code-notice"><div class="nf-code-notice-title">Template variables</div><div>You can use supported customer, order, and store variables in this template. Order, tracking, invoice, and address blocks are rendered safely when the email is sent.</div></div>' +
       variablePanel +
       '</section>';
