@@ -446,6 +446,23 @@
         '</div>' +
       '</div>';
 
+    const bestfulfill = b.bestfulfill || { omsStoreId: '', omsIdentifier: '' };
+    const bestfulfillCard =
+      '<div class="panel card-pad mb-4">' + sectionTitle('Bestfulfill ERP', 'Enter the ERP identifiers Bestfulfill uses when processing fulfillment for this store.') +
+        '<div class="mt-4 flex flex-col gap-4">' +
+          block(
+            '<div class="text-sm" style="font-weight:600;color:var(--ink);margin-bottom:2px">oms_store_id</div>' +
+            '<div class="muted" style="font-size:12.5px;margin-bottom:8px">Store identifier used by Bestfulfill ERP for fulfillment.</div>' +
+            '<input class="input" id="bestfulfill-oms-store-id" maxlength="120" autocomplete="off" placeholder="Please enter" value="' + esc(bestfulfill.omsStoreId) + '" style="width:100%" />'
+          ) +
+          block(
+            '<div class="text-sm" style="font-weight:600;color:var(--ink);margin-bottom:2px">oms_identifier</div>' +
+            '<div class="muted" style="font-size:12.5px;margin-bottom:8px">Identifier used by Bestfulfill ERP to route fulfillment orders.</div>' +
+            '<input class="input" id="bestfulfill-oms-identifier" maxlength="120" autocomplete="off" placeholder="Please enter" value="' + esc(bestfulfill.omsIdentifier) + '" style="width:100%" />'
+          ) +
+        '</div>' +
+      '</div>';
+
     const socialRow = (s) =>
       '<div class="flex items-center justify-between" style="padding:12px 0">' +
         '<div class="flex items-center gap-3">' + I.globe +
@@ -460,13 +477,20 @@
 
     paint(
       pageHead('Basic settings') +
-      storeCard + productCard + orderCard + socialCard +
+      storeCard + productCard + orderCard + bestfulfillCard + socialCard +
       '<div class="flex justify-end">' + updateBtn + '</div>',
       true
     );
 
     // wiring
-    root.querySelectorAll('[data-act="save"]').forEach((b2) => b2.onclick = () => toast('Settings updated successfully'));
+    root.querySelectorAll('[data-act="save"]').forEach((b2) => b2.onclick = () => {
+      b.bestfulfill = b.bestfulfill || {};
+      const omsStoreId = root.querySelector('#bestfulfill-oms-store-id');
+      const omsIdentifier = root.querySelector('#bestfulfill-oms-identifier');
+      b.bestfulfill.omsStoreId = omsStoreId ? omsStoreId.value.trim() : '';
+      b.bestfulfill.omsIdentifier = omsIdentifier ? omsIdentifier.value.trim() : '';
+      toast('Settings updated successfully');
+    });
     root.querySelectorAll('[data-preview]').forEach((b2) => b2.onclick = () => openPreviewModal(b2.getAttribute('data-preview')));
     const addFont = root.querySelector('[data-act="add-font"]'); if (addFont) addFont.onclick = () => openAddFontModal();
     root.querySelectorAll('[data-font]').forEach((x) => x.onclick = () => toast('Removed font ' + x.getAttribute('data-font')));

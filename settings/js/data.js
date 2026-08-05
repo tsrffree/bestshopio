@@ -101,6 +101,12 @@ window.DATA_SETTINGS = {
       autoCancelMinutes: 360,
       autoReceiveDays: 7,
     },
+    // Bestfulfill OMS identifiers. These stay blank until the merchant maps
+    // this store to its fulfillment ERP.
+    bestfulfill: {
+      omsStoreId: '',
+      omsIdentifier: '',
+    },
     // Social login — in the live admin only Google login is rendered (the
     // Facebook row is commented out in render.tsx). Secrets ALWAYS masked/empty.
     social: [

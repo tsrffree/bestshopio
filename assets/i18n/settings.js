@@ -84,6 +84,11 @@ window.I18N.extend({
   "Order Auto-Receive Time": "订单自动收货时间",
   "Days": "天",
   "Orders are auto-Receive after a set number of days from shipping (e.g., 10 days).": "订单在发货后达到设定天数将自动收货（例如 10 天）。",
+  // ---- Bestfulfill ERP ----
+  "Bestfulfill ERP": "Bestfulfill ERP",
+  "Enter the ERP identifiers Bestfulfill uses when processing fulfillment for this store.": "填写 Bestfulfill 为此店铺处理发货时使用的 ERP 标识。",
+  "Store identifier used by Bestfulfill ERP for fulfillment.": "Bestfulfill ERP 用于发货的店铺标识。",
+  "Identifier used by Bestfulfill ERP to route fulfillment orders.": "Bestfulfill ERP 用于路由发货订单的标识。",
   // ---- Social login ----
   "Login through social media": "通过社交媒体登录",
   "After connecting, customers can log in to the online store through their social media accounts.": "连接后，顾客可使用社交媒体账号登录网上商店。",
