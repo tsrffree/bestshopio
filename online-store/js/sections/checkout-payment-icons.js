@@ -36,11 +36,26 @@
     return '<span class="ckpi-chip" style="width:' + size + 'px;height:' + Math.round(size * 0.66) + 'px;background:' + p.bg + ';color:' + p.fg + ';font-size:' + Math.max(8, Math.round(size * 0.26)) + 'px">' + inner + '</span>';
   }
 
+  function syncedBrands() {
+    const caps = ((window.OS_DATA || {}).CHECKOUT_MOCK || {}).paymentCapabilities || {};
+    const enabled = (value) => value === true || value === 'enabled';
+    const brands = [];
+    if (enabled(caps.cards)) brands.push('visa', 'mastercard', 'amex', 'discover');
+    if (enabled(caps.wallet)) brands.push('paypal');
+    if (enabled(caps.applePay)) brands.push('applepay');
+    if (enabled(caps.googlePay)) brands.push('googlepay');
+    return brands;
+  }
+
   OS.register('checkout-payment-icons', {
     name: 'Payment Icons', icon: 'layers',
     defaultZone: 'summary',
     schema: [
       { key: 'heading', label: 'Heading', control: 'text', default: '', placeholder: 'Optional title' },
+      { key: 'method_source', label: 'Payment methods', control: 'select', default: 'sync', options: [
+        { value: 'sync', label: 'Sync from Payments' }, { value: 'manual', label: 'Manual trust badges' },
+      ] },
+      { info: 'Synced methods reflect the active payment connection. They are not a merchant-controlled promise that a buyer can complete payment with that method.' },
       { key: 'layout', label: 'Layout', control: 'select', default: 'inline', options: [
         { value: 'inline', label: 'Inline' }, { value: 'grid', label: 'Grid' } ] },
       { key: 'per_row_desktop', label: 'Icons per row (desktop)', control: 'number', default: 5, min: 1, max: 8, visibleWhen: (s) => s.layout === 'grid' },
@@ -74,7 +89,11 @@
       const gap = OS.clamp(Number(s.icon_gap) || 12, 4, 32, 12);
       const align = s.alignment || 'center';
       const justify = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
-      const vis = (blocks || []).filter((b) => !b.hidden && (b.settings.icon_source !== 'image' || b.settings.custom_image));
+      const synced = (s.method_source || 'sync') === 'sync';
+      const sourceBlocks = synced
+        ? syncedBrands().map((brand, index) => ({ id: 'synced-' + index, settings: { icon_source: 'builtin', built_in: brand, alt_text: '' } }))
+        : (blocks || []);
+      const vis = sourceBlocks.filter((b) => !b.hidden && (b.settings.icon_source !== 'image' || b.settings.custom_image));
       const cells = vis.map((b0) => {
         const b = b0.settings;
         const node = (b.icon_source === 'image' && b.custom_image)
@@ -89,6 +108,7 @@
       return '<div class="cksec ckpi" style="background:' + (OS.bgOrTransparent(s.background_color) || 'transparent') + '">' +
         (s.heading ? '<div class="cksec-h" style="text-align:' + align + '">' + esc(s.heading) + '</div>' : '') +
         '<div class="ckpi-wrap" style="' + wrapStyle + '">' + (cells || '<span style="color:var(--ck-muted);font-size:var(--ck-small-fs)">Add a payment icon.</span>') + '</div>' +
+        (synced ? '<div class="ckpi-sync-note">Synced from the active payment connection</div>' : '') +
         (s.custom_css ? '<style>' + s.custom_css + '</style>' : '') +
       '</div>';
     },
@@ -102,6 +122,6 @@
   .ckpi-cell{display:inline-flex;align-items:center;justify-content:center}
   .ckpi-chip{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;box-shadow:0 0 0 1px rgba(0,0,0,.08);overflow:hidden}
   .ckpi-img{object-fit:contain;display:block;border-radius:5px}
-  .ckpage.mob .ckpi-wrap[style*="grid"]{grid-template-columns:repeat(var(--ckpi-cols-mob,5),auto)!important}
+    .ckpage.mob .ckpi-wrap[style*="grid"]{grid-template-columns:repeat(var(--ckpi-cols-mob,5),auto)!important}.ckpi-sync-note{margin-top:9px;color:var(--ck-muted);font-size:var(--ck-small-fs);text-align:center}
   `);
 })();

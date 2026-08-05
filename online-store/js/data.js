@@ -569,6 +569,16 @@
     storeName: 'AURA',
     country: 'United States',
     currency: 'USD',
+    // Runtime payment capability mock. In production this is supplied by the active
+    // processor after account, checkout-domain, and buyer-environment checks; theme
+    // settings never turn an unavailable method on.
+    paymentCapabilities: {
+      provider: 'paypal',
+      cards: 'enabled',
+      wallet: 'enabled',
+      applePay: 'enabled',
+      googlePay: 'enabled',
+    },
     countries: ['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'Japan'],
     states: ['California', 'New York', 'Texas', 'Florida', 'Illinois', 'Washington', 'Massachusetts', 'Georgia'],
     cities: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Seattle', 'Boston', 'Atlanta', 'Miami'],

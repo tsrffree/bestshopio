@@ -168,7 +168,7 @@
     if (loaded[id]) return loaded[id];
     // Online store is a self-contained Theme editor. Version it independently so
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
-    var moduleV = id === 'online-store' ? '20260730themesync1' : V;
+    var moduleV = (id === 'online-store' || id === 'settings') ? '20260805paypalwalletpreview2' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every
     // other lazily loaded module.
     var chain = id === 'analytics'

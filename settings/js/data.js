@@ -137,7 +137,7 @@ window.DATA_SETTINGS = {
   //   phase 1 = 上线版（3 BYO）；phase 2 = 渠道扩展（更多 PSP + Klarna 直连）。
   payments: {
     phase: 1,                 // 1 = 一期上线版；2 = 二期渠道扩展（演示路线图）
-    cardProcessor: 'stripe',  // 当前 active 的卡+Express 处理方（必须已连接）
+    cardProcessor: 'paypal_cards',  // 当前 active 的卡+Express 处理方（必须已连接）
     cardsOn: true,            // 结账页是否挂卡输入
     expressOn: true,          // 结账页是否挂 Express 块
     // 可连接的卡处理方（同一时间只能 active 一个）；phase2 的在一期标「二期」
@@ -150,12 +150,16 @@ window.DATA_SETTINGS = {
       { key: 'nmi',       name: 'NMI',          connected: false, phase2: true },
       { key: 'braintree', name: 'Braintree',    connected: false, phase2: true },
     ],
-    // PayPal 账户只连一次：Wallet 可独立启用；Cards 只在 eligible 时加入主卡处理方候选。
-    // Apple Pay / Google Pay 是当前 PayPal 接入明确不支持的能力，不能被本地开关“打开”。
+    // PayPal 账户只连一次：Wallet 可独立启用；Cards、Apple Pay、Google Pay
+    // 均由同一 PayPal 收款账户提供。钱包是否出现取决于服务端能力、域名状态和买家环境，
+    // 不是商家在主题中可以强制打开的开关。
     paypal: {
       connected: true,
       walletOn: true,
-      capabilities: { cards: 'eligible', wallet: 'eligible', applePay: 'unavailable', googlePay: 'unavailable' },
+      mode: 'sandbox',
+      capabilities: { cards: 'enabled', wallet: 'enabled', applePay: 'enabled', googlePay: 'enabled' },
+      domain: { checkout: 'checkout.lovecross.com', applePay: 'verified' },
+      lastSynced: 'just now',
     },
     klarna: { directConnected: true, directOn: true }, // 自有直连，仅二期展示
   },

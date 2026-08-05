@@ -12,6 +12,7 @@
     '<span class="ckbrand mc">MC</span>' +
     '<span class="ckbrand amex">AMEX</span>' +
     '<span class="ckbrand disc">DISC<span>VER</span></span>';
+  const enabled = (value) => value === true || value === 'enabled';
 
   OS.register('checkout-payment', {
     name: 'Payment method', icon: 'lock',
@@ -22,6 +23,8 @@
     render(s, blocks, ctx) {
       const mock = (ctx && ctx.checkout) || {};
       const billing = (OS.ckState || {})['ck-billing'] || {};
+      const paymentCapabilities = mock.paymentCapabilities || {};
+      const cardsAvailable = paymentCapabilities.cards === undefined || enabled(paymentCapabilities.cards);
       const canUseShipping = mock.requiresShipping !== false;
       const sameAsShipping = canUseShipping && billing.sameAsShipping !== false;
       const value = (key) => billing[key] ? ' value="' + esc(billing[key]) + '"' : '';
@@ -62,16 +65,17 @@
           '</div>' +
           '<div class="ck-field">' + input('Phone (optional)', 'phone', 'tel', true) + '</div>' +
         '</div>';
+      const cardFields = cardsAvailable
+        ? '<div class="ck-card-hosted" aria-label="Secure card details hosted by the connected payment processor">' +
+            '<div class="ck-hosted-field ck-hosted-number"><span>Card number</span><span class="ck-cardbrands">' + BRANDS + '</span></div>' +
+            '<div class="ck-row2"><div class="ck-hosted-field">Expiry date</div><div class="ck-hosted-field">Security code</div></div>' +
+            '<div class="ck-hosted-note">Secure card fields are provided by the connected payment processor.</div>' +
+          '</div>'
+        : '<div class="ck-empty">Card payments are unavailable for the active payment connection.</div>';
       const card =
-        '<div class="ck-pay-opt sel">' +
+        '<div class="ck-pay-opt' + (cardsAvailable ? ' sel' : '') + '">' +
           '<div class="ck-pay-head"><span class="dot"></span>' + CARD_ICON + '<span class="nm">Card</span></div>' +
-          '<div class="ck-pay-body">' +
-            '<div class="ck-cardnum">' + ckFloat('<input class="ck-input" placeholder="Card number">', 'Card number') + '<span class="ck-cardbrands">' + BRANDS + '</span></div>' +
-            '<div class="ck-row2">' +
-              ckFloat('<input class="ck-input" placeholder="MM / YY">', 'MM / YY') +
-              ckFloat('<input class="ck-input" placeholder="CVC">', 'CVC') +
-            '</div>' +
-          '</div>' +
+          '<div class="ck-pay-body">' + cardFields + '</div>' +
         '</div>';
       return '<div class="cksec ck-payment">' +
         '<h3 class="ck-h">' + esc(s.heading || 'Payment') + '</h3>' +
@@ -121,5 +125,6 @@
     .ck-billing-form .ck-field{margin-bottom:12px}
     .ck-billing-form .ck-row2 .ck-field,.ck-billing-form .ck-row3 .ck-field{min-width:0}
     .ckpage.mob .ck-billing-form .ck-row2,.ckpage.mob .ck-billing-form .ck-row3{grid-template-columns:1fr}
+    .ck-card-hosted{display:grid;gap:12px}.ck-hosted-field{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border:1px solid var(--ck-input-border);border-radius:var(--ck-input-radius);color:var(--ck-muted);font-size:var(--ck-base-fs);background:#fff}.ck-hosted-field .ck-cardbrands{margin-left:auto}.ck-hosted-note{font-size:var(--ck-small-fs);color:var(--ck-muted);line-height:1.45}
   `);
 })();
