@@ -136,6 +136,8 @@ window.I18N.extend({
   "Learn more": "了解更多",
   "Airwallex domain verification file": "Airwallex 域名验证文件",
   "Only .zip files up to 1MB are supported.": "仅支持不超过 1MB 的 .zip 文件。",
+  "PayPal domain verification file": "PayPal 域名验证文件",
+  "Upload file": "上传文件",
   "Mode": "模式",
   "Live": "正式",
   "Sandbox": "沙盒",

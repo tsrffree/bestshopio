@@ -298,13 +298,14 @@
     root.querySelectorAll('.up-tile').forEach((el) => el.onclick = () => openFilePicker());
   }
 
-  // open the native local-file chooser for image uploads (prototype: selection is visual only)
-  function openFilePicker() {
+  // open the native local-file chooser (prototype: selection is visual only)
+  function openFilePicker(options) {
+    const opts = options || {};
     const inp = document.createElement('input');
     inp.type = 'file';
-    inp.accept = 'image/png,image/jpeg,image/svg+xml,.ico';
+    inp.accept = opts.accept == null ? 'image/png,image/jpeg,image/svg+xml,.ico' : opts.accept;
     inp.style.display = 'none';
-    inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) toast('Selected ' + f.name); inp.remove(); };
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) { if (opts.onSelected) opts.onSelected(f); else toast('Selected ' + f.name); } inp.remove(); };
     document.body.appendChild(inp);
     inp.click();
   }
@@ -572,10 +573,10 @@
         { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' },
         { k: 'appkey', label: 'App Key', msg: 'Please enter App Key' },
         { k: 'api', label: 'API endpoints', msg: 'Please enter API endpoints', learn: 'https://www.airwallex.com/docs/api' },
-      ], file: 'Airwallex domain verification file' },
+      ], file: { label: 'Airwallex domain verification file', button: 'Upload ZIP', hint: 'Only .zip files up to 1MB are supported.', accept: '.zip' } },
     paypal: { desc: 'Allows users to pay with Visa, Master Card, American Express, Discover, Diners Club, JCB, Apple Pay, Google Pay', fields: [
       { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' }, { k: 'sec', label: 'Secret key', msg: 'Please enter Secret key' },
-    ], mode: true },
+    ], mode: true, file: { label: 'PayPal domain verification file', button: 'Upload file', accept: '', marginBottom: 25 } },
     adyen: { fields: [{ k: 'api', label: 'API key' }, { k: 'mer', label: 'Merchant account' }, { k: 'ck', label: 'Client key' }, { k: 'hmac', label: 'HMAC key' }] },
     checkout: { fields: [{ k: 'pub', label: 'Public key' }, { k: 'sec', label: 'Secret key' }, { k: 'wsig', label: 'Webhook signature key' }] },
     mollie: { fields: [{ k: 'api', label: 'API key (live)' }, { k: 'pid', label: 'Profile ID' }, { k: 'wsec', label: 'Webhook secret' }] },
@@ -739,13 +740,18 @@
         '<input class="input" data-pf="' + f.k + '" placeholder="Please enter ' + esc(f.label) + '"' + (connected ? ' value="•••••••••••• (saved)"' : '') + ' />' +
         '<div data-perr="' + f.k + '" style="min-height:18px;font-size:12px;color:var(--err);margin-top:3px"></div></div>';
     }).join('');
+    if (spec.file) {
+      const file = typeof spec.file === 'string'
+        ? { label: spec.file, button: 'Upload ZIP', hint: 'Only .zip files up to 1MB are supported.', accept: '.zip' }
+        : spec.file;
+      body += '<div style="margin:' + (file.marginTop || 0) + 'px 0 ' + (file.marginBottom == null ? 4 : file.marginBottom) + 'px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">' + esc(file.label) + '</div><button class="btn btn-default" type="button" data-file-upload data-file-accept="' + esc(file.accept || '') + '">' + esc(file.button || 'Upload file') + '</button>' + (file.hint ? '<div class="muted" style="font-size:11.5px;margin-top:4px">' + esc(file.hint) + '</div>' : '') + '</div>';
+    }
     if (spec.mode) {
       const selected = (D.payments.paypal || {}).mode || 'sandbox';
-      body += '<div style="margin-top:14px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Mode</div><div style="display:flex;gap:22px;align-items:center;font-size:13px;color:var(--ink-body)">' +
+      body += '<div style="margin-bottom:4px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Mode</div><div style="display:flex;gap:22px;align-items:center;font-size:13px;color:var(--ink-body)">' +
         '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="paypal-mode" data-paypal-mode value="live"' + (selected === 'live' ? ' checked' : '') + '> Live</label>' +
         '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="paypal-mode" data-paypal-mode value="sandbox"' + (selected === 'sandbox' ? ' checked' : '') + '> Sandbox</label></div></div>';
     }
-    if (spec.file) body += '<div style="margin-bottom:4px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">' + esc(spec.file) + '</div><button class="btn btn-default" type="button" data-zip>Upload ZIP</button><div class="muted" style="font-size:11.5px;margin-top:4px">Only .zip files up to 1MB are supported.</div></div>';
 
     const dlg = modal({
       title: key === 'paypal' ? (connected ? 'Manage PayPal' : 'Connect PayPal developer account') : ((connected ? 'Manage ' : 'Connect ') + name), width: 520, okText: connected ? 'Save' : 'Connect',
@@ -767,13 +773,16 @@
       },
       onExtra: (m, close) => { pDisconnect(key); close(); renderPayments(); toast('Cancelled connection successfully'); },
     });
-    // 输入即清除该字段错误；ZIP 走本地文件选择（原型）
+    // 输入即清除该字段错误；验证文件走本地文件选择（原型）
     dlg.m.querySelectorAll('[data-pf]').forEach((inp) => inp.oninput = () => { const err = dlg.m.querySelector('[data-perr="' + inp.dataset.pf + '"]'); if (err) err.textContent = ''; inp.style.borderColor = ''; });
-    const zip = dlg.m.querySelector('[data-zip]'); if (zip) zip.onclick = () => openFilePicker();
+    dlg.m.querySelectorAll('[data-file-upload]').forEach((button) => {
+      button.onclick = () => openFilePicker({ accept: button.dataset.fileAccept || '', onSelected: (file) => { button.textContent = file.name; toast('Selected ' + file.name); } });
+    });
   }
 
   const PAY_CSS =
-    '.payv2 .pay-grid{display:grid;grid-template-columns:1fr;gap:22px;align-items:start;max-width:1180px}' +
+    '.payv2{width:100%;max-width:1180px;margin:0 auto}' +
+    '.payv2 .pay-grid{display:grid;grid-template-columns:1fr;gap:22px;align-items:start}' +
     '@media(min-width:1200px){.payv2 .pay-grid{grid-template-columns:minmax(0,1fr) 340px}}' +
     '.payv2 .seg{display:inline-flex;background:#eef0f7;border-radius:9px;padding:3px;gap:2px}' +
     '.payv2 .seg button{border:none;background:transparent;height:30px;padding:0 14px;border-radius:7px;font-size:13px;font-weight:600;color:var(--ink-muted);cursor:pointer}' +
