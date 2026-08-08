@@ -103,6 +103,15 @@ input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 .card-title { font-size: 14px; font-weight: 600; color: var(--ink); }
 .card-link-title { font-size: 14px; font-weight: 600; color: var(--brand); cursor: pointer; }
 .card-link-title:hover { text-decoration: underline; }
+.panel[data-report] { cursor: pointer; position: relative; }
+.panel[data-report]:hover { border-color: #b8d2fb; box-shadow: 0 3px 12px rgba(0, 102, 230, .08); }
+.panel[data-report]:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.panel[data-report] .card-link-title { cursor: inherit; }
+.panel[data-report] .chart, .panel[data-report] .chart * { cursor: pointer; touch-action: manipulation; }
+.card-report-icon { position: absolute; z-index: 2; top: 7px; right: 7px; display: grid; width: 28px; height: 28px; place-items: center; border-radius: 5px; color: #8b98ae; cursor: pointer; pointer-events: auto; transition: background .16s ease, color .16s ease, transform .16s ease; }
+.card-report-icon:hover { background: #f1f6ff; }
+.card-report-icon svg { display: block; width: 100%; height: 100%; }
+.panel[data-report]:hover .card-report-icon, .panel[data-report]:focus-visible .card-report-icon { color: var(--brand); transform: translate(1px, -1px); }
 .stat-value { font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -.01em; }
 .delta-up { color: var(--ok); font-size: 12px; font-weight: 500; }
 .delta-down { color: var(--err); font-size: 12px; font-weight: 500; }
@@ -274,6 +283,40 @@ input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 .metric-sel:hover { border-color: var(--brand); }
 .lnk { color: var(--brand); font-size: 13px; cursor: pointer; }
 .lnk:hover { text-decoration: underline; }
+
+/* ---------- Report-detail controls ---------- */
+.report-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.report-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.report-chipbar { flex-wrap: wrap; }
+.report-timezone { color: var(--ink-muted); font-size: 12px; margin: -10px 0 14px; }
+.report-timezone-inline { display: inline-flex; align-items: center; height: 34px; margin: 0; white-space: nowrap; }
+.report-controlbar { padding: 12px 16px; border-bottom: 1px solid var(--hair); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.report-filter-chip { background: #e6f0ff; color: var(--brand); border-color: #cfe1ff; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-modal {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  /* Dimension/value menus are absolute layers. Unlike ordinary dialogs, this
+     dialog must allow them to extend past its bottom edge instead of clipping
+     the available options. */
+  position: relative;
+  overflow: visible;
+}
+.filter-modal .modal-body { overflow: visible; }
+.filter-modal .sel-pop { z-index: 40; }
+.filter-dimension-pop { padding: 8px; max-height: 276px; overflow-y: auto; overflow-x: hidden; }
+/* A value picker has a fixed header and one scrollable option list. Keeping the
+   outer popover non-scrollable prevents the nested scrollbars that make long
+   value lists difficult to use. */
+.filter-value-pop { display: flex; flex-direction: column; box-sizing: border-box; padding: 8px; max-height: 276px; overflow: hidden; }
+.filter-value-pop .filter-pop-search, .filter-value-pop .filter-check-all { flex: 0 0 auto; }
+.filter-value-pop .filter-pop-search { position: static; top: auto; }
+.filter-pop-search { display: flex; align-items: center; gap: 7px; padding: 4px 4px 8px; border-bottom: 1px solid var(--hair); color: var(--ink-muted); position: sticky; top: -8px; background: #fff; z-index: 1; }
+.filter-pop-search input { min-width: 0; width: 100%; height: 28px; border: 0; outline: none; font-size: 12.5px; color: var(--ink); background: transparent; }
+.filter-values { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden; padding: 3px 2px; }
+.filter-check { display: flex; align-items: center; gap: 8px; min-height: 29px; padding: 4px 5px; font-size: 13px; color: var(--ink-body); cursor: pointer; border-radius: 6px; }
+.filter-check:hover { background: var(--panel); }
+.filter-check input { width: 14px; height: 14px; margin: 0; accent-color: var(--brand); }
+.filter-check-all { font-weight: 600; border-bottom: 1px solid var(--hair); margin-bottom: 3px; }
 
 /* ---------- Edit drawer (right slide-in, catalog-driven column/metric picker) ---------- */
 .drawer-backdrop { position: fixed; inset: 0; background: rgb(15 23 42 / 35%); z-index: 60; display: flex; justify-content: flex-end; }
@@ -605,6 +648,14 @@ select::-ms-expand { display: none; }
 .ui-range .ui-range-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ui-range .ui-range-text.muted { color: var(--ink-muted); }
 .ui-range .ui-range-ico { flex: 0 0 auto; color: var(--ink-muted); display: inline-flex; margin-left: 8px; }
+/* Report dates are compact content controls, not search fields. Keep the date
+   equally spaced from its left edge, calendar icon, and the icon's right edge. */
+.report-chipbar .report-date-range { width: auto; min-width: 0; padding: 0 12px; }
+.report-chipbar .report-date-range .ui-range-text { flex: 0 0 auto; min-width: 0; }
+.report-chipbar .report-date-range .ui-range-ico { margin-left: 13px; }
+.comparison-range-control { display: inline-flex; align-items: center; gap: 8px; }
+.comparison-mode-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 34px; padding: 0; border: 1px solid var(--ctl); border-radius: var(--radius); background: #fff; color: var(--ink-muted); cursor: pointer; }
+.comparison-mode-btn:hover { border-color: var(--brand); color: var(--brand); }
 
 /* date range popover — presets + dual month + footer; NO scrollbar, roomy (mirrors analytics, bigger) */
 .cal-pop { padding: 0; max-height: none; overflow: visible; }
@@ -736,4 +787,24 @@ select::-ms-expand { display: none; }
 }
 @media (max-width: 480px) {
   .customer-summary-meta { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 720px) {
+  /* Analytics overview: do not compress four KPI or three chart cards into
+     unreadable slivers on a phone. Keep comparison/funnel content compact,
+     but give each chart a full readable row. */
+  #an-content .grid.grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #an-content .grid.grid-cols-3 { grid-template-columns: minmax(0, 1fr); }
+  #an-content .grid .col-span-2 { grid-column: span 1 / span 1; }
+  .report-head { align-items: flex-start; flex-direction: column; }
+  .report-actions { width: 100%; justify-content: flex-start; }
+  .report-controlbar { align-items: flex-start; flex-direction: column; }
+  .report-controlbar > .btn { align-self: flex-end; }
+  .report-filter-chip { max-width: calc(100vw - 86px); }
+}
+
+@media (max-width: 480px) {
+  /* A full currency value is more useful than a two-column KPI grid that
+     clips it. Keep the small-screen executive summary readable first. */
+  #an-content #kpis.grid.grid-cols-4 { grid-template-columns: minmax(0, 1fr); }
 }

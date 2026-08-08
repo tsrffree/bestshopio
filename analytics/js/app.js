@@ -58,8 +58,19 @@
 
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   const disposeCharts = () => { charts.forEach((c) => { if (c.__ro) c.__ro.disconnect(); c.dispose(); }); charts = []; if (window.__liveTimer) { clearInterval(window.__liveTimer); window.__liveTimer = null; } };
+  // ECharts owns its canvas click events, so a click on the visualization does
+  // not reliably bubble to the overview card. Route through this shared helper
+  // from both the card and the chart instance, keeping every card's whole area
+  // (title, value, and graph) as one report entry point.
+  function openReportFromCard(card) {
+    const id = card && card.getAttribute('data-report');
+    if (!id) return false;
+    location.hash = reportRoute(id, { metric: card.getAttribute('data-report-metric') });
+    return true;
+  }
   const mkChart = (node, opt) => {
     const c = echarts.init(node); c.setOption(opt); charts.push(c);
+    c.getZr().on('click', () => openReportFromCard(node.closest('.panel[data-report]')));
     // Charts often init before the card grid has its final width, leaving the canvas wider
     // than its container (overflow until the window is resized). Resize once the container
     // has laid out, and on every later size change (scrollbar / sidebar / column reflow).
@@ -101,17 +112,58 @@
     </div>`;
 
   // ---------------- Toolbar chips: date / comparison / currency / time unit ----------------
-  const CHIP_STATE = { date: 'May 1–26, 2026', comparison: 'No comparison', currency: 'USD $', timeunit: 'Day', _range: { s: 0, e: 25 } };
+  const CHIP_STATE = { date: 'May 1 – May 26, 2026', comparison: 'No comparison', currency: 'USD $', timeunit: 'Day', _range: { s: 0, e: 25 }, _comparisonRange: null };
+  const DEFAULT_TIME_UNITS = ['Day', 'Week', 'Month'];
+  let ACTIVE_TIME_UNITS = DEFAULT_TIME_UNITS.slice();
   let onChipChange = null;
+  // Use one human-readable date-range rule everywhere Analytics exposes a date:
+  // "May 1 – May 26, 2026" rather than a mix of ISO and localized labels.
+  function analyticsDate(value) {
+    if (value instanceof Date) return value;
+    const [year, month, day] = String(value || '').split('-').map(Number);
+    return year && month && day ? new Date(year, month - 1, day) : null;
+  }
+  function analyticsRangeLabel(startValue, endValue) {
+    const start = analyticsDate(startValue), end = analyticsDate(endValue || startValue);
+    if (!start || !end) return '';
+    const f = (d) => `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getDate()}`;
+    if (start.getTime() === end.getTime()) return `${f(start)}, ${start.getFullYear()}`;
+    if (start.getFullYear() === end.getFullYear()) return `${f(start)} – ${f(end)}, ${end.getFullYear()}`;
+    return `${f(start)}, ${start.getFullYear()} – ${f(end)}, ${end.getFullYear()}`;
+  }
+  function analyticsYmd(value) {
+    const d = analyticsDate(value);
+    return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+  }
+  function comparisonDates(kind) {
+    const s = CHIP_STATE._range.s, e = CHIP_STATE._range.e;
+    const baseStart = new Date(2026, 4, s + 1);
+    let st, en;
+    if (kind === 'Previous year') { st = new Date(2025, 4, s + 1); en = new Date(2025, 4, e + 1); }
+    else { const len = e - s + 1; en = new Date(baseStart); en.setDate(en.getDate() - 1); st = new Date(en); st.setDate(st.getDate() - (len - 1)); }
+    return { st, en };
+  }
+  function setComparisonRange(kind) {
+    const { st, en } = comparisonDates(kind);
+    CHIP_STATE._comparisonRange = { start: analyticsYmd(st), end: analyticsYmd(en) };
+    setChip('comparison', analyticsRangeLabel(st, en));
+  }
   function chipBar(opts) {
     opts = opts || {};
     const chip = (key, icon) => `<span class="chip" data-chip="${key}">${icon}<span class="chip-label" data-chip-label="${key}">${CHIP_STATE[key]}</span>${ICON.chevDown}</span>`;
     // Date range reuses the shared Orders dual-month picker (widgets.js enhanceRange) for a consistent, roomy calendar.
-    const dateBox = `<div class="ui-range filter-input" data-ui-range data-ph="Date range" style="width:248px">` +
+    const dateBox = `<div class="ui-range filter-input report-date-range" data-ui-range data-range-format="friendly" data-ph="Date range">` +
       `<input type="hidden" id="an-dstart" data-range="start" value="2026-05-01"/><input type="hidden" id="an-dend" data-range="end" value="2026-05-26"/></div>`;
-    let html = `<div class="flex items-center gap-2 mb-4">` + dateBox + chip('comparison', ICON.compare);
+    const comparison = CHIP_STATE._comparisonRange
+      ? `<div class="comparison-range-control"><button type="button" class="comparison-mode-btn" data-chip="comparison" aria-label="Change comparison" title="Change comparison">${ICON.compare}</button>` +
+          `<div class="ui-range filter-input report-date-range report-comparison-range" data-ui-range data-range-format="friendly" data-comparison-range data-ph="Comparison date range">` +
+          `<input type="hidden" id="an-cstart" data-range="start" value="${CHIP_STATE._comparisonRange.start}"/><input type="hidden" id="an-cend" data-range="end" value="${CHIP_STATE._comparisonRange.end}"/></div></div>`
+      : chip('comparison', ICON.compare);
+    let html = `<div class="flex items-center gap-2 mb-4 report-chipbar">` + dateBox + comparison;
     // currency switcher removed — analytics uses the store's default currency (USD)
+    ACTIVE_TIME_UNITS = opts.timeunit ? (opts.timeUnits || DEFAULT_TIME_UNITS).slice() : DEFAULT_TIME_UNITS.slice();
     if (opts.timeunit) html += `<span class="chip" data-chip="timeunit">${ICON.calendar}<span class="muted" style="margin-right:4px">Time unit:</span><span class="chip-label" data-chip-label="timeunit">${CHIP_STATE.timeunit}</span>${ICON.chevDown}</span>`;
+    if (opts.timezone) html += `<span class="report-timezone report-timezone-inline">${opts.timezone}</span>`;
     return html + `</div>`;
   }
   function setChip(key, label) { document.querySelectorAll(`[data-chip-label="${key}"]`).forEach((e) => (e.textContent = label)); CHIP_STATE[key] = label; if (onChipChange) onChipChange(key, label); }
@@ -126,26 +178,18 @@
     setTimeout(() => document.addEventListener('mousedown', function hh(e) { if (!pop.contains(e.target) && !anchor.contains(e.target)) { close(); document.removeEventListener('mousedown', hh); } }), 0);
     if (onMount) onMount(pop, close);
   }
-  function compareRangeLabel(kind) {
-    const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const s = CHIP_STATE._range.s, e = CHIP_STATE._range.e, len = e - s + 1;
-    const baseStart = new Date(2026, 4, s + 1);
-    let st, en;
-    if (kind === 'Previous year') { st = new Date(2025, 4, s + 1); en = new Date(2025, 4, e + 1); }
-    else if (kind === 'Previous year (match day of week)') { st = new Date(baseStart); st.setDate(st.getDate() - 364); en = new Date(st); en.setDate(en.getDate() + len - 1); }
-    else { en = new Date(baseStart); en.setDate(en.getDate() - 1); st = new Date(en); st.setDate(st.getDate() - (len - 1)); }
-    const f = (d) => `${MN[d.getMonth()]} ${d.getDate()}`;
-    return `${f(st)} – ${f(en)}, ${en.getFullYear()}`;
-  }
   function openChip(el) {
     const key = el.getAttribute('data-chip');
     if (key === 'comparison') {
-      const opts = ['No comparison', 'Previous period', 'Previous year', 'Previous year (match day of week)', 'Custom'];
+      const opts = ['No comparison', 'Previous period', 'Previous year', 'Custom'];
       openPopover(el, opts.map((o) => `<div class="opt" data-v="${o}">${o}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => {
         const v = o.getAttribute('data-v');
-        if (v === 'Custom') { close(); openDatePopover(el, 'comparison'); return; }
-        setChip('comparison', v === 'No comparison' ? 'No comparison' : compareRangeLabel(v));
+        if (v === 'No comparison') { CHIP_STATE._comparisonRange = null; setChip('comparison', 'No comparison'); close(); return; }
+        // Custom starts from the previous period and immediately opens the same
+        // shared range picker as the primary date control after re-rendering.
+        setComparisonRange(v === 'Custom' ? 'Previous period' : v);
         close();
+        if (v === 'Custom') setTimeout(() => document.querySelector('[data-comparison-range]')?.click(), 80);
       })));
     } else if (key === 'currency') {
       const cur = ['USD $', 'EUR €', 'GBP £', 'AUD $', 'CAD $', 'JPY ¥', 'CNY ¥', 'AED د.إ', 'SGD $', 'HKD $', 'NZD $', 'INR ₹'];
@@ -156,43 +200,9 @@
         pop.querySelector('#cur-q').focus();
       });
     } else if (key === 'timeunit') {
-      openPopover(el, ['Day', 'Week', 'Month'].map((o) => `<div class="opt" data-v="${o}">${o}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => { setChip('timeunit', o.getAttribute('data-v')); close(); })));
-    } else if (key === 'date') {
-      openDatePopover(el);
+      openPopover(el, ACTIVE_TIME_UNITS.map((o) => `<div class="opt" data-v="${o}">${o}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => { setChip('timeunit', o.getAttribute('data-v')); close(); })));
     }
   }
-  function openDatePopover(anchor, target) {
-    target = target || 'date';
-    const presets = ['Today', 'Yesterday', 'Last 7 days', 'Last 30 days', 'Last 90 days', 'This month', 'Last month', 'Custom range'];
-    const sel = { start: null, end: null };
-    const mName = (m) => ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][m];
-    const grid = (y, m) => {
-      const first = new Date(Date.UTC(y, m, 1)).getUTCDay();
-      const days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-      let cells = '';
-      for (let i = 0; i < first; i++) cells += '<div></div>';
-      for (let d = 1; d <= days; d++) cells += `<div class="cal-day" data-d="${y}-${m + 1}-${d}">${d}</div>`;
-      return `<div><div style="font-weight:600;text-align:center;margin-bottom:6px;font-size:13px">${mName(m)} ${y}</div><div class="cal-grid">${['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((w) => `<div class="cal-h">${w}</div>`).join('')}${cells}</div></div>`;
-    };
-    const html = `<div style="display:flex;gap:14px">
-      <div style="border-right:1px solid var(--hair);padding-right:12px;min-width:118px">${presets.map((p) => `<div class="opt" data-preset="${p}">${p}</div>`).join('')}</div>
-      <div><div style="display:flex;gap:18px">${grid(2026, 3)}${grid(2026, 4)}</div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-apply>Apply</button></div></div></div>`;
-    openPopover(anchor, html, (pop, close) => {
-      pop.style.maxHeight = 'none';
-      const fmt = (s) => { const a = s.split('-'); return `${mName(+a[1] - 1).slice(0, 3)} ${a[2]}, ${a[0]}`; };
-      const PR = { 'Today': [25, 25], 'Yesterday': [24, 24], 'Last 7 days': [19, 25], 'Last 30 days': [0, 25], 'Last 90 days': [0, 25], 'This month': [0, 25], 'Last month': [0, 25] };
-      pop.querySelectorAll('[data-preset]').forEach((o) => (o.onclick = () => { const p = o.getAttribute('data-preset'); if (p !== 'Custom range') { if (target === 'date') CHIP_STATE._range = { s: PR[p][0], e: PR[p][1] }; setChip(target, p); close(); } }));
-      pop.querySelectorAll('[data-d]').forEach((d) => (d.onclick = () => {
-        const v = d.getAttribute('data-d');
-        if (!sel.start || sel.end) { sel.start = v; sel.end = null; } else { sel.end = v; }
-        pop.querySelectorAll('[data-d]').forEach((x) => x.classList.toggle('sel', x.getAttribute('data-d') === sel.start || x.getAttribute('data-d') === sel.end));
-      }));
-      pop.querySelector('[data-x]').onclick = close;
-      pop.querySelector('[data-apply]').onclick = () => { if (sel.start) { const ix = (s) => { const a = s.split('-'); return a[1] === '5' ? Math.min(25, Math.max(0, +a[2] - 1)) : 0; }; let s = ix(sel.start), e = sel.end ? ix(sel.end) : s; if (e < s) { const tmp = s; s = e; e = tmp; } if (target === 'date') CHIP_STATE._range = { s, e }; setChip(target, sel.end ? `${fmt(sel.start)} – ${fmt(sel.end)}` : fmt(sel.start)); } close(); };
-    });
-  }
-
   // ---------------- Overview view ----------------
   // metric explanations (hover tooltip) + card→report links
   // SHOPLINE-style "how is this metric calculated" tooltips — adapted to our trimmed model (no tax / tip / duty / points / gift cards)
@@ -215,29 +225,29 @@
     attributed_sales: ['Sales attributed to marketing', 'Sales from sessions that arrived via a marketing channel (last-touch attribution).'],
   };
   const KPI_LINK = {
-    total_sales: { report: 'sales_over_time', tip: 'total_sales' },
-    orders: { report: 'orders_over_time', tip: 'orders' },
-    aov: { report: 'aov_over_time', tip: 'aov' },
+    total_sales: { report: 'sales_over_time', tip: 'total_sales', metric: 'Total sales' },
+    orders: { report: 'orders_over_time', tip: 'orders', metric: 'Orders' },
+    aov: { report: 'aov_over_time', tip: 'aov', metric: 'Average order value' },
     returning_rate: { report: 'new_vs_returning', tip: 'returning_rate' },
   };
   const TITLE_MAP = {
-    'Sessions': { report: 'sessions_over_time', tip: 'sessions' },
-    'Page views': { report: 'sessions_over_time', tip: 'page_views' },
-    'Orders fulfilled': { report: 'fulfillment_status', tip: 'orders_fulfilled' },
-    'Paid amount': { report: 'payments_over_time', tip: 'total_sales' },
-    'Refund amount': { report: 'refunds_over_time', tip: 'refunds' },
-    'Sales attributed to marketing': { report: 'sales_attributed_marketing', tip: 'attributed_sales' },
-    'Conversion rate': { report: 'conversion_funnel', tip: 'conversion_rate' },
+    'Sessions': { report: 'sessions_over_time', tip: 'sessions', metric: 'Sessions' },
+    'Page views': { report: 'sessions_over_time', tip: 'page_views', metric: 'Page views' },
+    'Orders fulfilled': { report: 'orders_over_time', tip: 'orders_fulfilled', metric: 'Orders fulfilled' },
+    'Paid amount': { report: 'payments_over_time', tip: 'total_sales', metric: 'Payment amount' },
+    'Refund amount': { report: 'refunds_over_time', tip: 'refunds', metric: 'Refund amount' },
+    'Sales attributed to marketing': { report: 'sales_attributed_marketing', tip: 'attributed_sales', metric: 'Attributed sales' },
+    'Conversion rate': { report: 'conversion_rate_over_time', tip: 'conversion_rate', metric: 'Conversion rate' },
     'Top products': { report: 'sales_by_product', tip: 'total_sales' },
     'Sessions by device type': { report: 'sessions_by_device', tip: 'sessions' },
     'Sessions by country/region': { report: 'sessions_by_location', tip: 'sessions' },
     'Sessions by traffic source': { report: 'performance_by_channel', tip: 'sessions' },
-    'Sessions by social source': { report: 'social_referrer_sales', tip: 'sessions' },
+    'Sessions by social source': { report: 'sessions_by_social_source', tip: 'sessions' },
     'Popular sales by referrer source': { report: 'sales_by_referrer', tip: 'total_sales' },
     'Top landing pages by sessions': { report: 'sessions_by_landing', tip: 'sessions' },
     'Customer group analysis': { report: 'customer_cohort' },
     'New vs returning customers': { report: 'new_vs_returning', tip: 'returning_rate' },
-    'Popular referral websites': { report: 'sessions_by_referrer', tip: 'sessions' },
+    'Popular referral websites': { report: 'sessions_by_referrer_site', tip: 'sessions' },
   };
   function viewOverview(view) {
     view.innerHTML = `<div class="view-wrap">
@@ -283,7 +293,7 @@
 
     // KPI cards
     document.getElementById('kpis').innerHTML = KPIS.map((k, i) => `
-      <div class="panel card-pad" data-report="${(KPI_LINK[k.key] || {}).report || ''}" style="cursor:pointer">
+      <div class="panel card-pad" data-report="${(KPI_LINK[k.key] || {}).report || ''}" data-report-metric="${(KPI_LINK[k.key] || {}).metric || ''}" style="cursor:pointer">
         <span class="muted" style="font-size:13px;border-bottom:1px dashed var(--ctl)" data-tip="${(KPI_LINK[k.key] || {}).tip || ''}">${k.label}</span>
         <div class="flex items-end justify-between mt-1">
           <div class="stat-value">${k.value}</div>
@@ -346,13 +356,50 @@
     paintCharts();
     onChipChange = () => paintCharts();
 
-    // every card title → clickable into its report; attach metric tooltips
+    // Every overview card opens its corresponding fixed report. Keep the
+    // definition tooltip on the title, but make the full card a keyboard- and
+    // mouse-accessible target so the chart/value area is not a dead zone.
     view.querySelectorAll('.card-link-title').forEach((t) => {
       const m = TITLE_MAP[t.textContent.trim()]; if (!m) return;
-      t.setAttribute('data-report', m.report);
+      const card = t.closest('.panel') || t;
+      card.setAttribute('data-report', m.report);
+      if (m.metric) card.setAttribute('data-report-metric', m.metric);
+      card.setAttribute('role', 'link');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', `Open ${t.textContent.trim()} report`);
       if (m.tip) t.setAttribute('data-tip', m.tip);
     });
-    view.querySelectorAll('[data-report]').forEach((el) => el.addEventListener('click', () => { const r = el.getAttribute('data-report'); if (r) location.hash = '#/analytics/reports/' + r; }));
+    view.querySelectorAll('.panel[data-report]').forEach((card) => {
+      card.setAttribute('role', 'link');
+      card.setAttribute('tabindex', '0');
+      if (!card.getAttribute('aria-label')) card.setAttribute('aria-label', 'Open report');
+      // Mirror the familiar dashboard affordance from Shopline: the upper-right
+      // report icon is an explicit click target, not only a visual cue. The
+      // card remains one accessible link, so the chart, title, and icon all
+      // resolve to the same fixed report.
+      if (!card.querySelector('.card-report-icon')) {
+        card.insertAdjacentHTML('beforeend', `<span class="card-report-icon" data-act="open-report" aria-hidden="true" title="${card.getAttribute('aria-label') || 'Open report'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="m10 14 4-4m-3-1h3v3"></path></svg></span>`);
+      }
+    });
+    view.querySelectorAll('[data-act="open-report"]').forEach((icon) => {
+      icon.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openReportFromCard(icon.closest('.panel[data-report]'));
+      });
+    });
+    view.querySelectorAll('[data-report]').forEach((el) => {
+      const open = () => openReportFromCard(el);
+      el.addEventListener('click', (e) => {
+        // The icon has its own handler so it remains a reliable target even
+        // when a canvas or tooltip consumes the surrounding pointer event.
+        if (e.target.closest && e.target.closest('[data-act="open-report"]')) return;
+        open();
+      });
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    });
   }
 
   // ---------------- ECharts option helpers ----------------
@@ -410,6 +457,33 @@
   const srcTag = (s) => `<span class="src-tag src-${s}"><span class="dot"></span>${s}</span>`;
   // Top-center success toast (Ant Design message parity) — mirrors store admin, not a bottom bar (C78).
   const toast = (msg) => { const t = document.createElement('div'); t.innerHTML = '<span style="color:#1f8f4e;display:inline-flex;font-weight:700">✓</span><span>' + msg + '</span>'; t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1f2433;border:1px solid #e6e8ee;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:200;box-shadow:0 6px 20px rgba(20,30,55,.14)'; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
+
+  // Keep overview entry points specific without creating a separate page for every
+  // metric. The report id selects the fixed template; query options select its
+  // initial metric/dimension and still work when a report is opened from the library.
+  function reportRoute(id, options) {
+    const q = new URLSearchParams();
+    Object.entries(options || {}).forEach(([k, v]) => { if (v) q.set(k, v); });
+    const query = q.toString();
+    return '#/analytics/reports/' + id + (query ? '?' + query : '');
+  }
+  function exportCsv(fileName, headers, rows) {
+    const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((row) => row.map(esc).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = fileName + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 0);
+    toast('CSV export prepared');
+  }
+  function bindExport(view, fileName, headers, rows) {
+    const b = view.querySelector('[data-act="export"]');
+    if (b) b.onclick = () => exportCsv(fileName, headers, rows());
+  }
+  function reportActionsHTML() {
+    return `<div class="report-actions"><button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>`;
+  }
 
   const DIM_LABELS = {
     product_title: ['3D Anti-Cellulite Leggings', 'Pocket Sculpting Leggings', 'Compression Sleeves', 'Short Leggings', 'Butt-Lifting Capris', 'Seamless Briefs'],
@@ -597,7 +671,7 @@
       const src = isProd ? PRODUCT_DATA : VARIANT_DATA;
       const q = state.q.toLowerCase();
       let rows = src.filter((x) => !q || (x.name || x.product || '').toLowerCase().includes(q) || (x.spec || '').toLowerCase().includes(q) || (x.sku || '').toLowerCase().includes(q));
-      state.filters.forEach((f) => { if (!f.value) return; const fv = String(f.value).toLowerCase(); rows = rows.filter((x) => { const field = String(f.dim === 'SKU' ? (x.sku || '') : (x.name || x.product || '')).toLowerCase(); return f.op === 'is' ? field === fv : f.op === 'is not' ? field !== fv : field.includes(fv); }); });
+      state.filters.forEach((f) => { const fieldFor = (x) => f.dim === 'SKU' ? (x.sku || '') : (x.name || x.product || ''); rows = rows.filter((x) => matchesFilter(fieldFor(x), f)); });
       const money = (v) => cur.sym + Math.round((v || 0) * cur.rate).toLocaleString();
       const METS = METRICS[state.dim] || [];
       const selMet = (state.metricsByDim[state.dim] || []).map((l) => METS.find((m) => m.l === l)).filter(Boolean);
@@ -620,9 +694,9 @@
         tbody = pageRows.map((x, i) => `<tr><td>${(state.page - 1) * state.pageSize + i + 1}</td><td><span style="display:flex;align-items:center">${thumb}<span>${x.spec}</span></span></td><td class="muted">${x.sku || 'N/A'}</td><td><span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${x.product}</span></td>${metTd(x)}<td class="num"><span data-trend="${x.spec}" title="Variant trend" style="cursor:pointer;color:var(--brand);display:inline-flex">${TREND_SVG}</span></td></tr>`).join('');
       }
       view.innerHTML = `<div class="view-wrap">
-        <div class="flex items-center justify-between mb-3">
+        <div class="report-head mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">Product data details</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+          ${reportActionsHTML()}
         </div>
         ${chipBar({ currency: true })}
         <div class="tabs mb-3"><div class="tab ${isProd ? 'active' : ''}" data-dim="product">Product dimension</div><div class="tab ${!isProd ? 'active' : ''}" data-dim="variant">Sub-variant dimension</div></div>
@@ -646,6 +720,7 @@
       </div>`;
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
+      bindExport(view, `${CURRENT_REPORT || 'products'}-export`, [isProd ? 'Product' : 'Sub-variant', 'SKU', ...selMet.map((m) => m.l)], () => rows.map((x) => [isProd ? x.name : x.spec, x.sku || '', ...selMet.map((m) => fmtMet(m, x))]));
       view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, [['Product', ['SKU', 'Product name']]]);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer({ dimensions: [], metrics: [[isProd ? 'Product metrics' : 'Sub-variant metrics', METRICS[state.dim].map((m) => m.l)]] }, { dims: new Set(), metrics: new Set(state.metricsByDim[state.dim]) }, (res) => { if (res.metrics && res.metrics.length) { state.metricsByDim[state.dim] = res.metrics; state.sortCol = null; render(); } });
       view.querySelectorAll('[data-dim]').forEach((e) => (e.onclick = () => { state.dim = e.getAttribute('data-dim'); state.page = 1; state.sortCol = null; render(); }));
@@ -698,7 +773,8 @@
       ['Time', ['Hour', 'Day', 'Week', 'Month', 'Quarter', 'Year', 'An hour of a day', 'A day of a week', 'A month of a year']],
     ],
     metrics: [
-      ['Sessions', ['Sessions', 'Sessions of successful registration', 'Added to cart', 'Reached checkout', 'Added customer info', 'Added shipping method', 'Added payment Info', 'Completed checkout', 'Conversion rate', 'Bounce rate']],
+      ['Sessions', ['Sessions', 'Page views', 'Sessions of successful registration', 'Added to cart', 'Reached checkout', 'Added customer info', 'Added shipping method', 'Added payment Info', 'Completed checkout', 'Conversion rate', 'Bounce rate']],
+      ['Marketing outcome', ['Attributed sales']],
     ],
   };
   const FILTER_DIMS = BEHAVIOR_CAT.dimensions;
@@ -720,47 +796,98 @@
   // Freeform / high-cardinality dims are text inputs (is / is not / contains), NOT dropdowns (R21 + PRD Manage-filters table).
   const TEXT_DIMS = new Set(['Order No.', 'Customer name', 'Email', 'SKU', 'Product name', 'Variant', 'Discount code', 'Landing page URL', 'Landing page path', 'Referrer name', 'Referrer site', 'UTM source', 'UTM medium', 'UTM campaign']);
   const filterEnumsFor = (dim) => TEXT_DIMS.has(dim) ? null : (BEHAVIOR_LABELS[dim] || COMMERCE_DIM_LABELS[dim] || DIM_SAMPLE_VALUES[dim] || FILTER_EXTRA[dim] || null);
+  const filterValues = (filter) => Array.isArray(filter && filter.values)
+    ? filter.values.filter(Boolean).map(String)
+    : filter && filter.value ? [String(filter.value)] : [];
+  const filterLabel = (filter) => {
+    const values = filterValues(filter);
+    if (!values.length) return '';
+    return values.length === 1 ? values[0] : `${values.slice(0, 2).join(', ')}${values.length > 2 ? ` +${values.length - 2}` : ''}`;
+  };
+  function matchesFilter(value, filter) {
+    const values = filterValues(filter); if (!values.length) return true;
+    const text = String(value == null ? '' : value).toLowerCase();
+    const target = values.map((v) => v.toLowerCase());
+    if (filter.op === 'is' || filter.op === 'Include' || filter.op === 'includes') return target.some((v) => text === v);
+    if (filter.op === 'is not' || filter.op === 'Exclude' || filter.op === 'excludes') return target.every((v) => text !== v);
+    return target.some((v) => text.includes(v));
+  }
 
   function manageFiltersModal(filters, onApply, dims) {
-    const draft = filters.map((f) => ({ dim: f.dim, op: f.op, value: f.value }));
-    if (!draft.length) draft.push({ dim: '', op: 'is', value: '' });
+    const draft = filters.map((f) => ({ dim: f.dim || '', op: f.op || 'is', value: f.value || '', values: filterValues(f) }));
+    if (!draft.length) draft.push({ dim: '', op: 'is', value: '', values: [] });
     const back = document.createElement('div'); back.className = 'modal-backdrop';
     const close = () => back.remove();
+    const selectedText = (f) => f.values.length ? (f.values.length === 1 ? f.values[0] : `${f.values.length} values selected`) : '<span class="muted">Select value</span>';
     const valueCell = (f, i) => {
       const enums = f.dim ? filterEnumsFor(f.dim) : null;
-      if (enums) return `<div style="position:relative;flex:1"><div class="sel-trigger" data-valtrigger="${i}">${f.value ? f.value : '<span class="muted">Select a value</span>'}${ICON.chevDown}</div><div class="menu-pop sel-pop" data-valpop="${i}" style="display:none;position:absolute;left:0;right:0;top:38px;z-index:6;max-height:230px;overflow:auto">${enums.map((v) => `<div class="opt${f.value === v ? ' sel' : ''}" data-vpick="${v}">${v}</div>`).join('')}</div></div>`;
+      if (enums) return `<div style="position:relative;flex:1"><div class="sel-trigger" data-valtrigger="${i}">${selectedText(f)}${ICON.chevDown}</div><div class="menu-pop sel-pop filter-value-pop" data-valpop="${i}" style="display:none;position:absolute;left:0;right:0;top:38px;z-index:6"><div class="filter-pop-search"><span>${ICON.search}</span><input data-vsearch="${i}" placeholder="Search values" /></div><label class="filter-check filter-check-all"><input type="checkbox" data-vall="${i}"${f.values.length === enums.length ? ' checked' : ''}/><span>Select all</span></label><div class="filter-values">${enums.map((v) => `<label class="filter-check"><input type="checkbox" data-vcheck="${i}" value="${v}"${f.values.includes(v) ? ' checked' : ''}/><span>${v}</span></label>`).join('')}</div></div></div>`;
       return `<input class="filter-input" data-val="${i}" placeholder="Enter a value" value="${f.value || ''}" style="flex:1;width:auto;padding-left:12px" />`;
     };
     const groups = (dims || FILTER_DIMS).map(([g, items]) => `<div class="opt-group">${g}</div>${items.map((it) => `<div class="opt" data-pick="${it}">${it}</div>`).join('')}`).join('');
     function paint() {
-      back.innerHTML = `<div class="modal" style="width:470px">
+      back.innerHTML = `<div class="modal filter-modal">
         <div class="modal-head">Manage filters</div>
         <div class="modal-body">
           ${draft.map((f, i) => `<div class="mb-3" data-row="${i}">
             <div style="position:relative;margin-bottom:8px">
-              <div class="sel-trigger" data-seltrigger="${i}">${f.dim ? f.dim : '<span class="muted">Select</span>'}${ICON.chevDown}</div>
-              <div class="menu-pop sel-pop" data-selpop="${i}" style="display:none;position:absolute;left:0;right:0;top:38px;z-index:5;max-height:230px">${groups}</div>
+              <div class="sel-trigger" data-seltrigger="${i}">${f.dim ? f.dim : '<span class="muted">Select a dimension</span>'}${ICON.chevDown}</div>
+              <div class="menu-pop sel-pop filter-dimension-pop" data-selpop="${i}" style="display:none;position:absolute;left:0;right:0;top:38px;z-index:5"><div class="filter-pop-search"><span>${ICON.search}</span><input data-dsearch="${i}" placeholder="Search dimensions" /></div><div class="filter-dimension-list">${groups}</div></div>
             </div>
             <div class="flex items-center gap-2">
-              <select class="filter-select" data-op="${i}" style="width:96px"><option${f.op === 'is' ? ' selected' : ''}>is</option><option${f.op === 'is not' ? ' selected' : ''}>is not</option><option${f.op === 'contains' ? ' selected' : ''}>contains</option></select>
+              <select class="filter-select" data-op="${i}" style="width:108px"><option value="is"${f.op === 'is' ? ' selected' : ''}>is</option><option value="is not"${f.op === 'is not' ? ' selected' : ''}>is not</option><option value="Include"${f.op === 'Include' ? ' selected' : ''}>Include</option><option value="Exclude"${f.op === 'Exclude' ? ' selected' : ''}>Exclude</option><option value="contains"${f.op === 'contains' ? ' selected' : ''}>contains</option></select>
               ${valueCell(f, i)}
-              ${draft.length > 1 ? `<span class="field-pill" data-rm="${i}" style="cursor:pointer">×</span>` : ''}
+              ${draft.length > 1 ? `<span class="field-pill" data-rm="${i}" style="cursor:pointer;margin:0">×</span>` : ''}
             </div>
           </div>`).join('')}
           <button class="btn btn-gray" data-act="addf">Add filters</button>
         </div>
         <div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-apply>Apply</button></div>
       </div>`;
-      back.querySelectorAll('[data-seltrigger]').forEach((t) => (t.onclick = (e) => { e.stopPropagation(); const i = t.getAttribute('data-seltrigger'); const pop = back.querySelector(`[data-selpop="${i}"]`); const isOpen = pop.style.display === 'block'; back.querySelectorAll('.sel-pop').forEach((p) => (p.style.display = 'none')); pop.style.display = isOpen ? 'none' : 'block'; }));
-      back.querySelectorAll('[data-pick]').forEach((o) => (o.onclick = (e) => { e.stopPropagation(); const i = +o.closest('[data-row]').getAttribute('data-row'); draft[i].dim = o.getAttribute('data-pick'); draft[i].value = ''; paint(); }));
-      back.querySelectorAll('[data-vpick]').forEach((o) => (o.onclick = (e) => { e.stopPropagation(); const i = +o.closest('[data-row]').getAttribute('data-row'); draft[i].value = o.getAttribute('data-vpick'); paint(); }));
-      back.querySelectorAll('[data-valtrigger]').forEach((t) => (t.onclick = (e) => { e.stopPropagation(); const i = t.getAttribute('data-valtrigger'); const pop = back.querySelector(`[data-valpop="${i}"]`); const isOpen = pop.style.display === 'block'; back.querySelectorAll('.sel-pop').forEach((p) => (p.style.display = 'none')); pop.style.display = isOpen ? 'none' : 'block'; }));
+      // Value pickers keep their header fixed and their options in one scrollable
+      // region. Measure after opening so short lists remain compact while long
+      // lists get a bounded height without creating a second outer scrollbar.
+      const fitValuePop = (pop) => {
+        if (!pop || !pop.classList.contains('filter-value-pop')) return;
+        pop.style.height = '';
+        pop.style.height = `${Math.min(276, pop.scrollHeight)}px`;
+      };
+      const showPop = (pop) => {
+        pop.style.display = pop.classList.contains('filter-value-pop') ? 'flex' : 'block';
+        fitValuePop(pop);
+      };
+      const toggle = (pop) => {
+        const open = pop.style.display !== 'none';
+        back.querySelectorAll('.sel-pop').forEach((p) => { p.style.display = 'none'; p.style.height = ''; });
+        if (open) return;
+        showPop(pop);
+      };
+      back.querySelectorAll('[data-seltrigger]').forEach((t) => (t.onclick = (e) => { e.stopPropagation(); toggle(back.querySelector(`[data-selpop="${t.getAttribute('data-seltrigger')}"]`)); }));
+      back.querySelectorAll('[data-valtrigger]').forEach((t) => (t.onclick = (e) => { e.stopPropagation(); toggle(back.querySelector(`[data-valpop="${t.getAttribute('data-valtrigger')}"]`)); }));
+      back.querySelectorAll('[data-pick]').forEach((o) => (o.onclick = (e) => { e.stopPropagation(); const i = +o.closest('[data-row]').getAttribute('data-row'); draft[i].dim = o.getAttribute('data-pick'); draft[i].value = ''; draft[i].values = []; paint(); }));
+      back.querySelectorAll('[data-vcheck]').forEach((c) => (c.onchange = () => { const i = +c.getAttribute('data-vcheck'); const value = c.value; const set = new Set(draft[i].values); c.checked ? set.add(value) : set.delete(value); draft[i].values = [...set]; const trigger = back.querySelector(`[data-valtrigger="${i}"]`); if (trigger) trigger.innerHTML = selectedText(draft[i]) + ICON.chevDown; }));
+      back.querySelectorAll('[data-vall]').forEach((c) => (c.onchange = () => { const i = +c.getAttribute('data-vall'); const vals = filterEnumsFor(draft[i].dim) || []; draft[i].values = c.checked ? vals.slice() : []; paint(); const pop = back.querySelector(`[data-valpop="${i}"]`); if (pop) showPop(pop); }));
+      back.querySelectorAll('[data-dsearch]').forEach((input) => (input.oninput = () => { const q = input.value.trim().toLowerCase(); const list = input.closest('.filter-dimension-pop').querySelector('.filter-dimension-list'); list.querySelectorAll('.opt').forEach((o) => (o.style.display = !q || o.textContent.toLowerCase().includes(q) ? '' : 'none')); list.querySelectorAll('.opt-group').forEach((g) => { let any = false; let node = g.nextElementSibling; while (node && !node.classList.contains('opt-group')) { if (node.style.display !== 'none') any = true; node = node.nextElementSibling; } g.style.display = any ? '' : 'none'; }); }));
+      back.querySelectorAll('[data-vsearch]').forEach((input) => (input.oninput = () => { const q = input.value.trim().toLowerCase(); input.closest('.filter-value-pop').querySelectorAll('.filter-values .filter-check').forEach((item) => (item.style.display = !q || item.textContent.toLowerCase().includes(q) ? '' : 'none')); }));
       back.querySelectorAll('[data-op]').forEach((s) => (s.onchange = (e) => { draft[+s.getAttribute('data-op')].op = e.target.value; }));
-      back.querySelectorAll('[data-val]').forEach((s) => (s.oninput = (e) => { draft[+s.getAttribute('data-val')].value = e.target.value; }));
+      back.querySelectorAll('[data-val]').forEach((s) => (s.oninput = (e) => { const i = +s.getAttribute('data-val'); draft[i].value = e.target.value; draft[i].values = e.target.value ? [e.target.value] : []; }));
       back.querySelectorAll('[data-rm]').forEach((b) => (b.onclick = () => { draft.splice(+b.getAttribute('data-rm'), 1); paint(); }));
-      back.querySelector('[data-act="addf"]').onclick = () => { draft.push({ dim: '', op: 'is', value: '' }); paint(); };
+      back.querySelector('[data-act="addf"]').onclick = () => { draft.push({ dim: '', op: 'is', value: '', values: [] }); paint(); };
       back.querySelector('[data-x]').onclick = close;
-      back.querySelector('[data-apply]').onclick = () => { filters.length = 0; draft.filter((f) => f.dim && f.value).forEach((f) => filters.push({ dim: f.dim, op: f.op, value: f.value })); close(); onApply(); };
+      back.querySelector('[data-apply]').onclick = () => {
+        // Read the visible controls again at commit time. This keeps a
+        // multi-select choice intact even when a browser updates a checkbox
+        // without firing the element's assigned `onchange` handler.
+        const next = draft.map((f, i) => {
+          const picked = [...back.querySelectorAll(`[data-vcheck="${i}"]:checked`)].map((c) => c.value);
+          const typed = back.querySelector(`[data-val="${i}"]`);
+          const values = picked.length ? picked : typed && typed.value.trim() ? [typed.value.trim()] : filterValues(f);
+          return { dim: f.dim, op: f.op, value: values.length === 1 ? values[0] : '', values };
+        }).filter((f) => f.dim && f.values.length);
+        filters.splice(0, filters.length, ...next);
+        close();
+        onApply(next);
+      };
     }
     back.addEventListener('click', (e) => { if (e.target === back) close(); else if (!e.target.closest('.sel-trigger') && !e.target.closest('.sel-pop')) back.querySelectorAll('.sel-pop').forEach((p) => (p.style.display = 'none')); });
     document.body.appendChild(back);
@@ -816,21 +943,31 @@
     paint();
   }
   // ---- Catalog-driven behavior-report engine (SHOPLINE "Traffic acquisition: By X") ----
-  const METRIC_KEY = { 'Sessions': 'sessions', 'Sessions of successful registration': 'reg', 'Added to cart': 'atc', 'Reached checkout': 'checkout', 'Added customer info': 'ci', 'Added shipping method': 'sm', 'Added payment Info': 'pi', 'Completed checkout': 'completed', 'Conversion rate': 'conversion', 'Bounce rate': 'bounce' };
+  const METRIC_KEY = { 'Sessions': 'sessions', 'Page views': 'pageviews', 'Sessions of successful registration': 'reg', 'Added to cart': 'atc', 'Reached checkout': 'checkout', 'Added customer info': 'ci', 'Added shipping method': 'sm', 'Added payment Info': 'pi', 'Completed checkout': 'completed', 'Conversion rate': 'conversion', 'Bounce rate': 'bounce', 'Attributed sales': 'attributed_sales' };
   const RATE_METRICS = ['Conversion rate', 'Bounce rate'];
+  const B_MONEY_METRICS = new Set(['Attributed sales']);
   const BEHAVIOR_LABELS = {
     'Day': SALES_TREND.dates,
     'Country/Region': ['United States', 'Australia', 'United Kingdom', 'Canada', 'Germany', 'New Zealand', 'Singapore', 'Ireland', 'Philippines', 'France', 'Hongkong', 'Viet Nam', 'India', 'Pakistan', 'Netherlands', 'Mexico'],
     'Device type': ['Mobile', 'Desktop', 'Tablet', 'Other'],
     'Browser': ['Chrome', 'Safari', 'Edge', 'Firefox', 'Samsung Internet'],
+    'Browser version': ['126', '125', '124', '17.5', '17.4'],
     'Operating system': ['iOS', 'Android', 'Windows', 'macOS', 'Linux'],
+    'Operating system version': ['iOS 17.5', 'Android 14', 'Windows 11', 'macOS 14'],
     'Landing page type': ['Product', 'Homepage', 'Collection', 'Checkout', 'Cart', 'Account', 'Blog'],
+    'Landing page path': ['/', '/collections/leggings', '/products/3d-anti-cellulite-leggings', '/cart', '/checkout'],
     'Landing page URL': ['/products/3d-anti-cellulite-leggings', '/', '/collections/leggings', '/products/silix-high-waist', '/cart', '/products/short-leggings', '/apps/bestrack'],
     'Referrer source': ['Direct', 'Social', 'Search', 'Referral', 'Email', 'Other'],
     'Referrer site': ['facebook.com', 'google.com', 'instagram.com', 't.co', 'youtube.com', 'pinterest.com'],
+    'Referrer name': ['Facebook', 'Instagram', 'TikTok', 'YouTube', 'Pinterest', 'X'],
+    'Referrer path': ['/ads', '/search', '/reels', '/video'],
+    'Referrer URL': ['https://google.com/search', 'https://facebook.com/ads', 'https://instagram.com/reel'],
     'City': ['Chicago', 'Sydney', 'Atlanta', 'Houston', 'Melbourne', 'New York', 'London'],
     'UTM source': ['facebook', 'google', 'instagram', 'tiktok', 'newsletter'],
     'UTM medium': ['paid', 'organic', 'cpc', 'email', 'social'],
+    'UTM content': ['summer_video_a', 'carousel_b', 'search_brand', 'email_hero'],
+    'UTM name': ['summer_launch', 'retargeting', 'brand_search', 'newsletter'],
+    'UTM campaign keywords': ['leggings', 'shapewear', 'summer sale', 'brand'],
     'Province/State': ['California', 'New South Wales', 'Texas', 'Georgia', 'Victoria'],
     'Traffic Source': ['Direct', 'Social', 'Search', 'Referral', 'Email'],
   };
@@ -843,37 +980,39 @@
       const atc = Math.max(0, Math.round(sessions * (0.008 + rand(r) * 0.02)));
       const checkout = Math.max(0, Math.round(atc * (0.45 + rand(r) * 0.5)));
       const completed = Math.max(0, Math.round(checkout * (0.45 + rand(r) * 0.5)));
-      return { label, sessions, atc, checkout, completed, reg: Math.round(sessions * 0.02), ci: checkout, sm: checkout, pi: completed, conversion: sessions ? +(completed / sessions * 100).toFixed(2) : 0, bounce: +(35 + rand(r) * 40).toFixed(1) };
+      const pageviews = Math.round(sessions * (1.45 + rand(r) * 0.8));
+      return { label, sessions, pageviews, atc, checkout, completed, reg: Math.round(sessions * 0.02), ci: checkout, sm: checkout, pi: completed, attributed_sales: Math.round(completed * (42 + rand(r) * 36)), conversion: sessions ? +(completed / sessions * 100).toFixed(2) : 0, bounce: +(35 + rand(r) * 40).toFixed(1) };
     });
   }
   function viewBehaviorReport(view, cfg) {
     const state = { dim: cfg.dim, metrics: cfg.metrics.slice(), sortCol: 0, sortDir: 'desc', page: 1, pageSize: 20, filters: [] };
     onChipChange = () => render();
-    const fmtV = (label, v) => RATE_METRICS.includes(label) ? v + '%' : (v || 0).toLocaleString();
+    const fmtV = (label, v) => RATE_METRICS.includes(label) ? v + '%' : B_MONEY_METRICS.has(label) ? '$' + Math.round(v || 0).toLocaleString() : (v || 0).toLocaleString();
     function render() {
       disposeCharts();
       const all = behaviorRows(state.dim);
       let rows = all.slice();
-      state.filters.forEach((f) => { if (f.value) rows = rows.filter((r) => f.op === 'is' ? String(r.label).toLowerCase() === f.value.toLowerCase() : f.op === 'is not' ? String(r.label).toLowerCase() !== f.value.toLowerCase() : String(r.label).toLowerCase().includes(f.value.toLowerCase())); });
+      state.filters.forEach((f) => { rows = rows.filter((r) => matchesFilter(r.label, f)); });
       const mk = METRIC_KEY[state.metrics[state.sortCol]] || 'sessions';
       rows = rows.slice().sort((a, b) => state.sortDir === 'desc' ? b[mk] - a[mk] : a[mk] - b[mk]);
-      const sum = {}; ['sessions', 'atc', 'checkout', 'completed', 'reg', 'ci', 'sm', 'pi'].forEach((k) => (sum[k] = all.reduce((s, r) => s + r[k], 0)));
+      const sum = {}; ['sessions', 'pageviews', 'atc', 'checkout', 'completed', 'reg', 'ci', 'sm', 'pi', 'attributed_sales'].forEach((k) => (sum[k] = rows.reduce((s, r) => s + r[k], 0)));
       sum.conversion = sum.sessions ? +(sum.completed / sum.sessions * 100).toFixed(2) : 0;
-      sum.bounce = +(all.reduce((s, r) => s + r.bounce, 0) / all.length).toFixed(1);
+      sum.bounce = +(rows.reduce((s, r) => s + r.bounce, 0) / (rows.length || 1)).toFixed(1);
       const totalRows = rows.length;
       const totalPages = Math.max(1, Math.ceil(totalRows / state.pageSize));
       if (state.page > totalPages) state.page = totalPages;
       const pageRows = rows.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
       const sTh = (label, ci) => `<th class="num" data-sort="${ci}" style="cursor:pointer;white-space:nowrap">${label}${state.sortCol === ci ? (state.sortDir === 'desc' ? ' ↓' : ' ↑') : ''}</th>`;
       view.innerHTML = `<div class="view-wrap">
-        <div class="flex items-center justify-between mb-3">
+        <div class="report-head mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${cfg.title}</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+          ${reportActionsHTML()}
         </div>
         ${chipBar({ timeunit: !!cfg.chart })}
+        <div class="report-timezone">Store time zone · UTC+08:00</div>
         <div class="panel">
           <div class="p-3 flex items-center justify-between" style="border-bottom:1px solid var(--hair)">
-            <span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip" style="background:#e6f0ff;color:var(--brand);border-color:#cfe1ff">${f.dim} ${f.op} ${f.value}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}</span>
+            <span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip" style="background:#e6f0ff;color:var(--brand);border-color:#cfe1ff">${f.dim} ${f.op} ${filterLabel(f)}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}</span>
             <button class="btn btn-default" data-act="edit">Edit</button>
           </div>
           <div id="bh-table"><table class="tbl"><thead><tr><th>${state.dim}</th>${state.metrics.map((m, ci) => sTh(m, ci)).join('')}</tr></thead><tbody><tr style="font-weight:600;background:var(--panel)"><td>Summary</td>${state.metrics.map((m) => `<td class="num">${fmtV(m, sum[METRIC_KEY[m]])}</td>`).join('')}</tr>${pageRows.map((r) => `<tr><td>${r.label}</td>${state.metrics.map((m) => `<td class="num">${fmtV(m, r[METRIC_KEY[m]])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
@@ -890,8 +1029,9 @@
       </div>`;
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
+      bindExport(view, `${CURRENT_REPORT || 'traffic'}-export`, [state.dim, ...state.metrics], () => [['Summary', ...state.metrics.map((m) => fmtV(m, sum[METRIC_KEY[m]]))], ...rows.map((r) => [r.label, ...state.metrics.map((m) => fmtV(m, r[METRIC_KEY[m]]))])]);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer(BEHAVIOR_CAT, { dims: new Set([state.dim]), metrics: new Set(state.metrics) }, (res) => { if (res.dims.length) state.dim = res.dims[0]; if (res.metrics.length) state.metrics = res.metrics; state.sortCol = 0; state.page = 1; render(); });
-      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); });
+      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, (next) => { state.filters = next; state.page = 1; render(); });
       view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); render(); }));
       view.querySelectorAll('[data-sort]').forEach((th) => (th.onclick = () => { const ci = +th.getAttribute('data-sort'); if (state.sortCol === ci) state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc'; else { state.sortCol = ci; state.sortDir = 'desc'; } render(); }));
       view.querySelectorAll('[data-pg]').forEach((b) => (b.onclick = () => { const v = b.getAttribute('data-pg'); if (v === 'prev') state.page = Math.max(1, state.page - 1); else if (v === 'next') state.page = Math.min(totalPages, state.page + 1); else state.page = +v; render(); }));
@@ -911,20 +1051,20 @@
       ['Sales channel', ['Sales channel', 'Currency']],
     ],
     metrics: [
-      ['Sales result', ['Gross sales', 'Discounts', 'Returns', 'Net sales', 'Shipping', 'Total sales', 'Orders', 'Average order value', 'Sales quantity', 'Units per transaction', 'Gross profit', 'Gross margin', 'Refund amount']],
+      ['Sales result', ['Gross sales', 'Discounts', 'Returns', 'Net sales', 'Shipping', 'Total sales', 'Payment amount', 'Refund amount', 'Orders', 'Orders fulfilled', 'Average order value', 'Sales quantity', 'Units per transaction', 'Gross profit', 'Gross margin']],
       ['Customers', ['Customers']],
     ],
   };
   const CATALOG_FOR = (source) => (source === 'Behavior' ? BEHAVIOR_CAT : COMMERCE_CAT);
   // chart-metric picker options (flat list shown in the "Sales ▾" selector) per source
   const CHART_METRICS = {
-    Commerce: ['Total sales', 'Net sales', 'Gross sales', 'Discounts', 'Refund amount', 'Orders', 'Average order value', 'Sales quantity', 'Units per transaction', 'Gross profit', 'Gross margin'],
-    Behavior: ['Sessions', 'Added to cart', 'Reached checkout', 'Completed checkout', 'Conversion rate', 'Bounce rate'],
+    Commerce: ['Total sales', 'Net sales', 'Gross sales', 'Discounts', 'Payment amount', 'Refund amount', 'Orders', 'Orders fulfilled', 'Average order value', 'Sales quantity', 'Units per transaction', 'Gross profit', 'Gross margin'],
+    Behavior: ['Sessions', 'Page views', 'Sessions of successful registration', 'Added to cart', 'Reached checkout', 'Added customer info', 'Added shipping method', 'Added payment Info', 'Completed checkout', 'Conversion rate', 'Bounce rate', 'Attributed sales'],
   };
   // commerce metric value model (our data reality: tax / duty / gift cards = N/A → 0)
   const C_RATE = new Set(['Gross margin']);
   const C_RATIO = new Set(['Units per transaction', 'Average order value']);
-  const C_COUNT = new Set(['Orders', 'Sales quantity', 'Customers']);
+  const C_COUNT = new Set(['Orders', 'Orders fulfilled', 'Sales quantity', 'Customers']);
   function cSeries(metric) {
     const r = { s: seedOf('C|' + metric) };
     return SALES_TREND.values.map((sv, i) => {
@@ -934,11 +1074,13 @@
         case 'Gross sales': return Math.round(sv * 1.162);
         case 'Discounts': return -Math.round(sv * 0.158);
         case 'Returns': return -Math.round(sv * 0.008);
-        case 'Refund amount': return -Math.round(sv * (i === 20 ? 0.085 : 0.002));
+        case 'Payment amount': return Math.round(sv * 1.004);
+        case 'Refund amount': return Math.round(sv * (i === 20 ? 0.085 : 0.002));
         case 'Shipping': return Math.round(sv * 0.031);
         case 'Gross profit': return Math.round(sv * 0.452);
         case 'Gross margin': return +(43 + rand(r) * 5).toFixed(1);
         case 'Orders': return Math.round(sv / 57.9);
+        case 'Orders fulfilled': return Math.round(sv / 57.9 * (0.75 + rand(r) * 0.14));
         case 'Sales quantity': return Math.round(sv / 39);
         case 'Average order value': return +(54 + rand(r) * 6).toFixed(2);
         case 'Units per transaction': return +(1.3 + rand(r) * 0.3).toFixed(2);
@@ -952,11 +1094,17 @@
     return SESSIONS_TREND.values.map((sv, i) => {
       switch (metric) {
         case 'Sessions': return sv;
+        case 'Page views': return Math.round(sv * (1.55 + rand(r) * 0.5));
+        case 'Sessions of successful registration': return Math.round(sv * (0.018 + rand(r) * 0.009));
         case 'Added to cart': return Math.round(sv * 0.012);
         case 'Reached checkout': return Math.round(sv * 0.006);
+        case 'Added customer info': return Math.round(sv * 0.0053);
+        case 'Added shipping method': return Math.round(sv * 0.0047);
+        case 'Added payment Info': return Math.round(sv * 0.0042);
         case 'Completed checkout': return Math.round(sv * 0.0035);
         case 'Conversion rate': return +(CONV_RATE_TREND.values[i] || 2.3).toFixed(2);
         case 'Bounce rate': return +(38 + rand(r) * 30).toFixed(1);
+        case 'Attributed sales': return Math.round(sv * 0.0035 * (52 + rand(r) * 34));
         default: return Math.round(sv * (0.002 + rand(r) * 0.01));
       }
     });
@@ -985,51 +1133,146 @@
     for (let i = 0; i < series.length; i += size) { const chunk = series.slice(i, i + size); const s = chunk.reduce((a, b) => a + b, 0); out.push(isRate ? +(s / chunk.length).toFixed(2) : s); }
     return out;
   }
+  function timeSummary(rows, metrics, isBehavior) {
+    const vals = {};
+    metrics.forEach((m) => {
+      const total = rows.reduce((sum, row) => sum + (row.vals[m] || 0), 0);
+      const isRate = isBehavior ? RATE_METRICS.includes(m) : (C_RATE.has(m) || C_RATIO.has(m));
+      vals[m] = isRate ? total / (rows.length || 1) : total;
+    });
+    return vals;
+  }
+  function distributeRows(rows, labels, metrics, unit, isBehavior) {
+    const result = labels.map((label) => ({ label, vals: {} }));
+    metrics.forEach((metric, mi) => {
+      const isRate = isBehavior && RATE_METRICS.includes(metric);
+      const total = rows.reduce((sum, row) => sum + (row.vals[metric] || 0), 0);
+      const base = isRate ? total / (rows.length || 1) : total;
+      const r = { s: seedOf(`${unit}|${metric}|${rows.length}`) };
+      const weights = labels.map(() => 0.55 + rand(r));
+      const weightSum = weights.reduce((a, b) => a + b, 0);
+      result.forEach((row, i) => {
+        row.vals[metric] = isRate ? +(base * (0.82 + weights[i] * 0.22)).toFixed(2) : Math.round(total * weights[i] / weightSum);
+      });
+    });
+    return result;
+  }
+  function behaviorTimeRows(rows, unit, metrics) {
+    if (unit === 'Day') return rows;
+    if (unit === 'Week' || unit === 'Month') return aggDR(rows, unit, metrics, true);
+    if (unit === 'None') return rows.length ? [{ label: 'Selected period', vals: timeSummary(rows, metrics, true) }] : [];
+    if (unit === 'Hour' || unit === 'An hour of a day') {
+      const labels = Array.from({ length: 24 }, (_, i) => unit === 'Hour' ? `May 26 ${String(i).padStart(2, '0')}:00` : `${String(i).padStart(2, '0')}:00–${String(i).padStart(2, '0')}:59`);
+      return distributeRows(rows, labels, metrics, unit, true);
+    }
+    if (unit === 'A day of a week') return distributeRows(rows, ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], metrics, unit, true);
+    return rows;
+  }
+  function mockFilterFactor(filters) {
+    return filters.reduce((current, filter) => {
+      const values = filterValues(filter).join('|');
+      const random = (seedOf(`${filter.dim}|${values}`) % 19) / 100;
+      return current * ((filter.op === 'Exclude' || filter.op === 'excludes' || filter.op === 'is not') ? 0.92 + random : 0.58 + random);
+    }, 1);
+  }
+  function applyMockFilters(rows, filters, isBehavior) {
+    if (!filters.length) return rows;
+    const factor = mockFilterFactor(filters);
+    return rows.map((row) => ({ label: row.label, vals: Object.fromEntries(Object.entries(row.vals).map(([metric, value]) => {
+      const isRate = isBehavior && RATE_METRICS.includes(metric);
+      return [metric, isRate ? +Math.max(0, Math.min(100, value * (0.91 + factor * 0.09))).toFixed(2) : Math.round(value * factor)];
+    })) }));
+  }
   function drChartOpt(labels, series, isB) {
     const colors = isB ? ['#5ab1ef', '#019680'] : ['#0066e6', '#019680'];
-    const ser = [];
+    const hasRate = series.some((s) => s.isRate);
+    const hasValue = series.some((s) => !s.isRate);
+    const dualAxis = hasRate && hasValue;
+    const labelInterval = labels.length > 14 ? (window.innerWidth < 600 ? 5 : 2) : 0;
+    const ser = [], legendData = [];
+    // The legend's standard rounded-rectangle icon cannot convey a dashed
+    // comparison series. Use compact SVG paths so the key mirrors the line.
+    const solidLegendIcon = 'path://M0 0H16V4H0Z';
+    const dashedLegendIcon = 'path://M0 0H4V4H0ZM6 0H10V4H6ZM12 0H16V4H12Z';
     series.forEach((s, i) => {
-      ser.push({ type: 'line', name: s.name, data: s.vals, smooth: true, symbol: 'none', lineStyle: { color: colors[i % 2], width: 2 }, areaStyle: i === 0 ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[0] + '22' }, { offset: 1, color: colors[0] + '03' }]) } : undefined });
-      if (s.comp) ser.push({ type: 'line', name: s.name + '[Compare]', data: s.comp, smooth: true, symbol: 'none', lineStyle: { color: colors[i % 2], width: 1.5, type: 'dashed', opacity: 0.55 } });
+      // ECharts otherwise assigns legend swatches from its default palette while
+      // the rendered line receives its color from lineStyle. Bind both to the
+      // same series color so the legend remains a trustworthy chart key.
+      const color = colors[i % colors.length];
+      const axis = dualAxis && s.isRate ? 1 : 0;
+      ser.push({ type: 'line', name: s.name, data: s.vals, yAxisIndex: axis, smooth: true, symbol: 'none', itemStyle: { color }, lineStyle: { color, width: 2 }, areaStyle: i === 0 ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: colors[0] + '22' }, { offset: 1, color: colors[0] + '03' }]) } : undefined });
+      legendData.push({ name: s.name, icon: solidLegendIcon });
+      if (s.comp) {
+        const comparisonName = s.name + ' · comparison';
+        ser.push({ type: 'line', name: comparisonName, data: s.comp, yAxisIndex: axis, smooth: true, symbol: 'none', itemStyle: { color }, lineStyle: { color, width: 1.5, type: 'dashed', opacity: 0.55 } });
+        legendData.push({ name: comparisonName, icon: dashedLegendIcon });
+      }
     });
-    return { grid: { left: 56, right: 20, top: 16, bottom: 44 }, tooltip: { trigger: 'axis' }, legend: { bottom: 0, icon: 'roundRect', itemHeight: 3, itemWidth: 16, textStyle: { color: '#62708d', fontSize: 12 } }, xAxis: { type: 'category', data: labels, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#94a3b8', fontSize: 11, interval: labels.length > 14 ? 2 : 0 } }, yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11, formatter: cAxis } }, series: ser };
+    const valueAxis = { type: 'value', splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11, formatter: hasRate && !hasValue ? (v) => v + '%' : cAxis } };
+    const rateAxis = { type: 'value', position: 'right', splitLine: { show: false }, axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (v) => v + '%' } };
+    return { grid: { left: 56, right: dualAxis ? 56 : 20, top: 16, bottom: 44 }, tooltip: { trigger: 'axis' }, legend: { data: legendData, bottom: 0, itemHeight: 4, itemWidth: 16, textStyle: { color: '#62708d', fontSize: 12 } }, xAxis: { type: 'category', data: labels, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#94a3b8', fontSize: 11, interval: labelInterval, hideOverlap: true } }, yAxis: dualAxis ? [valueAxis, rateAxis] : valueAxis, series: ser };
   }
-  function viewDateRangeReport(view, cfg) {
+  function viewDateRangeReport(view, cfg, routeOpts) {
     const opts = CHART_METRICS[cfg.source] || CHART_METRICS.Commerce;
     const isB = cfg.source === 'Behavior';
-    const state = { chartMetrics: [cfg.chartDefault], metrics: cfg.tableMetrics.slice(), page: 1, pageSize: 50, filters: [], banner: cfg.source === 'Commerce' };
+    const timeUnits = cfg.timeUnits || (isB ? ['Hour', 'Day', 'Week', 'An hour of a day', 'A day of a week', 'None'] : DEFAULT_TIME_UNITS);
+    if (!timeUnits.includes(CHIP_STATE.timeunit)) CHIP_STATE.timeunit = cfg.defaultTimeUnit || 'Day';
+    const routeMetric = routeOpts && routeOpts.metric;
+    const firstMetric = opts.includes(routeMetric) ? routeMetric : cfg.chartDefault;
+    const state = { chartMetrics: [firstMetric], metrics: cfg.tableMetrics.slice(), breakdown: null, sortCol: null, sortDir: 'desc', page: 1, pageSize: 50, filters: [], banner: !!cfg.banner };
     onChipChange = () => render();
     const seriesOf = isB ? behaviorDaySeries : cSeries;
-    const fmt = isB ? ((m, v) => (RATE_METRICS.includes(m) ? v + '%' : (v || 0).toLocaleString())) : ((m, v) => cFmt(m, v, CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 }));
+    const fmt = isB
+      ? ((m, v) => RATE_METRICS.includes(m) ? (Math.round(v * 100) / 100) + '%' : B_MONEY_METRICS.has(m) ? '$' + Math.round(v || 0).toLocaleString() : (v || 0).toLocaleString())
+      : ((m, v) => cFmt(m, v, CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 }));
+    function timeRowsFor(metrics) {
+      let rows = SALES_TREND.dates.map((d, i) => ({ label: d, vals: Object.fromEntries(metrics.map((m) => [m, seriesOf(m)[i]])) }));
+      rows = rows.slice(CHIP_STATE._range.s, CHIP_STATE._range.e + 1);
+      rows = isB ? behaviorTimeRows(rows, CHIP_STATE.timeunit, metrics) : aggDR(rows, CHIP_STATE.timeunit, metrics, false);
+      return applyMockFilters(rows, state.filters, isB);
+    }
+    function tableRowsFor(metrics) {
+      if (!state.breakdown) return timeRowsFor(metrics);
+      const rows = isB
+        ? behaviorRows(state.breakdown).map((row) => ({ label: row.label, vals: Object.fromEntries(metrics.map((m) => [m, row[METRIC_KEY[m]] || 0])) }))
+        : commerceDimRows(state.breakdown, metrics);
+      return applyMockFilters(rows, state.filters, isB);
+    }
     function render() {
       disposeCharts();
-      let rows = SALES_TREND.dates.map((d, i) => ({ label: d, vals: Object.fromEntries(state.metrics.map((m) => [m, seriesOf(m)[i]])) }));
-      rows = aggDR(rows, CHIP_STATE.timeunit, state.metrics, isB);
-      const sum = {}; state.metrics.forEach((m) => { const all = rows.reduce((a, b) => a + (b.vals[m] || 0), 0); const isR = isB ? RATE_METRICS.includes(m) : (C_RATE.has(m) || C_RATIO.has(m)); sum[m] = isR ? all / (rows.length || 1) : all; });
+      let rows = tableRowsFor(state.metrics);
+      const sum = timeSummary(rows, state.metrics, isB);
+      if (state.sortCol != null && state.metrics[state.sortCol]) {
+        const metric = state.metrics[state.sortCol];
+        rows = rows.slice().sort((a, b) => state.sortDir === 'desc' ? b.vals[metric] - a.vals[metric] : a.vals[metric] - b.vals[metric]);
+      }
       const totalRows = rows.length;
       const totalPages = Math.max(1, Math.ceil(totalRows / state.pageSize));
       if (state.page > totalPages) state.page = totalPages;
       const pageRows = rows.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
+      const timeHeading = CHIP_STATE.timeunit === 'None' ? 'Time' : CHIP_STATE.timeunit;
+      const tableHeading = state.breakdown || timeHeading;
+      const sortHeader = (metric, i) => `<th class="num" data-sort="${i}" style="cursor:pointer;white-space:nowrap">${metric}${state.sortCol === i ? (state.sortDir === 'desc' ? ' ↓' : ' ↑') : ''}</th>`;
       view.innerHTML = `<div class="view-wrap">
-        <div class="flex items-center justify-between mb-3">
+        <div class="report-head mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${cfg.title}</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+          ${reportActionsHTML()}
         </div>
-        ${chipBar({ currency: !isB, timeunit: true })}
-        ${state.banner ? `<div class="info-banner"><span>We will be phasing out the Payment amount and Refund amount metrics in the Sales report soon — you can view them in the Finances report instead.</span><span class="x" data-bx>✕</span></div>` : ''}
+        ${chipBar({ currency: cfg.currency !== false && !isB, timeunit: true, timeUnits, timezone: 'Store time zone · UTC+08:00' })}
+        ${state.banner ? `<div class="info-banner"><span>Payment and refund metrics are shown in dedicated finance reports as well, so you can choose the view that best fits your analysis.</span><span class="x" data-bx>✕</span></div>` : ''}
         <div class="panel card-pad mb-4">
-          <div class="flex items-center gap-3 mb-2">
+          <div class="flex items-center gap-3 mb-2" style="flex-wrap:wrap">
             <span class="metric-sel" data-msel="0">${state.chartMetrics[0]}${ICON.chevDown}</span>
             ${state.chartMetrics[1] ? `<span class="muted">and</span><span class="metric-sel" data-msel="1">${state.chartMetrics[1]}${ICON.chevDown}</span><a class="lnk" data-mdel>Delete</a>` : `<a class="lnk" data-madd>Add metrics</a>`}
           </div>
           <div id="dr-chart" style="height:300px"></div>
         </div>
         <div class="panel">
-          <div class="p-3 flex items-center justify-between" style="border-bottom:1px solid var(--hair)">
-            <span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip" style="background:#e6f0ff;color:var(--brand);border-color:#cfe1ff">${f.dim} ${f.op} ${f.value}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}</span>
+          <div class="report-controlbar">
+            <span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip report-filter-chip">${f.dim} ${f.op} ${filterLabel(f)}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}</span>
             <button class="btn btn-default" data-act="edit">Edit</button>
           </div>
-          <div id="dr-table"><table class="tbl"><thead><tr><th>${CHIP_STATE.timeunit}</th>${state.metrics.map((m) => `<th class="num">${m}</th>`).join('')}</tr></thead><tbody><tr style="font-weight:600;background:var(--panel)"><td>Summary</td>${state.metrics.map((m) => `<td class="num">${fmt(m, sum[m])}</td>`).join('')}</tr>${pageRows.map((r) => `<tr><td>${r.label}</td>${state.metrics.map((m) => `<td class="num">${fmt(m, r.vals[m])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${tableHeading}</th>${state.metrics.map(sortHeader).join('')}</tr></thead><tbody><tr style="font-weight:600;background:var(--panel)"><td>Summary</td>${state.metrics.map((m) => `<td class="num">${fmt(m, sum[m])}</td>`).join('')}</tr>${pageRows.map((r) => `<tr><td>${r.label}</td>${state.metrics.map((m) => `<td class="num">${fmt(m, r.vals[m])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
           <div class="p-3 flex items-center justify-between" style="border-top:1px solid var(--hair)">
             <span class="muted" style="font-size:13px">Total ${totalRows} records</span>
             <div class="pg">
@@ -1041,15 +1284,20 @@
           </div>
         </div>
       </div>`;
+      const chartRows = timeRowsFor(state.chartMetrics);
       const comp = CHIP_STATE.comparison !== 'No comparison';
-      const chartSeries = state.chartMetrics.map((m) => { const isR = isB ? RATE_METRICS.includes(m) : (C_RATE.has(m) || C_RATIO.has(m)); const v = aggSeries(seriesOf(m), CHIP_STATE.timeunit, isR); return { name: m, vals: v, comp: comp ? v.map((x) => Math.round(x * 0.88 * 100) / 100) : null }; });
-      mkChart(document.getElementById('dr-chart'), drChartOpt(rows.map((r) => r.label), chartSeries, isB));
+      const chartSeries = state.chartMetrics.map((m) => {
+        const values = chartRows.map((row) => row.vals[m]);
+        return { name: m, vals: values, isRate: isB ? RATE_METRICS.includes(m) : C_RATE.has(m), comp: comp ? values.map((x) => Math.round(x * 0.88 * 100) / 100) : null };
+      });
+      mkChart(document.getElementById('dr-chart'), drChartOpt(chartRows.map((r) => r.label), chartSeries, isB));
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
-      bindFav(view);
-      view.querySelector('[data-act="edit"]').onclick = () => editDrawer(CATALOG_FOR(cfg.source), { dims: new Set(), metrics: new Set(state.metrics) }, (res) => { if (res.metrics.length) state.metrics = res.metrics; state.page = 1; render(); });
-      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, CATALOG_FOR(cfg.source).dimensions);
-      view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); render(); }));
+      bindExport(view, `${CURRENT_REPORT || 'analytics'}-export`, [tableHeading, ...state.metrics], () => [['Summary', ...state.metrics.map((m) => fmt(m, sum[m]))], ...rows.map((r) => [r.label, ...state.metrics.map((m) => fmt(m, r.vals[m]))])]);
+      view.querySelector('[data-act="edit"]').onclick = () => editDrawer(CATALOG_FOR(cfg.source), { dims: new Set(state.breakdown ? [state.breakdown] : []), metrics: new Set(state.metrics) }, (res) => { state.breakdown = res.dims[0] || null; if (res.metrics.length) state.metrics = res.metrics; state.sortCol = null; state.page = 1; render(); });
+      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, (next) => { state.filters = next; state.page = 1; render(); }, CATALOG_FOR(cfg.source).dimensions);
+      view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); state.page = 1; render(); }));
+      view.querySelectorAll('[data-sort]').forEach((th) => (th.onclick = () => { const i = +th.getAttribute('data-sort'); if (state.sortCol === i) state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc'; else { state.sortCol = i; state.sortDir = 'desc'; } render(); }));
       const bx = view.querySelector('[data-bx]'); if (bx) bx.onclick = () => { state.banner = false; render(); };
       const pickMetric = (slot, el) => openPopover(el, opts.filter((o) => !state.chartMetrics.includes(o) || state.chartMetrics[slot] === o).map((o) => `<div class="opt" data-v="${o}">${o}${state.chartMetrics[slot] === o ? ' ✓' : ''}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => { state.chartMetrics[slot] = o.getAttribute('data-v'); close(); render(); })));
       view.querySelectorAll('[data-msel]').forEach((el) => (el.onclick = () => pickMetric(+el.getAttribute('data-msel'), el)));
@@ -1083,8 +1331,10 @@
       case 'Refund amount': return -Math.round(ts * 0.01);
       case 'Shipping': return Math.round(ts * 0.031);
       case 'Gross profit': return Math.round(ts * 0.452);
-      case 'Gross margin': return +(43 + rand(r) * 5).toFixed(1);
-      case 'Orders': return Math.round(ts / 57.9);
+        case 'Gross margin': return +(43 + rand(r) * 5).toFixed(1);
+        case 'Orders': return Math.round(ts / 57.9);
+        case 'Orders fulfilled': return Math.round(ts / 57.9 * (0.76 + rand(r) * 0.12));
+        case 'Payment amount': return Math.round(ts * 1.004);
       case 'Sales quantity': return Math.round(ts / 39);
       case 'Average order value': return +(52 + rand(r) * 10).toFixed(2);
       case 'Units per transaction': return +(1.3 + rand(r) * 0.3).toFixed(2);
@@ -1117,7 +1367,7 @@
       const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 };
       const fmt = (m, v) => cFmt(m, v, cur);
       let rows = commerceDimRows(state.dim, state.metrics);
-      state.filters.forEach((f) => { if (f.value) rows = rows.filter((r) => f.op === 'is' ? String(r.label).toLowerCase() === f.value.toLowerCase() : f.op === 'is not' ? String(r.label).toLowerCase() !== f.value.toLowerCase() : String(r.label).toLowerCase().includes(f.value.toLowerCase())); });
+      state.filters.forEach((f) => { rows = rows.filter((r) => matchesFilter(r.label, f)); });
       const mk = state.metrics[state.sortCol] || state.metrics[0];
       rows = rows.slice().sort((a, b) => state.sortDir === 'desc' ? b.vals[mk] - a.vals[mk] : a.vals[mk] - b.vals[mk]);
       const sum = {}; state.metrics.forEach((m) => { const all = rows.reduce((a, b) => a + (b.vals[m] || 0), 0); sum[m] = (C_RATE.has(m) || C_RATIO.has(m)) ? all / (rows.length || 1) : all; });
@@ -1130,14 +1380,14 @@
       let body = '';
       pageRows.forEach((r) => { body += trHtml(r, false); if (cfg.drill && r.label === 'Social' && state.expanded.has('Social')) socialDrillRows(r._ts, state.metrics).forEach((c) => (body += trHtml(c, true))); });
       view.innerHTML = `<div class="view-wrap">
-        <div class="flex items-center justify-between mb-3">
+        <div class="report-head mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${cfg.title}</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+          ${reportActionsHTML()}
         </div>
         ${chipBar({ currency: true })}
         <div class="panel">
           <div class="p-3 flex items-center justify-between" style="border-bottom:1px solid var(--hair)">
-            <span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip" style="background:#e6f0ff;color:var(--brand);border-color:#cfe1ff">${f.dim} ${f.op} ${f.value}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}${cfg.drill ? '<span class="muted" style="font-size:12px">· Social row expands to platforms</span>' : ''}</span>
+            <span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip" style="background:#e6f0ff;color:var(--brand);border-color:#cfe1ff">${f.dim} ${f.op} ${filterLabel(f)}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}${cfg.drill ? '<span class="muted" style="font-size:12px">· Social row expands to platforms</span>' : ''}</span>
             <button class="btn btn-default" data-act="edit">Edit</button>
           </div>
           <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${state.dim}</th>${state.metrics.map((m, ci) => sTh(m, ci)).join('')}</tr></thead><tbody><tr style="font-weight:600;background:var(--panel)"><td>Summary</td>${state.metrics.map((m) => `<td class="num">${fmt(m, sum[m])}</td>`).join('')}</tr>${body}</tbody></table></div>
@@ -1154,9 +1404,9 @@
       </div>`;
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
-      bindFav(view);
+      bindExport(view, `${CURRENT_REPORT || 'report'}-export`, [state.dim, ...state.metrics], () => [['Summary', ...state.metrics.map((m) => fmt(m, sum[m]))], ...rows.map((r) => [r.label, ...state.metrics.map((m) => fmt(m, r.vals[m]))])]);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer(COMMERCE_CAT, { dims: new Set([state.dim]), metrics: new Set(state.metrics) }, (res) => { if (res.dims.length) state.dim = res.dims[0]; if (res.metrics.length) state.metrics = res.metrics; state.sortCol = 0; state.page = 1; state.expanded.clear(); render(); });
-      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, COMMERCE_CAT.dimensions);
+      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, (next) => { state.filters = next; state.page = 1; render(); }, COMMERCE_CAT.dimensions);
       view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); render(); }));
       view.querySelectorAll('[data-drill]').forEach((b) => (b.onclick = () => { const k = b.getAttribute('data-drill'); state.expanded.has(k) ? state.expanded.delete(k) : state.expanded.add(k); render(); }));
       view.querySelectorAll('[data-sort]').forEach((th) => (th.onclick = () => { const ci = +th.getAttribute('data-sort'); if (state.sortCol === ci) state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc'; else { state.sortCol = ci; state.sortDir = 'desc'; } render(); }));
@@ -1215,36 +1465,43 @@
 
   // ============ T4 special-viz reports (funnel / cohort table / finance waterfall) ============
   function t4Header(title) {
-    return `<div class="flex items-center justify-between mb-3">
+    return `<div class="report-head mb-3">
       <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${title}</h1></div>
-      <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+      ${reportActionsHTML()}
     </div>`;
   }
-  function t4Bind(view) {
+  function t4Bind(view, exportSpec) {
     view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
     const sb = view.querySelector('[data-act="saveas"]'); if (sb) sb.onclick = () => saveAsModal(CURRENT_REPORT);
     bindFav(view);
+    bindExport(view, `${CURRENT_REPORT || 'analytics'}-export`, (exportSpec && exportSpec.headers) || ['Report'], (exportSpec && exportSpec.rows) || (() => [[CURRENT_REPORT || 'Analytics report']]));
   }
   function viewConversionFunnel(view) {
     onChipChange = () => render();
     const STAGES = [['Sessions', 1326165], ['Added to cart', 158520], ['Reached checkout', 79560], ['Added customer info', 68200], ['Added shipping method', 61300], ['Added payment info', 56721], ['Completed checkout', 30559]];
+    const state = { filters: [] };
     function render() {
       disposeCharts();
-      const top = STAGES[0][1], bottom = STAGES[STAGES.length - 1][1];
+      const factor = mockFilterFactor(state.filters);
+      const stages = STAGES.map(([label, value], i) => [label, Math.max(1, Math.round(value * factor * (1 - i * state.filters.length * 0.008)))]);
+      const top = stages[0][1], bottom = stages[stages.length - 1][1];
       const kpis = [['Conversion rate', (bottom / top * 100).toFixed(2) + '%'], ['Sessions', top.toLocaleString()], ['Completed checkout', bottom.toLocaleString()], ['Biggest drop-off', 'Cart → Checkout']];
       view.innerHTML = `<div class="view-wrap">
         ${t4Header('Conversion rate breakdown')}
         ${chipBar({})}
+        <div class="report-timezone">Store time zone · UTC+08:00</div>
         <div class="grid grid-cols-4 gap-3 mb-4">${kpis.map(([k, v], i) => `<div class="panel card-pad"${i === 0 ? ' style="border:1px solid var(--brand)"' : ''}><div class="muted" style="font-size:13px">${k}</div><div class="stat-value mt-1" style="font-size:22px">${v}</div></div>`).join('')}</div>
-        <div class="panel card-pad"><div class="card-title mb-3">Conversion funnel</div>
-          ${STAGES.map((s, i) => { const pct = s[1] / top * 100; const step = i ? (s[1] / STAGES[i - 1][1] * 100) : null; return `<div style="margin-bottom:12px">
+        <div class="panel"><div class="report-controlbar"><span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip report-filter-chip">${f.dim} ${f.op} ${filterLabel(f)}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}</span></div><div class="card-pad"><div class="card-title mb-3">Conversion funnel</div>
+          ${stages.map((s, i) => { const pct = s[1] / top * 100; const step = i ? (s[1] / stages[i - 1][1] * 100) : null; return `<div style="margin-bottom:12px">
             <div class="flex items-center justify-between" style="font-size:13px;margin-bottom:4px"><span style="font-weight:500">${s[0]}</span><span class="muted">${s[1].toLocaleString()} · ${pct.toFixed(1)}% of sessions</span></div>
             <div style="height:26px;background:var(--panel);border-radius:6px;overflow:hidden"><div style="height:100%;width:${Math.max(pct, 1)}%;background:var(--brand);opacity:${1 - i * 0.1}"></div></div>
             ${step !== null ? `<div class="muted" style="font-size:11px;margin-top:3px">↓ ${step.toFixed(1)}% step conversion · ${(100 - step).toFixed(1)}% drop-off</div>` : ''}
           </div>`; }).join('')}
-        </div>
+        </div></div>
       </div>`;
-      t4Bind(view);
+      t4Bind(view, { headers: ['Funnel step', 'Sessions'], rows: () => stages.map((s) => [s[0], s[1]]) });
+      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, (next) => { state.filters = next; render(); }, BEHAVIOR_CAT.dimensions);
+      view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); render(); }));
     }
     render();
   }
@@ -1263,7 +1520,7 @@
           ${COHORT.cohorts.map((c, ri) => `<tr><td style="white-space:nowrap;font-weight:500">${c}</td><td class="num" style="background:rgba(0,102,230,0.92);color:#fff">100.00%</td>${COHORT.matrix[ri].map(cell).join('')}</tr>`).join('')}
         </tbody></table></div>
       </div>`;
-      t4Bind(view);
+      t4Bind(view, { headers: ['Cohort', ...heads], rows: () => COHORT.cohorts.map((cohort, ri) => [cohort, '100.00%', ...COHORT.matrix[ri].map((v) => v == null ? '' : v.toFixed(2) + '%')]) });
     }
     render();
   }
@@ -1361,13 +1618,25 @@
     sessions_by_device: { title: 'Traffic acquisition: By device', dim: 'Device type', metrics: ['Sessions', 'Added to cart', 'Reached checkout', 'Completed checkout'] },
     sessions_by_landing: { title: 'Top landing pages by sessions', dim: 'Landing page URL', metrics: ['Sessions', 'Reached checkout', 'Completed checkout', 'Conversion rate'] },
     sessions_by_referrer: { title: 'Traffic acquisition: By channel', dim: 'Referrer source', metrics: ['Sessions', 'Added to cart', 'Reached checkout', 'Completed checkout'] },
+    sessions_by_referrer_site: { title: 'Traffic acquisition: By referrer site', dim: 'Referrer site', metrics: ['Sessions', 'Page views', 'Added to cart', 'Completed checkout'] },
+    sessions_by_social_source: { title: 'Traffic acquisition: By social source', dim: 'Referrer name', metrics: ['Sessions', 'Page views', 'Added to cart', 'Completed checkout'] },
+    performance_by_channel: { title: 'Traffic acquisition: By source', dim: 'Traffic Source', metrics: ['Sessions', 'Page views', 'Added to cart', 'Reached checkout', 'Completed checkout', 'Conversion rate'] },
+    social_referrer_sales: { title: 'Marketing performance: By social source', dim: 'Referrer name', metrics: ['Attributed sales', 'Sessions', 'Completed checkout', 'Conversion rate'] },
+    sales_by_referrer: { title: 'Marketing performance: By referrer source', dim: 'Referrer source', metrics: ['Attributed sales', 'Sessions', 'Completed checkout', 'Conversion rate'] },
   };
   const DATE_RANGE_CFG = {
-    sales_over_time: { title: 'Sales : By date range', source: 'Commerce', chartDefault: 'Total sales', tableMetrics: ['Discounts', 'Shipping', 'Net sales', 'Total sales', 'Gross profit', 'Orders'] },
+    sales_over_time: { title: 'Sales: By date range', source: 'Commerce', chartDefault: 'Total sales', tableMetrics: ['Gross sales', 'Discounts', 'Returns', 'Net sales', 'Shipping', 'Total sales', 'Gross profit', 'Orders'], banner: true },
+    orders_over_time: { title: 'Orders: By date range', source: 'Commerce', chartDefault: 'Orders', tableMetrics: ['Orders', 'Orders fulfilled', 'Payment amount', 'Average order value'] },
+    aov_over_time: { title: 'Average order value: By date range', source: 'Commerce', chartDefault: 'Average order value', tableMetrics: ['Average order value', 'Orders', 'Total sales', 'Units per transaction'] },
+    payments_over_time: { title: 'Payments: By date range', source: 'Commerce', chartDefault: 'Payment amount', tableMetrics: ['Payment amount', 'Orders', 'Average order value'] },
+    refunds_over_time: { title: 'Refunds: By date range', source: 'Commerce', chartDefault: 'Refund amount', tableMetrics: ['Refund amount', 'Orders', 'Total sales'] },
+    sessions_over_time: { title: 'Traffic acquisition: By date range', source: 'Behavior', chartDefault: 'Sessions', tableMetrics: ['Sessions', 'Page views', 'Added to cart', 'Reached checkout', 'Completed checkout', 'Conversion rate', 'Bounce rate'] },
+    conversion_rate_over_time: { title: 'Conversion rate: By date range', source: 'Behavior', chartDefault: 'Conversion rate', tableMetrics: ['Sessions', 'Added to cart', 'Reached checkout', 'Completed checkout', 'Conversion rate', 'Bounce rate'] },
+    sales_attributed_marketing: { title: 'Sales attributed to marketing: By date range', source: 'Behavior', chartDefault: 'Attributed sales', tableMetrics: ['Attributed sales', 'Sessions', 'Completed checkout', 'Conversion rate'] },
   };
   const BESPOKE_REPORTS = { sales_by_product: viewProductDataDetails };
   Object.keys(BEHAVIOR_CFG).forEach((id) => (BESPOKE_REPORTS[id] = (view) => viewBehaviorReport(view, BEHAVIOR_CFG[id])));
-  Object.keys(DATE_RANGE_CFG).forEach((id) => (BESPOKE_REPORTS[id] = (view) => viewDateRangeReport(view, Object.assign({ id }, DATE_RANGE_CFG[id]))));
+  Object.keys(DATE_RANGE_CFG).forEach((id) => (BESPOKE_REPORTS[id] = (view, routeOpts) => viewDateRangeReport(view, Object.assign({ id }, DATE_RANGE_CFG[id]), routeOpts)));
   const COMMERCE_DIM_CFG = {
     sales_by_channel: { title: 'Sales: By channel', source: 'Commerce', dim: 'Channel', metrics: ['Total sales', 'Orders', 'Average order value', 'Gross profit'], drill: true },
     sales_by_billing_location: { title: 'Sales: By country/region', source: 'Commerce', dim: 'Country/Region', metrics: ['Total sales', 'Orders', 'Average order value'] },
@@ -1375,7 +1644,8 @@
     sales_by_variant: { title: 'Sales: By variant (SKU)', source: 'Commerce', dim: 'Variant', metrics: ['Total sales', 'Sales quantity', 'Orders'] },
     customers_by_location: { title: 'Customers: By location', source: 'Commerce', dim: 'Country/Region', metrics: ['Customers', 'Orders', 'Total sales'] },
     top_products_units: { title: 'Top products by units sold', source: 'Commerce', dim: 'Product name', metrics: ['Sales quantity', 'Total sales', 'Orders'] },
-    social_referrer_sales: { title: 'Sales by social referrer', source: 'Commerce', dim: 'Social platform', metrics: ['Total sales', 'Orders', 'Average order value'] },
+    fulfillment_status: { title: 'Orders by fulfillment status', source: 'Commerce', dim: 'Fulfillment status', metrics: ['Orders', 'Orders fulfilled', 'Payment amount'] },
+    new_vs_returning: { title: 'Customers: New vs returning', source: 'Commerce', dim: 'Customer type', metrics: ['Customers', 'Orders', 'Total sales', 'Average order value'] },
   };
   Object.keys(COMMERCE_DIM_CFG).forEach((id) => (BESPOKE_REPORTS[id] = (view) => viewCommerceDimReport(view, COMMERCE_DIM_CFG[id])));
   BESPOKE_REPORTS.payment_success_rate = viewPaymentSuccess;
@@ -1388,9 +1658,9 @@
   BESPOKE_REPORTS.abc_analysis = viewABC;
   BESPOKE_REPORTS.attribution_model_comparison = viewAttribution;
 
-  function viewReportDetail(view, id) {
+  function viewReportDetail(view, id, routeOpts) {
     CURRENT_REPORT = id;
-    if (BESPOKE_REPORTS[id]) return BESPOKE_REPORTS[id](view, getReport(id));
+    if (BESPOKE_REPORTS[id]) return BESPOKE_REPORTS[id](view, routeOpts || {}, getReport(id));
     const r = getReport(id); if (!r) return viewReports(view);
     const model = buildModel(r);
     const isTime = model.kind === 'time';
@@ -1413,7 +1683,7 @@
     function processed() {
       let rows = (model.rows || []).map((x) => ({ label: x.label, vals: Object.assign({}, x.vals) }));
       if (isTime) { rows = rows.slice(CHIP_STATE._range.s, CHIP_STATE._range.e + 1); rows = aggRows(rows, CHIP_STATE.timeunit, mk); }
-      state.filters.forEach((f) => { rows = rows.filter((row) => f.op === 'is' ? row.label === f.value : f.op === 'is not' ? row.label !== f.value : String(row.label).toLowerCase().includes(String(f.value).toLowerCase())); });
+      state.filters.forEach((f) => { rows = rows.filter((row) => matchesFilter(row.label, f)); });
       return rows;
     }
     function render() {
@@ -1484,7 +1754,7 @@
           document.querySelectorAll('[data-frm]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-frm'), 1); render(); }));
           document.querySelector('[data-act="addfilter"]').onclick = () => { state.filters.push({ op: 'is', value: labelOpts[0] }); render(); };
         }
-        document.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, CATALOG_FOR(r.source).dimensions);
+        document.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, (next) => { state.filters = next; state.page = 1; render(); }, CATALOG_FOR(r.source).dimensions);
         document.querySelector('[data-act="edit"]').onclick = () => editDrawer({ dimensions: [], metrics: CATALOG_FOR(r.source).metrics }, { dims: new Set(), metrics: new Set(mk.map(labelOf)) }, (res) => { if (res.metrics && res.metrics.length) { state.metrics = res.metrics.map((L) => { const k = KEYOF[L.toLowerCase()] || slugKey(L); LABELOF[k] = L; KEYOF[L.toLowerCase()] = k; return k; }); state.sortCol = null; state.page = 1; render(); } });
       }
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
@@ -1601,7 +1871,11 @@
     root.innerHTML = '<div id="an-content"></div>';
     const v = root.querySelector('#an-content');
 
-    if (isDetail) viewReportDetail(v, parts[1]);
+    if (isDetail) {
+      const reportBits = String(parts[1]).split('?');
+      const reportOpts = Object.fromEntries(new URLSearchParams(reportBits[1] || '').entries());
+      viewReportDetail(v, reportBits[0], reportOpts);
+    }
     else if (seg === 'reports') viewReports(v);
     else if (seg === 'live') viewLive(v);
     else viewOverview(v);
@@ -1631,9 +1905,17 @@
   // hash router, no initial render here — the shell drives render()/unmount().
   initTooltips();
   document.addEventListener('click', (e) => { const c = e.target.closest('[data-chip]'); if (c) openChip(c); });
-  // shared date-range picker commits by firing change on #an-dend → map the picked range onto the mock series + re-render
+  // Both primary and comparison ranges use the shared picker. Each commits on
+  // its end input so we update the correct report state and re-render once.
   document.addEventListener('change', (e) => {
-    if (!e.target || e.target.id !== 'an-dend') return;
+    if (!e.target || (e.target.id !== 'an-dend' && e.target.id !== 'an-cend')) return;
+    if (e.target.id === 'an-cend') {
+      const cs = document.getElementById('an-cstart'), ce = document.getElementById('an-cend');
+      if (!cs?.value || !ce?.value) return;
+      CHIP_STATE._comparisonRange = { start: cs.value, end: ce.value };
+      setChip('comparison', analyticsRangeLabel(cs.value, ce.value));
+      return;
+    }
     const pi = (v) => { const m = /-(\d{2})-(\d{2})$/.exec(v || ''); if (!m) return null; const mo = +m[1], d = +m[2]; return mo < 5 ? 0 : mo > 5 ? 25 : Math.max(0, Math.min(25, d - 1)); };
     const ds = document.getElementById('an-dstart'), de = document.getElementById('an-dend');
     let s = pi(ds && ds.value), en = pi(de && de.value);

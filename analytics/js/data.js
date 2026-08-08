@@ -282,6 +282,8 @@ window.DATA = (function () {
     { id: 'sessions_by_location', name: 'Traffic acquisition: By country/region', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-22', viz: 'barH', metrics: ['sessions'], dims: ['city'] },
     { id: 'sessions_by_landing', name: 'Top landing pages by sessions', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-20', viz: 'table', metrics: ['sessions'], dims: ['landing_page'] },
     { id: 'sessions_by_referrer', name: 'Traffic acquisition: By channel', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'bar', metrics: ['sessions'], dims: ['referrer'] },
+    { id: 'sessions_by_referrer_site', name: 'Traffic acquisition: By referrer site', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['sessions'], dims: ['referrer_site'] },
+    { id: 'sessions_by_social_source', name: 'Traffic acquisition: By social source', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['sessions'], dims: ['social_referrer'] },
     { id: 'user_path', name: 'User path analysis', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '—', viz: 'table', metrics: ['users'], dims: ['path_step'] },
     { id: 'retention', name: 'Retention analysis', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-16', viz: 'cohort', metrics: ['retention_rate'], dims: ['cohort_week', 'weeks_since'] },
     { id: 'landing_conv_jwl', name: 'Landing-page conversion rate', cat: 'Behavior', source: 'Behavior', by: 'wenling jiang', viewed: '2026-05-27', viz: 'table', metrics: ['sessions', 'conversion_rate'], dims: ['landing_page'] },
