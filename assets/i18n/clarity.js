@@ -1,0 +1,80 @@
+/* Microsoft Clarity app — Chinese overlay for the Apps card and connection workspace. */
+window.I18N.extend({
+  "Apps add focused selling and growth capabilities without bloating your store. Built-in workspaces are ready in the sidebar; integrations become usable after you connect their account.": "应用为店铺提供聚焦的销售与增长能力，而不会让后台变得臃肿。内置应用已在侧边栏就绪；第三方集成在完成账号连接后即可使用。",
+  "Integrations": "集成应用",
+  "Customer behavior": "用户行为",
+
+  "Session recordings, heatmaps and behavior insights.": "会话录屏、热图与用户行为洞察。",
+  "Connect a Microsoft Clarity project to understand how visitors use your storefront. Clarity remains an independent product; BestShopio provides the store-level connection and a focused workspace.": "连接 Microsoft Clarity 项目，了解访客如何使用你的店铺前台。Clarity 保持独立产品定位，BestShopio 提供店铺级连接和聚焦的工作区。",
+  "Add the Clarity tracking tag to your storefront after connection": "连接后为店铺前台添加 Clarity 追踪标签",
+  "Use your storefront domain to verify tracking coverage": "使用店铺前台域名验证追踪覆盖范围",
+  "See what visitors do, not just what they convert.": "不仅看转化结果，也了解访客实际如何操作。",
+  "Connect one Microsoft Clarity project to your storefront": "将一个 Microsoft Clarity 项目连接到店铺前台",
+  "Open session recordings to understand real visitor journeys": "打开会话录屏，了解真实访客路径",
+  "Use heatmaps and behavior insights in Microsoft Clarity": "在 Microsoft Clarity 中使用热图和行为洞察",
+  "Keep the connection and tracking status visible for your store team": "让店铺团队随时查看连接与追踪状态",
+  "Clarity is a separate Microsoft product. BestShopio keeps the store connection visible here; recordings, heatmaps and behavior analysis stay in Clarity.": "Clarity 是 Microsoft 的独立产品。BestShopio 在此展示店铺连接状态；录屏、热图和行为分析仍在 Clarity 中完成。",
+
+  "Understand how visitors use your storefront with session recordings, heatmaps and behavior insights.": "通过会话录屏、热图和行为洞察，了解访客如何使用你的店铺前台。",
+  "Connect a Clarity project": "连接 Clarity 项目",
+  "Enter the Microsoft Clarity project ID for this storefront.": "输入此店铺前台对应的 Microsoft Clarity 项目 ID。",
+  "Update your connection": "更新连接信息",
+  "Edit Clarity connection": "编辑 Clarity 连接",
+  "Update the project ID connected to this storefront.": "更新连接到此店铺前台的项目 ID。",
+  "Connect the Microsoft Clarity project that measures this storefront. Once connected, your team can open recordings, heatmaps and behavior insights from this app.": "连接用于衡量此店铺前台的 Microsoft Clarity 项目。连接完成后，团队即可从此应用打开录屏、热图和行为洞察。",
+  "Clarity project ID": "Clarity 项目 ID",
+  "For example: ab12cd34ef": "例如：ab12cd34ef",
+  "Find this in your Microsoft Clarity project settings.": "可在 Microsoft Clarity 项目设置中找到。",
+  "Storefront domain": "店铺前台域名",
+  "Use the public domain where the Clarity tracking tag will run.": "填写运行 Clarity 追踪标签的公开域名。",
+  "Uses the primary domain already connected to this store.": "自动使用此店铺已连接的主前台域名。",
+  "Please enter a Clarity project ID.": "请输入 Clarity 项目 ID。",
+  "The app stays visible in your sidebar. Connecting a project unlocks its Clarity tools.": "应用会默认显示在侧边栏。连接项目后即可使用 Clarity 工具。",
+  "Connect Clarity": "连接 Clarity",
+  "Save changes": "保存更改",
+  "Save connection": "保存连接信息",
+  "What becomes available": "连接后可使用",
+  "Session recordings in Microsoft Clarity": "在 Microsoft Clarity 中查看会话录屏",
+  "Heatmaps for real visitor behavior": "查看真实访客行为热图",
+  "Behavior insights without adding an Analytics menu item": "无需新增 Analytics 菜单即可查看行为洞察",
+  "Clarity stays a separate product. This workspace keeps the connection and the right launch points close to your store.": "Clarity 保持独立产品定位；此工作区让店铺连接与正确的启动入口保持在手边。",
+
+  "Clarity project connected": "Clarity 项目已连接",
+  "Your storefront is ready to use Microsoft Clarity. Open Clarity to view the live recordings and behavior tools.": "你的店铺前台已可使用 Microsoft Clarity。打开 Clarity 即可查看实时录屏与行为工具。",
+  "Open Microsoft Clarity": "打开 Microsoft Clarity",
+  "Edit connection": "编辑连接信息",
+  "Disconnect": "断开连接",
+  "Disconnect Microsoft Clarity?": "要断开 Microsoft Clarity 连接吗？",
+  "Cancel": "取消",
+  "Project ID": "项目 ID",
+  "Use Clarity": "使用 Clarity",
+  "These tools open in Microsoft Clarity, where the recordings and behavior data remain managed.": "这些工具会在 Microsoft Clarity 中打开，录屏和行为数据仍由 Clarity 管理。",
+  "Session recordings": "会话录屏",
+  "Watch real visitor journeys and spot where people hesitate or abandon.": "观看真实访客路径，发现他们犹豫或离开的环节。",
+  "Open recordings": "打开录屏",
+  "Heatmaps": "热图",
+  "See where customers click, scroll and spend attention on your storefront.": "查看顾客在店铺前台的点击、滚动和注意力停留位置。",
+  "Open heatmaps": "打开热图",
+  "Behavior insights": "行为洞察",
+  "Review friction signals and high-intent behavior in your Clarity project.": "在 Clarity 项目中查看阻碍转化的信号与高意向行为。",
+  "Open insights": "打开洞察",
+  "Tracking coverage": "追踪覆盖范围",
+  "Clarity is connected for": "Clarity 已连接至",
+  ". Before production rollout, ensure your storefront consent experience covers session recording and that the tracking tag is verified on every public template.": "。正式上线前，请确保店铺前台的同意管理覆盖会话录屏，并在每个公开模板中验证追踪标签。",
+  "Microsoft Clarity connected": "Microsoft Clarity 已连接",
+  "Clarity connection updated": "Clarity 连接信息已更新",
+  "Microsoft Clarity disconnected": "Microsoft Clarity 已断开连接",
+  "Not connected": "未连接",
+  "Connected": "已连接",
+  "Set up connection": "设置连接",
+  "Open Clarity": "打开 Clarity"
+});
+
+window.I18N.addRules([
+  {
+    re: /^This stops future Clarity tracking for (.+) and removes this project connection from your store\. Existing data remains in Microsoft Clarity\.$/,
+    zh: function (m) {
+      return "这会停止 " + m[1] + " 的后续 Clarity 追踪，并从店铺中移除此项目连接。Microsoft Clarity 中已有的数据不会被删除。";
+    }
+  }
+]);

@@ -22,7 +22,7 @@
     '.app-card:hover{border-color:var(--ctl);box-shadow:var(--float-shadow)}' +
     '.app-card.soon{cursor:default;opacity:.7}.app-card.soon:hover{box-shadow:none;border-color:var(--hair)}' +
     '.app-ico{width:46px;height:46px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--brand-50);color:var(--brand)}' +
-    '.app-ico svg{width:24px;height:24px}' +
+    '.app-ico svg,.app-ico .clarity-mark{width:24px;height:24px;display:block;object-fit:contain}' +
     '.app-card-top{display:flex;gap:13px;align-items:flex-start;margin-bottom:12px}' +
     '.app-name{font-size:15px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap}' +
     '.app-tag{font-size:12.5px;color:var(--ink-muted);line-height:1.45;margin-top:4px}' +
@@ -43,6 +43,14 @@
   const byId = (id) => APPS.find((a) => a.id === id);
   const isOn = (id) => !!(window.AppState && window.AppState.isEnabled(id));
   const setOn = (id, on) => { if (window.AppState) window.AppState.setEnabled(id, on); };
+  const isConnectionApp = (app) => !!(app && app.activation === 'connection');
+  function isConnected(app) {
+    if (!isConnectionApp(app)) return false;
+    try {
+      const saved = JSON.parse(localStorage.getItem(app.connectionKey || ('bsio_' + app.id + '_connection')) || 'null');
+      return !!(saved && saved.connected);
+    } catch (e) { return false; }
+  }
 
   const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 2400); };
 
@@ -50,15 +58,20 @@
 
   function statusPill(app) {
     if (app.status === 'coming_soon') return '<span class="pill pill-gray">Coming soon</span>';
+    if (isConnectionApp(app)) return isConnected(app)
+      ? '<span class="pill pill-green">Connected</span>'
+      : '<span class="pill pill-gray">Not connected</span>';
     return isOn(app.id) ? '<span class="pill pill-green">On</span>' : '<span class="pill pill-gray">Off</span>';
   }
 
   function card(app) {
     const soon = app.status === 'coming_soon';
     const on = isOn(app.id);
+    const connectionApp = isConnectionApp(app);
     const right = soon ? ''
-      : (on ? '<button class="btn btn-default" data-open="' + app.id + '">Open</button>'
-            : '<button class="btn btn-primary" data-on="' + app.id + '">Turn on</button>');
+      : (connectionApp ? '<button class="btn ' + (isConnected(app) ? 'btn-default' : 'btn-primary') + '" data-open="' + app.id + '">' + (isConnected(app) ? 'Open' : 'Set up') + '</button>'
+        : (on ? '<button class="btn btn-default" data-open="' + app.id + '">Open</button>'
+              : '<button class="btn btn-primary" data-on="' + app.id + '">Turn on</button>'));
     return '<div class="panel app-card' + (soon ? ' soon' : '') + '" data-app="' + app.id + '">' +
         '<div class="app-card-top">' + appIcon(app) +
           '<div style="min-width:0"><div class="app-name">' + esc(app.name) + (app.builtin ? ' <span class="app-badge">Built-in</span>' : '') + '</div>' +
@@ -75,12 +88,15 @@
   }
 
   function render() {
-    const installed = APPS.filter((a) => a.status === 'available');
+    const available = APPS.filter((a) => a.status === 'available');
+    const installed = available.filter((a) => a.builtin);
+    const integrations = available.filter((a) => !a.builtin);
     const soon = APPS.filter((a) => a.status === 'coming_soon');
     root.innerHTML = '<style>' + STYLES + '</style>' +
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Apps</h1></div>' +
-      '<div class="info-banner" style="margin-bottom:20px">Pluggable apps add optional selling powers without bloating your store. Turn one on and its workspace appears in your sidebar; turn it off and your store runs exactly as before.</div>' +
+      '<div class="info-banner" style="margin-bottom:20px">Apps add focused selling and growth capabilities without bloating your store. Built-in workspaces are ready in the sidebar; integrations become usable after you connect their account.</div>' +
       section('Built-in apps', installed) +
+      section('Integrations', integrations) +
       section('Coming soon', soon);
     wire();
   }
@@ -122,13 +138,16 @@
     const app = byId(id); if (!app) return;
     const det = DET[id] || {};
     const on = isOn(id);
+    const connectionApp = isConnectionApp(app);
     const feats = (det.features || []).map((f) => '<li class="app-feat">' + I.check + '<span>' + esc(f) + '</span></li>').join('');
     const perms = (app.permissions || []).map((p) => '<li class="app-perm">' + I.lock + '<span>' + esc(p) + '</span></li>').join('');
 
-    const foot = on
-      ? '<button class="btn btn-primary" data-d-open style="flex:1">Open</button>' +
-        '<button class="btn btn-default" data-d-off style="color:var(--err);border-color:#f3c4ba">Turn off</button>'
-      : '<button class="btn btn-primary" data-d-on style="flex:1">Turn on ' + esc(app.name) + '</button>';
+    const foot = connectionApp
+      ? '<button class="btn btn-primary" data-d-open style="flex:1">' + (isConnected(app) ? 'Open Clarity' : 'Set up connection') + '</button>'
+      : (on
+        ? '<button class="btn btn-primary" data-d-open style="flex:1">Open</button>' +
+          '<button class="btn btn-default" data-d-off style="color:var(--err);border-color:#f3c4ba">Turn off</button>'
+        : '<button class="btn btn-primary" data-d-on style="flex:1">Turn on ' + esc(app.name) + '</button>');
 
     drawerBd = document.createElement('div');
     drawerBd.className = 'app-dr-bd';

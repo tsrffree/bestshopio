@@ -17,6 +17,16 @@ window.DATA_APPS = {
       // Mirrors the two-layer model in 系统架构认知 §2.3.
       worksWith: 'Reuses your connected payment gateways and writes recurring orders straight into your main Orders — turn it off and the store runs exactly as before.',
     },
+    clarity: {
+      tagline: 'See what visitors do, not just what they convert.',
+      features: [
+        'Connect one Microsoft Clarity project to your storefront',
+        'Open session recordings to understand real visitor journeys',
+        'Use heatmaps and behavior insights in Microsoft Clarity',
+        'Keep the connection and tracking status visible for your store team',
+      ],
+      worksWith: 'Clarity is a separate Microsoft product. BestShopio keeps the store connection visible here; recordings, heatmaps and behavior analysis stay in Clarity.',
+    },
     loyalty:   { features: ['Points for purchases, reviews and referrals', 'Reward tiers and a redeemable points store'] },
     wholesale: { features: ['Wholesale price lists and per-customer pricing', 'Minimum order quantities and B2B customer groups'] },
     affiliate: { features: ['Referral links and discount codes per affiliate', 'Commission tracking and payout reports'] },

@@ -10,7 +10,7 @@
    Analytics is NOT in the live admin — it's our addition; per product decision it
    sits as a top-level item between Content and Online store. */
 
-window.SITE = { brand: 'BestShopio', store: 'Lovocross', role: 'Owner', email: 'zhengjican@bestfulfill.com' };
+window.SITE = { brand: 'BestShopio', store: 'Lovocross', storefrontDomain: 'lovocross.com', role: 'Owner', email: 'zhengjican@bestfulfill.com' };
 
 /* Stores this signed-in account can access — drives the header store-switcher.
    Mirrors the SSO stores panel (prototypes/account/stores.html). Entering a store
@@ -95,6 +95,15 @@ window.PLUGGABLE_APPS = [
     blurb: 'Sell more per order with quantity-break offers (Buy 1 / BOGO / N-pack + gifts) or let customers build their own box. Bundles can be one-time or subscription.',
     menu: { id: 'bundles', label: 'Bundles', icon: 'box', route: '#/bundles', desc: 'Quantity-break and build-a-box bundles.' },
   },
+  {
+    id: 'clarity', name: 'Microsoft Clarity', icon: 'clarity', builtin: false, category: 'Customer behavior', status: 'available', activation: 'connection',
+    connectionKey: 'bsio_clarity_connection_v1',
+    tagline: 'Session recordings, heatmaps and behavior insights.',
+    blurb: 'Connect a Microsoft Clarity project to understand how visitors use your storefront. Clarity remains an independent product; BestShopio provides the store-level connection and a focused workspace.',
+    permissions: ['Add the Clarity tracking tag to your storefront after connection', 'Use your storefront domain to verify tracking coverage'],
+    // This workspace is shown by default. A live Clarity connection unlocks its data and outbound tools.
+    menu: { id: 'clarity', label: 'Clarity', icon: 'clarity', route: '#/clarity', desc: 'Microsoft Clarity connection, recordings, heatmaps and behavior insights.' },
+  },
   { id: 'loyalty',   name: 'Loyalty & Rewards', icon: 'badgePercent', builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Points, rewards and a loyalty program.' },
   { id: 'wholesale', name: 'Wholesale / B2B',   icon: 'tag',          builtin: true, category: 'Selling',   status: 'coming_soon', tagline: 'Wholesale pricing, minimum order quantity and B2B customers.' },
   { id: 'affiliate', name: 'Affiliate',         icon: 'userPen',      builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Referral links and commission payouts.' },
@@ -130,7 +139,7 @@ window.ROUTE_MODULE = {
   reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
   'online-store': 'online-store', checkout: 'online-store', google: 'google', facebook: 'facebook', settings: 'settings',
-  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles',
+  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles', clarity: 'clarity',
 };
 
 /* Newest first. `modules` lists the route ids each version touched (for the Home changelog). */
