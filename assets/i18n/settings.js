@@ -410,10 +410,15 @@ window.I18N.extend({
   "Having issues? View the setup guide": "遇到问题？查看配置指南",
   "Connect an existing domain": "连接现有域名",
   "Domain": "域名",
+  "Enter a domain you own without https://. For a root domain, enter example.com instead of www.example.com.": "输入你拥有的域名，无需填写 https://。添加根域名时，请输入 example.com，不要输入 www.example.com。",
+  "When you connect a root domain, its www version is connected automatically. For example, connecting example.com also connects www.example.com. Subdomains are connected separately.": "连接根域名时，系统会自动同时连接对应的 www 域名。例如，连接 example.com 后，也会连接 www.example.com。子域名需单独连接。",
   "Please enter a domain": "请输入域名",
   "Enter a valid domain without www or https://": "请输入有效域名，不含 www 或 https://",
   "This domain is already added": "该域名已添加",
   "Remove this domain?": "移除此域名？",
+  "Remove both domains": "移除两个域名",
+  "Remove domain": "移除域名",
+  "Both domains removed": "两个域名已移除",
   "Connecting your domain": "连接你的域名",
   "If it isn't verifying": "若一直验证不通过",
   "Remove any old A or CNAME record on @ or www that points elsewhere.": "删除 @ 或 www 上指向其他地址的旧 A 记录或 CNAME 记录。",
@@ -561,8 +566,11 @@ window.I18N.addRules([
   { re: /^DNS records not detected yet · Verify now · View guide$/, zh: function () { return '尚未检测到 DNS 记录 · 立即验证 · 查看指南'; } },
   { re: /^Waiting for DNS records · Verify now · View guide$/, zh: function () { return '等待 DNS 记录 · 立即验证 · 查看指南'; } },
   { re: /^SSL issuance failed · Retry$/, zh: function () { return 'SSL 签发失败 · 重试'; } },
-  // domain delete confirm body
-  { re: /^Customers will no longer reach your store at (.+)\. You can re-add it later\.$/, zh: function (m) { return '顾客将无法再通过 ' + m[1] + ' 访问你的店铺。你可以稍后重新添加。'; } },
+  // domain delete confirm title/body
+  { re: /^Remove (.+) and (.+)\?$/, zh: function (m) { return '移除 ' + m[1] + ' 和 ' + m[2] + '？'; } },
+  { re: /^Remove (.+)\?$/, zh: function (m) { return '移除 ' + m[1] + '？'; } },
+  { re: /^These domains are connected as a pair\. Removing either one will remove both (.+) and (.+) from your store\. Customers will no longer be able to reach your store using either address\. You can connect them again later\.$/, zh: function (m) { return '这两个域名为成对连接。移除其中任意一个，都会同时移除 ' + m[1] + ' 和 ' + m[2] + '。之后顾客将无法再通过这两个地址访问你的店铺，你可以稍后重新连接。'; } },
+  { re: /^Customers will no longer be able to reach your store at (.+)\. You can connect it again later\.$/, zh: function (m) { return '顾客将无法再通过 ' + m[1] + ' 访问你的店铺。你可以稍后重新连接。'; } },
   // domain toasts
   { re: /^Now redirecting to (.+)$/, zh: function (m) { return '已重定向至 ' + m[1]; } },
 

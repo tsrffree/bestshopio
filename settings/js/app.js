@@ -1542,6 +1542,7 @@
     const backdrop = h('<div class="modal-backdrop"></div>');
     const m = h('<div class="modal"></div>');
     if (width) m.style.width = width + 'px';
+    m.style.maxWidth = 'calc(100vw - 24px)';
     m.innerHTML =
       '<div class="modal-head flex items-center justify-between"><span>' + esc(title) + '</span>' +
         '<span class="drawer-x" data-x style="cursor:pointer">' + I.x + '</span></div>' +
@@ -2024,8 +2025,8 @@
   //   can see each state → available-action mapping at a glance (PRD §6.3).
   // ===========================================================================
   let domainsData = [
-    { domain: 'www.nutrofuels.com',         type: 'custom', primary: true,  status: 'connected',            redirectTo: null },
-    { domain: 'nutrofuels.com',             type: 'custom', primary: false, status: 'connected',            redirectTo: 'www.nutrofuels.com' },
+    { domain: 'www.nutrofuels.com',         type: 'custom', primary: true,  status: 'connected',            redirectTo: null, verifiable: false },
+    { domain: 'nutrofuels.com',             type: 'custom', primary: false, status: 'connected',            redirectTo: 'www.nutrofuels.com', verifiable: true },
     { domain: 'nutrofuels.shop',            type: 'custom', primary: false, status: 'connected',            redirectTo: null },
     { domain: 'shop.nutrofuels.io',         type: 'custom', primary: false, status: 'pending_verification', redirectTo: null },
     { domain: 'go.nutrofuels.io',           type: 'custom', primary: false, status: 'dns_error',            redirectTo: null },
@@ -2121,11 +2122,21 @@
     if (d.status === 'ssl_failed') return 'SSL issuance failed · <a data-verify="' + esc(d.domain) + '">Retry</a>';
     return '';
   }
+  function pairedStorefrontDomain(domain) {
+    const counterpart = domain.indexOf('www.') === 0 ? domain.slice(4) : 'www.' + domain;
+    const current = domainsData.find((d) => d.type === 'custom' && d.domain === domain) || null;
+    const paired = domainsData.find((d) => d.type === 'custom' && d.domain === counterpart) || null;
+    return paired && ((current && current.verifiable === false) || paired.verifiable === false) ? paired : null;
+  }
+  function isDomainPairLocked(d) {
+    const paired = pairedStorefrontDomain(d.domain);
+    return !!(d.primary || (paired && paired.primary));
+  }
   function domainRowHtml(d) {
     const badge = DOMAIN_BADGE[d.status] || { cls: 'pill-gray', label: d.status };
     const sslSuffix = (d.primary && d.status === 'connected') ? ' · SSL active' : '';
     // Primary + system domains are not deletable — you must set another domain as primary first (PRD §6.3).
-    const del = (d.type === 'system' || d.primary) ? '' : '<button class="dom-link danger" data-del="' + esc(d.domain) + '">Delete</button>';
+    const del = (d.type === 'system' || isDomainPairLocked(d)) ? '' : '<button class="dom-link danger" data-del="' + esc(d.domain) + '">Delete</button>';
     return '<div class="dom-row">' +
         '<div class="dom-ico">' + I.globe + '</div>' +
         '<div class="dom-info"><div class="dom-name">' + esc(d.domain) + '</div>' +
@@ -2509,7 +2520,7 @@
           domainBinding = null;
           if (location.hash === '#/settings/domains/bound') location.hash = '#/settings/domains/add';
         }
-        if (location.hash === '#/settings/domains') renderDomainList();
+        if (location.hash === '#/settings/domains') renderDomainListByType();
         return;
       }
       if (result === 'ssl_failed') {
@@ -2518,7 +2529,7 @@
           domainBinding.failed = 'ssl_failed';
           if (location.hash === '#/settings/domains/bound') renderAddDomainBound();
         }
-        if (location.hash === '#/settings/domains') renderDomainList();
+        if (location.hash === '#/settings/domains') renderDomainListByType();
         return;
       }
       entry.status = 'connected';
@@ -2526,7 +2537,7 @@
         domainBinding.ready = true;
         if (location.hash === '#/settings/domains/bound') renderAddDomainBound();
       }
-      if (location.hash === '#/settings/domains') renderDomainList();
+      if (location.hash === '#/settings/domains') renderDomainListByType();
     }, 3200);
   }
   function renderAddDomainBound() {
@@ -2600,8 +2611,8 @@
     modal({
       title: 'Connect an existing domain', width: 520, okText: 'Next',
       body:
-        '<div class="muted" style="font-size:13px;margin-bottom:14px">Use a domain you already own. Enter it without <b>www</b> or <b>https://</b>.</div>' +
-        '<div class="sp-field"><label class="sp-label">Domain</label><div class="sp-input-wrap"><input id="add-dom" class="sp-input" placeholder="yourdomain.com" style="padding-right:14px"/></div><div class="sp-err" data-err="add-dom"></div></div>',
+        '<div class="muted" style="font-size:13px;margin-bottom:14px">Enter a domain you own without https://. For a root domain, enter example.com instead of www.example.com.</div>' +
+        '<div class="sp-field"><label class="sp-label">Domain</label><div class="sp-input-wrap"><input id="add-dom" class="sp-input" placeholder="yourdomain.com" style="padding-right:14px"/></div><div class="sp-err" data-err="add-dom"></div><div class="muted" style="font-size:12.5px;line-height:1.55;margin-top:8px">When you connect a root domain, its www version is connected automatically. For example, connecting example.com also connects www.example.com. Subdomains are connected separately.</div></div>',
       onOk: (m, close) => {
         const v = (m.querySelector('#add-dom').value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
         setErr(m, 'add-dom', ''); m.querySelector('#add-dom').classList.remove('err');
@@ -2613,15 +2624,27 @@
     });
   }
   function deleteDomain(dom) {
+    const entry = domainsData.find((d) => d.domain === dom);
+    const paired = entry ? pairedStorefrontDomain(entry.domain) : null;
+    const isPair = !!paired;
+    const apex = dom.indexOf('www.') === 0 ? dom.slice(4) : dom;
+    const www = 'www.' + apex;
     confirm({
-      title: 'Remove this domain?', okText: 'Remove', danger: true,
-      content: 'Customers will no longer reach your store at ' + dom + '. You can re-add it later.',
-      onOk: () => { domainsData = domainsData.filter((d) => d.domain !== dom); toast('Domain removed'); renderDomainList(); },
+      title: isPair ? 'Remove ' + apex + ' and ' + www + '?' : 'Remove ' + dom + '?',
+      okText: isPair ? 'Remove both domains' : 'Remove domain', danger: true,
+      content: isPair
+        ? 'These domains are connected as a pair. Removing either one will remove both ' + apex + ' and ' + www + ' from your store. Customers will no longer be able to reach your store using either address. You can connect them again later.'
+        : 'Customers will no longer be able to reach your store at ' + dom + '. You can connect it again later.',
+      onOk: () => {
+        domainsData = domainsData.filter((d) => d.domain !== dom && (!paired || d.domain !== paired.domain));
+        toast(isPair ? 'Both domains removed' : 'Domain removed');
+        renderDomainListByType();
+      },
     });
   }
   function setPrimaryDomain(dom) {
     domainsData.forEach((d) => { d.primary = (d.domain === dom); if (d.domain === dom) d.redirectTo = null; });
-    toast('Primary domain updated'); renderDomainList();
+    toast('Primary domain updated'); renderDomainListByType();
   }
   // "Redirect" = send this domain's visitors (301) to the primary domain, so every
   // address resolves to one canonical store URL (good for SEO + branding).
@@ -2629,7 +2652,7 @@
     const primary = domainsData.find((d) => d.primary);
     if (!primary) { toast('Set a primary domain first'); return; }
     const d = domainsData.find((x) => x.domain === dom);
-    if (d) { d.redirectTo = primary.domain; toast('Now redirecting to ' + primary.domain); renderDomainList(); }
+    if (d) { d.redirectTo = primary.domain; toast('Now redirecting to ' + primary.domain); renderDomainListByType(); }
   }
   function verifyDomain(dom) {
     pendingDomain = dom;
