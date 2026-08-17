@@ -33,10 +33,7 @@ window.NAV_MENU = [
   ] },
   { id: 'customers',    label: 'Customers',    icon: 'userPen',      route: '#/customers',    desc: 'Customer profiles, orders, subscriptions and timeline.' },
   { id: 'discounts',    label: 'Discounts',    icon: 'badgePercent', route: '#/discounts',    desc: 'Product / order / shipping discounts with stacking rules.' },
-  { id: 'analytics',    label: 'Analytics',    icon: 'analytics',    route: '#/analytics',    desc: 'Reports engine, funnels, behavior (Sensors) and live view.', children: [
-    { id: 'analytics-reports', label: 'Reports',   route: '#/analytics/reports' },
-    { id: 'analytics-live',    label: 'Live View', route: '#/analytics/live' },
-  ] },
+  { id: 'analytics',    label: 'Analytics',    icon: 'analytics',    route: '#/analytics',    desc: 'Store analytics overview and performance reporting.' },
   { id: 'content',      label: 'Content',      icon: 'newspaper',    route: '#/blog',         desc: 'Blog posts, pages and storefront menus.', children: [
     { id: 'blog',        label: 'Blog',        route: '#/blog',        desc: 'Blog posts and categories with rich content.' },
     { id: 'page',        label: 'Page',        route: '#/page',        desc: 'Custom pages (About, Contact, policies).' },

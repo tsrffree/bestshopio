@@ -8,10 +8,10 @@
         label: 'Today',
         comparison: 'vs yesterday',
         metrics: [
-          { title: 'Sales', value: '$1,284.60', change: '+12.4%', href: '#/analytics/reports' },
+          { title: 'Sales', value: '$1,284.60', change: '+12.4%', href: '#/analytics/reports/store_performance?metric=sales' },
           { title: 'Paid orders', value: '27', change: '+8.0%', href: '#/orders' },
-          { title: 'Store sessions', value: '1,638', change: '+6.1%', href: '#/analytics/reports' },
-          { title: 'Storefront conversion', value: '1.65%', change: '+0.2 pts', href: '#/analytics/reports' }
+          { title: 'Store sessions', value: '1,638', change: '+6.1%', href: '#/analytics/reports/store_performance?metric=unique-visitors' },
+          { title: 'Storefront conversion', value: '1.65%', change: '+0.2 pts', href: '#/analytics/reports/store_performance?metric=conversion-rate' }
         ],
         series: [310, 468, 392, 624, 545, 812, 701, 982],
         labels: ['09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00', 'Now']
@@ -20,10 +20,10 @@
         label: 'Last 7 days',
         comparison: 'vs previous 7 days',
         metrics: [
-          { title: 'Sales', value: '$8,642.90', change: '+14.8%', href: '#/analytics/reports' },
+          { title: 'Sales', value: '$8,642.90', change: '+14.8%', href: '#/analytics/reports/store_performance?metric=sales' },
           { title: 'Paid orders', value: '186', change: '+10.7%', href: '#/orders' },
-          { title: 'Store sessions', value: '11,340', change: '+8.6%', href: '#/analytics/reports' },
-          { title: 'Storefront conversion', value: '1.64%', change: '+0.1 pts', href: '#/analytics/reports' }
+          { title: 'Store sessions', value: '11,340', change: '+8.6%', href: '#/analytics/reports/store_performance?metric=unique-visitors' },
+          { title: 'Storefront conversion', value: '1.64%', change: '+0.1 pts', href: '#/analytics/reports/store_performance?metric=conversion-rate' }
         ],
         series: [842, 1186, 1054, 1318, 1146, 1438, 1659],
         labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -32,10 +32,10 @@
         label: 'Last 30 days',
         comparison: 'vs previous 30 days',
         metrics: [
-          { title: 'Sales', value: '$31,624.20', change: '+9.3%', href: '#/analytics/reports' },
+          { title: 'Sales', value: '$31,624.20', change: '+9.3%', href: '#/analytics/reports/store_performance?metric=sales' },
           { title: 'Paid orders', value: '684', change: '+7.6%', href: '#/orders' },
-          { title: 'Store sessions', value: '43,501', change: '+5.5%', href: '#/analytics/reports' },
-          { title: 'Storefront conversion', value: '1.57%', change: '+0.1 pts', href: '#/analytics/reports' }
+          { title: 'Store sessions', value: '43,501', change: '+5.5%', href: '#/analytics/reports/store_performance?metric=unique-visitors' },
+          { title: 'Storefront conversion', value: '1.57%', change: '+0.1 pts', href: '#/analytics/reports/store_performance?metric=conversion-rate' }
         ],
         series: [702, 816, 768, 946, 1092, 986, 1250, 1118, 1374, 1480],
         labels: ['Jun 14', 'Jun 17', 'Jun 20', 'Jun 23', 'Jun 26', 'Jun 29', 'Jul 2', 'Jul 5', 'Jul 8', 'Today']

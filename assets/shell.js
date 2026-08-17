@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260811clarityapp11'; // cache-bust for lazy-loaded module scripts
+  var V = '20260817-analytics-v1-scope1'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var clarityMark = '<img class="nav-ico clarity-mark" src="https://claritystatic.azureedge.net/images/logo.ico" alt="" aria-hidden="true" referrerpolicy="no-referrer">';
   var ICONS = {
@@ -172,7 +172,7 @@
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
     var moduleV = id === 'settings' ? '20260817-domain-pairs1'
       : id === 'online-store' ? '20260806paypalfieldrhythm1'
-      : id === 'analytics' ? '20260807editbreakdown1' : V;
+      : id === 'analytics' ? '20260817-landing-fill1' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every
     // other lazily loaded module.
     var chain = id === 'analytics'
@@ -420,7 +420,7 @@
     root.innerHTML = '<div class="home-page"><div class="home-head"><div><div class="home-overline">Store overview</div><h1>Good morning, ' + homeEsc(SITE.store || 'your store') + '</h1><p>Keep an eye on the work that moves today&apos;s sales forward.</p></div><div class="home-actions"><a class="btn" href="#/online-store">View store</a><a class="btn btn-primary" href="#/products">Add product</a></div></div>' +
       homeAttentionHtml(orders, subscriptions) +
       '<section class="home-performance"><div class="home-section-head home-performance-head"><div><h2>Performance</h2><p>' + homeEsc(period.label) + ' ' + homeEsc(period.comparison) + '</p></div><div class="home-range-tabs" role="group" aria-label="Performance period">' + rangeTabs + '</div></div><div class="home-kpi-grid">' + (period.metrics || []).map(function (metric) { return homeMetricHtml(metric, period.comparison); }).join('') + '</div></section>' +
-      '<div class="home-main-grid"><section class="home-panel home-chart-panel"><div class="home-section-head"><div><h2>Sales performance</h2><p>' + homeEsc(period.label) + '</p></div><a class="home-text-link" href="#/analytics/reports">Open Analytics</a></div>' + homeChartHtml(period) + '</section><section class="home-panel home-health-panel"><div class="home-section-head"><div><h2>Store health</h2><p>Sales-critical connections</p></div><a class="home-icon-link" href="#/settings/base" aria-label="Open settings">' + ICONS.settings + '</a></div><div class="home-health-list">' + homeHealthHtml(data.storeHealth || []) + '</div></section></div>' +
+      '<div class="home-main-grid"><section class="home-panel home-chart-panel"><div class="home-section-head"><div><h2>Sales performance</h2><p>' + homeEsc(period.label) + '</p></div><a class="home-text-link" href="#/analytics">Open Analytics</a></div>' + homeChartHtml(period) + '</section><section class="home-panel home-health-panel"><div class="home-section-head"><div><h2>Store health</h2><p>Sales-critical connections</p></div><a class="home-icon-link" href="#/settings/base" aria-label="Open settings">' + ICONS.settings + '</a></div><div class="home-health-list">' + homeHealthHtml(data.storeHealth || []) + '</div></section></div>' +
       '<div class="home-detail-grid"><section class="home-panel home-orders-panel"><div class="home-section-head"><div><h2>Recent orders</h2><p>Latest paid orders across your sales channels</p></div><a class="home-text-link" href="#/orders">View all orders</a></div><div class="home-order-list">' + homeRecentOrdersHtml(orders) + '</div></section><section class="home-panel home-revenue-panel"><div class="home-section-head"><div><h2>Revenue health</h2><p>Recurring and external checkout</p></div></div><div class="home-app-list">' + homeRevenueHtml(orders, subscriptions, subMetrics) + '</div></section></div>' +
       '<section class="home-update"><span class="home-update-mark">' + homeEsc((data.update || {}).version || 'Update') + '</span><div><strong>' + homeEsc((data.update || {}).title || 'BestShopio updates') + '</strong><span>' + homeEsc((data.update || {}).detail || '') + '</span></div><a class="home-text-link" href="' + homeEsc((data.update || {}).href || '#/home') + '">Review</a></section></div>';
     wireHome();

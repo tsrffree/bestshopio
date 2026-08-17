@@ -176,7 +176,7 @@
         var L = month(view), R = month(addMonths(view, 1));
         var wk = WK.map(function (w) { return '<span>' + w + '</span>'; }).join('');
         var presets = PRESETS.map(function (p, i) { return '<div class="cal-preset" data-preset="' + i + '">' + p[0] + '</div>'; }).join('');
-        var selText = start ? (ymd(start) + '  →  ' + (end ? ymd(end) : '…')) : 'Select a date range';
+        var selText = (start && end) ? (ymd(start) + '  →  ' + ymd(end)) : 'Select a date range';
         panel.innerHTML =
           '<div class="cal-body">' +
             '<div class="cal-presets">' + presets + '</div>' +

@@ -1,4 +1,4 @@
-// Mock data + nav config for the Analytics prototype.
+﻿// Mock data + nav config for the Analytics prototype.
 window.DATA = (function () {
   // ---- Sidebar navigation (mirrors bestvoy-admin + new Analytics group) ----
   const NAV = {
@@ -29,8 +29,8 @@ window.DATA = (function () {
   const KPIS = [
     { key: 'total_sales', label: 'Sales', value: '$1,825,125.27', delta: '+9.4%', up: true },
     { key: 'orders', label: 'Orders', value: '31,553', delta: '+2.6%', up: true },
+    { key: 'conversion_rate', label: 'Conversion rate', value: '2.3%', delta: '+0.2%', up: true },
     { key: 'aov', label: 'Average order value', value: '$55.95', delta: '+1.1%', up: true },
-    { key: 'returning_rate', label: 'Returning customer rate', value: '17.27%', delta: '-0.8%', up: false },
   ];
 
   // ---- Total sales over time (May 1–26) ----
@@ -73,12 +73,24 @@ window.DATA = (function () {
     total: '1,326,165',
   };
 
+  // ---- Unique visitors over time (behavior / 神策) ----
+  // One visitor may create multiple sessions; this is the deduplicated visitor count.
+  const UNIQUE_VISITORS_TREND = {
+    dates: SALES_TREND.dates,
+    values: SESSIONS_TREND.values.map((value, index) => Math.round(value * (0.76 + (index % 4) * 0.01))),
+    total: '1,034,409',
+  };
+
   // ---- Conversion funnel ----
   const FUNNEL = [
-    { stage: 'Sessions', pct: '100%', value: '1,326,165' },
-    { stage: 'Added to cart', pct: '1.19%', value: '15,852' },
-    { stage: 'Reached checkout', pct: '4.27%', value: '56,721' },
-    { stage: 'Completed checkout', pct: '2.3%', value: '30,559' },
+    { stage: 'Visit store', pct: '100%', value: '1,326,165' },
+    { stage: 'Add to cart', pct: '11.95%', value: '158,520' },
+    { stage: 'Begin checkout', pct: '6.00%', value: '79,560' },
+    { stage: 'Add contact info', pct: '5.14%', value: '68,200' },
+    { stage: 'Add shipping info', pct: '4.62%', value: '61,300' },
+    { stage: 'Select shipping method', pct: '4.40%', value: '58,350' },
+    { stage: 'Add payment info', pct: '4.28%', value: '56,721' },
+    { stage: 'Complete checkout', pct: '2.3%', value: '30,559' },
   ];
 
   // ---- Conversion rate over time (behavior / 神策) ----
@@ -87,27 +99,11 @@ window.DATA = (function () {
     values: [2.82, 2.9, 2.42, 2.22, 2.23, 2.16, 2.39, 2.25, 2.75, 2.66, 2.03, 1.93, 2.43, 2.39, 2.19, 2.31, 2.34, 1.96, 2.1, 1.86, 2.16, 2.27, 2.75, 2.62, 2.23, 1.91],
     value: '2.3%',
   };
-  // ---- Referrer breakdowns ----
-  const SALES_BY_REFERRER = [
-    { name: 'None · None', value: 1460000 },
-    { name: 'search · google', value: 134700 },
-    { name: 'social · facebook', value: 81000 },
-    { name: 'None · silixwear', value: 74100 },
-    { name: 'None · android', value: 20900 },
-  ];
-  const SESSIONS_BY_REFERRER = [
-    { name: 'Direct · None', value: 30600 },
-    { name: 'Social · facebook', value: 18000 },
-    { name: 'Direct · Chicago', value: 13500 },
-    { name: 'Direct · Atlanta', value: 11800 },
-    { name: 'Direct · Houston', value: 11000 },
-  ];
   const PERF_BY_CHANNEL = [
     { channel: 'Direct', sessions: '612,840', orders: '14,231', sales: '$846,210' },
     { channel: 'Search', sessions: '298,420', orders: '8,902', sales: '$512,330' },
     { channel: 'Social', sessions: '256,110', orders: '5,418', sales: '$331,870' },
     { channel: 'Email', sessions: '88,540', orders: '2,104', sales: '$128,640' },
-    { channel: 'Referral', sessions: '41,200', orders: '986', sales: '$59,430' },
   ];
   // ---- City coords for Live View globe ([lon, lat]) ----
   const CITY_COORDS = [
@@ -142,14 +138,6 @@ window.DATA = (function () {
     { name: 'AU · Victoria · Melbourne', value: 15200 },
   ];
 
-  // ---- Total sales by social referrer ----
-  const SOCIAL_REFERRER = [
-    { name: 'facebook', value: 453900 },
-    { name: 'youtube', value: 7300 },
-    { name: 'instagram', value: 3400 },
-    { name: 'pinterest', value: 900 },
-  ];
-
   // ---- Sessions by landing page (behavior / 神策) ----
   const LANDING_PAGES = [
     { page: '/products/3d-anti-cellulite-legging', value: 1134380 },
@@ -157,6 +145,8 @@ window.DATA = (function () {
     { page: '/  (Homepage)', value: 20821 },
     { page: '/products/3d-anti-cellulite-short-leggings', value: 18453 },
     { page: '/apps/bestrack', value: 12685 },
+    { page: '/collections/anti-cellulite', value: 9842 },
+    { page: '/products/silix-pocket-3d-sculpting-leggings', value: 7618 },
   ];
 
   // ---- Products by sell-through rate ----
@@ -187,11 +177,8 @@ window.DATA = (function () {
   const PAGEVIEWS_TREND = { dates: SALES_TREND.dates, values: SESSIONS_TREND.values.map((v) => Math.round(v * 2.3)), total: '3,042,118' };
   const PAID_AMOUNT_TREND = { dates: SALES_TREND.dates, values: SALES_TREND.values.map((v) => Math.round(v * 0.98)), total: '$1,786,402' };
   const REFUND_TREND = { dates: SALES_TREND.dates, values: SALES_TREND.values.map((v, i) => -Math.round(v * (i === 20 ? 0.085 : 0.002))), total: '-$17,701' };
-  const MARKETING_SALES_TREND = { dates: SALES_TREND.dates, values: SALES_TREND.values.map((v) => Math.round(v * 0.43)), total: '$781,930' };
   const ORDERS_FULFILLED_TREND = { dates: SALES_TREND.dates, values: SESSIONS_TREND.values.map((v) => Math.round(v / 40)), total: '32,638' };
   const SESSIONS_BY_COUNTRY = [{ name: 'United States', value: 21500 }, { name: 'Australia', value: 4800 }, { name: 'United Kingdom', value: 3200 }, { name: 'Canada', value: 2100 }, { name: 'Germany', value: 1500 }];
-  const SESSIONS_BY_TRAFFIC = [{ name: 'Other', value: 14200 }, { name: 'Direct', value: 6100 }, { name: 'Social', value: 1800 }, { name: 'Search', value: 920 }];
-  const SESSIONS_BY_SOCIAL = [{ name: 'facebook', value: 18000 }, { name: 'instagram', value: 12000 }, { name: 'snapchat', value: 820 }];
 
   // ---- Product data details (bespoke report; views/funnel = 神策待建) ----
   // commerce 真实可落: name/sku/qty/sales/orders ; behavior 待神策: views/funnel
@@ -254,45 +241,31 @@ window.DATA = (function () {
     { id: 'sales_over_time', name: 'Sales: By date range', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-29', viz: 'line', metrics: ['total_sales'], dims: ['day'] },
     { id: 'sales_by_product', name: 'Product data details', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-28', viz: 'barH', metrics: ['total_sales'], dims: ['product_title'] },
     { id: 'sales_by_variant', name: 'Sales by variant (SKU)', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-20', viz: 'barH', metrics: ['total_sales'], dims: ['variant'] },
-    { id: 'sales_by_channel', name: 'Sales by channel', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'donut', metrics: ['total_sales'], dims: ['channel'] },
     { id: 'sales_by_discount', name: 'Sales by discount code', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['orders', 'discounts', 'gross_sales'], dims: ['discount_code'] },
     { id: 'sales_by_billing_location', name: 'Sales by country/region', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-15', viz: 'barH', metrics: ['total_sales'], dims: ['billing_country'] },
-    { id: 'sales_by_currency', name: 'Total sales by currency', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['total_sales', 'orders'], dims: ['currency'] },
     { id: 'aov_over_time', name: 'Average order value over time', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-25', viz: 'line', metrics: ['aov'], dims: ['day'] },
     { id: 'daily_conv_jwl', name: 'Daily store conversion', cat: 'Sales', source: 'Derived', by: 'wenling jiang', viewed: '2026-05-27', viz: 'line', metrics: ['conversion_rate', 'orders'], dims: ['day'] },
     // Orders
     { id: 'orders_over_time', name: 'Orders over time', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'line', metrics: ['orders'], dims: ['day'] },
     { id: 'fulfillment_status', name: 'Orders by fulfillment status', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-24', viz: 'donut', metrics: ['orders'], dims: ['fulfillment_status'] },
-    { id: 'partial_shipped', name: 'Partial shipped orders', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['orders'], dims: ['order_no', 'fulfillment_status'] },
     { id: 'time_to_fulfill', name: 'Average time to fulfill', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-12', viz: 'line', metrics: ['hours_to_fulfill'], dims: ['day'] },
     { id: 'payment_success_rate', name: 'Payment success rate', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-25', viz: 'table', metrics: ['payment_success_rate'], dims: ['payment_channel'] },
     // Customers
     { id: 'new_vs_returning', name: 'New vs returning customers', cat: 'Customers', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'bar', metrics: ['customers'], dims: ['customer_type'] },
     { id: 'new_customers_over_time', name: 'New customers over time', cat: 'Customers', source: 'Commerce', by: 'System', viewed: '2026-05-21', viz: 'line', metrics: ['new_customers'], dims: ['day'] },
     { id: 'customers_by_location', name: 'Customers by location', cat: 'Customers', source: 'Commerce', by: 'System', viewed: '2026-05-19', viz: 'barH', metrics: ['customers'], dims: ['country'] },
-    { id: 'returning_customers', name: 'Returning customers', cat: 'Customers', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['orders_count', 'total_spent'], dims: ['customer_name'] },
-    { id: 'one_time_customers', name: 'One-time customers', cat: 'Customers', source: 'Commerce', by: 'System', viewed: '—', viz: 'single', metrics: ['customers'], dims: [] },
-    { id: 'customer_cohort', name: 'Customer cohort analysis', cat: 'Customers', source: 'Derived', by: 'System', viewed: '2026-05-26', viz: 'cohort', metrics: ['retention_rate'], dims: ['cohort_month', 'months_since'] },
-    { id: 'spend_tier', name: 'Predicted spend tier', cat: 'Customers', source: 'Derived', by: 'System', viewed: '—', viz: 'bar', metrics: ['customers'], dims: ['spend_tier'] },
     // Behavior (神策)
-    { id: 'sessions_over_time', name: 'Sessions over time', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-26', viz: 'line', metrics: ['sessions'], dims: ['day'] },
+    { id: 'sessions_over_time', name: 'Visitors over time', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-26', viz: 'line', metrics: ['sessions'], dims: ['day'] },
     { id: 'conversion_rate_over_time', name: 'Conversion rate over time', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-26', viz: 'line', metrics: ['conversion_rate'], dims: ['day'] },
     { id: 'conversion_funnel', name: 'Conversion rate breakdown', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-25', viz: 'funnel', metrics: ['sessions'], dims: ['funnel_step'] },
     { id: 'sessions_by_device', name: 'Traffic acquisition: By device', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-24', viz: 'donut', metrics: ['sessions'], dims: ['device'] },
     { id: 'sessions_by_location', name: 'Traffic acquisition: By country/region', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-22', viz: 'barH', metrics: ['sessions'], dims: ['city'] },
-    { id: 'sessions_by_landing', name: 'Top landing pages by sessions', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-20', viz: 'table', metrics: ['sessions'], dims: ['landing_page'] },
-    { id: 'sessions_by_referrer', name: 'Traffic acquisition: By channel', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'bar', metrics: ['sessions'], dims: ['referrer'] },
-    { id: 'sessions_by_referrer_site', name: 'Traffic acquisition: By referrer site', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['sessions'], dims: ['referrer_site'] },
-    { id: 'sessions_by_social_source', name: 'Traffic acquisition: By social source', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['sessions'], dims: ['social_referrer'] },
-    { id: 'user_path', name: 'User path analysis', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '—', viz: 'table', metrics: ['users'], dims: ['path_step'] },
-    { id: 'retention', name: 'Retention analysis', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-16', viz: 'cohort', metrics: ['retention_rate'], dims: ['cohort_week', 'weeks_since'] },
+    { id: 'sessions_by_landing', name: 'Top landing pages by visitors', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-20', viz: 'table', metrics: ['sessions'], dims: ['landing_page'] },
     { id: 'landing_conv_jwl', name: 'Landing-page conversion rate', cat: 'Behavior', source: 'Behavior', by: 'wenling jiang', viewed: '2026-05-27', viz: 'table', metrics: ['sessions', 'conversion_rate'], dims: ['landing_page'] },
     // Finances
     { id: 'finance_summary', name: 'Finance summary', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'table', metrics: ['gross_sales', 'discounts', 'net_sales', 'taxes', 'total_sales'], dims: ['metric'] },
     { id: 'sales_breakdown', name: 'Total sales breakdown', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '2026-05-25', viz: 'table', metrics: ['amount'], dims: ['breakdown_item'] },
-    { id: 'sales_by_order', name: 'Total sales by order', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['total_sales'], dims: ['order_no'] },
     { id: 'discounts_by_order', name: 'Discounts by order', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '2026-05-14', viz: 'table', metrics: ['discounts'], dims: ['order_no'] },
-    { id: 'taxes', name: 'Taxes', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['taxes'], dims: ['tax_region'] },
     { id: 'payments_by_method', name: 'Payments by method', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '2026-05-23', viz: 'donut', metrics: ['amount'], dims: ['payment_method'] },
     { id: 'payments_over_time', name: 'Payments over time', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '2026-05-19', viz: 'line', metrics: ['amount'], dims: ['day'] },
     { id: 'gross_profit_by_product', name: 'Gross profit by product', cat: 'Finances', source: 'Derived', by: 'System', viewed: '2026-05-17', viz: 'barH', metrics: ['gross_profit'], dims: ['product_title'] },
@@ -300,31 +273,24 @@ window.DATA = (function () {
     // Products & Inventory
     { id: 'top_products_units', name: 'Top products by units sold', cat: 'Products', source: 'Commerce', by: 'System', viewed: '2026-05-24', viz: 'barH', metrics: ['units_sold'], dims: ['product_title'] },
     { id: 'sell_through', name: 'Products by sell-through rate', cat: 'Products', source: 'Commerce', by: 'System', viewed: '2026-05-21', viz: 'table', metrics: ['sell_through_rate'], dims: ['variant'] },
-    { id: 'inventory_remaining', name: 'Inventory remaining per product', cat: 'Products', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['inventory'], dims: ['variant'] },
-    { id: 'abc_analysis', name: 'ABC product analysis', cat: 'Products', source: 'Derived', by: 'System', viewed: '—', viz: 'table', metrics: ['gross_sales'], dims: ['product_title', 'abc_grade'] },
+    { id: 'inventory_remaining', name: 'Inventory remaining per product', cat: 'Products', source: 'Commerce', by: 'System', viewed: '-', viz: 'table', metrics: ['inventory'], dims: ['variant'] },
+    { id: 'abc_analysis', name: 'ABC product analysis', cat: 'Products', source: 'Derived', by: 'System', viewed: '-', viz: 'table', metrics: ['gross_sales'], dims: ['product_title', 'abc_grade'] },
     { id: 'rating_by_product', name: 'Average rating by product', cat: 'Products', source: 'Commerce', by: 'System', viewed: '2026-05-11', viz: 'barH', metrics: ['avg_rating'], dims: ['product_title'] },
-    // Marketing
-    { id: 'sales_attributed_marketing', name: 'Sales attributed to marketing', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-26', viz: 'line', metrics: ['attributed_sales'], dims: ['day'] },
-    { id: 'sessions_by_campaign', name: 'Sessions by UTM campaign', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-20', viz: 'barH', metrics: ['sessions'], dims: ['utm_campaign'] },
-    { id: 'performance_by_channel', name: 'Performance by referring channel', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['sessions', 'orders', 'attributed_sales'], dims: ['channel'] },
-    { id: 'social_referrer_sales', name: 'Total sales by social referrer', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-15', viz: 'barH', metrics: ['total_sales'], dims: ['social_referrer'] },
-    { id: 'sales_by_referrer', name: 'Total sales by referrer', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-24', viz: 'barH', metrics: ['total_sales'], dims: ['referrer'] },
-    { id: 'attribution_model_comparison', name: 'Attribution model comparison', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-16', viz: 'table', metrics: ['attributed_sales'], dims: ['channel'] },
   ];
 
-  const REPORT_CATEGORIES = ['Sales', 'Orders', 'Customers', 'Behavior', 'Finances', 'Products', 'Marketing'];
+  const REPORT_CATEGORIES = ['Sales', 'Orders', 'Customers', 'Behavior', 'Finances', 'Products'];
 
   // Semantic-layer catalog — drives the Edit drawer + Manage filters pickers (per source; fixed-template reports only)
   const CATALOG = {
     Commerce: {
       metrics: ['total_sales', 'gross_sales', 'net_sales', 'discounts', 'returns', 'taxes', 'orders', 'aov', 'units_sold', 'gross_profit', 'refunds', 'customers', 'new_customers', 'total_spent', 'inventory', 'sell_through_rate', 'avg_rating'],
-      dimensions: ['day', 'week', 'month', 'product_title', 'variant', 'channel', 'billing_country', 'currency', 'discount_code', 'payment_method', 'fulfillment_status', 'customer_type', 'order_no'],
+      dimensions: ['day', 'week', 'month', 'product_title', 'variant', 'billing_country', 'currency', 'discount_code', 'payment_method', 'fulfillment_status', 'customer_type', 'order_no'],
     },
     Behavior: {
-      metrics: ['sessions', 'visitors', 'page_views', 'conversion_rate', 'add_to_cart_rate', 'bounce_rate', 'attributed_sales', 'users', 'retention_rate'],
-      dimensions: ['day', 'device', 'os', 'browser', 'city', 'country', 'landing_page', 'referrer', 'utm_source', 'utm_campaign', 'social_referrer', 'funnel_step', 'path_step'],
+      metrics: ['sessions', 'visitors', 'page_views', 'conversion_rate', 'add_to_cart_rate', 'bounce_rate', 'users', 'retention_rate'],
+      dimensions: ['day', 'device', 'os', 'browser', 'city', 'country', 'landing_page', 'funnel_step', 'path_step'],
     },
   };
 
-  return { NAV, KPIS, SALES_TREND, BREAKDOWN, SALES_BY_CHANNEL, AOV_TREND, SESSIONS_TREND, FUNNEL, CONV_RATE_TREND, SALES_BY_REFERRER, SESSIONS_BY_REFERRER, PERF_BY_CHANNEL, CITY_COORDS, SALES_BY_PRODUCT, SESSIONS_BY_DEVICE, SESSIONS_BY_LOCATION, SOCIAL_REFERRER, LANDING_PAGES, SELL_THROUGH, COHORT, PAGEVIEWS_TREND, PAID_AMOUNT_TREND, REFUND_TREND, MARKETING_SALES_TREND, ORDERS_FULFILLED_TREND, SESSIONS_BY_COUNTRY, SESSIONS_BY_TRAFFIC, SESSIONS_BY_SOCIAL, PRODUCT_DATA, VARIANT_DATA, COUNTRY_TRAFFIC, REPORTS, REPORT_CATEGORIES, CATALOG };
+  return { NAV, KPIS, SALES_TREND, BREAKDOWN, SALES_BY_CHANNEL, AOV_TREND, SESSIONS_TREND, UNIQUE_VISITORS_TREND, FUNNEL, CONV_RATE_TREND, PERF_BY_CHANNEL, CITY_COORDS, SALES_BY_PRODUCT, SESSIONS_BY_DEVICE, SESSIONS_BY_LOCATION, LANDING_PAGES, SELL_THROUGH, COHORT, PAGEVIEWS_TREND, PAID_AMOUNT_TREND, REFUND_TREND, ORDERS_FULFILLED_TREND, SESSIONS_BY_COUNTRY, PRODUCT_DATA, VARIANT_DATA, COUNTRY_TRAFFIC, REPORTS, REPORT_CATEGORIES, CATALOG };
 })();
