@@ -49,8 +49,11 @@ window.DATA_SETTINGS = {
     deliveryLog: [],
     groups: [
       { key: 'transactional', label: 'Transactional emails', events: [
+        // `order_paid` remains the prototype/template route key for compatibility.
+        // Production dispatch must subscribe to `trigger`, not to the first payment event.
         { code: 'order_paid', name: 'Order confirmation', cls: 'Transactional', priority: 'P0',
-          desc: 'Sent to the customer right after a native store payment succeeds.',
+          trigger: 'order.purchase_finalized',
+          desc: 'Sent once after post-purchase offers finish and the final order total is confirmed.',
           config: { enabled: true, subject: 'Order #{{order.number}} confirmed', preheader: 'Thanks for your purchase — here are your order details.',
             headline: 'Thank you for your order!', copy: 'We’ve received your payment and your order is being prepared. We’ll send tracking details when it ships.', updatedAt: '2026-07-27' } },
         { code: 'order_shipped', name: 'Shipping confirmation', cls: 'Transactional', priority: 'P0',

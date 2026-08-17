@@ -109,7 +109,7 @@
       'Invoice': '发票',
       'Download PDF': '下载 PDF',
       'The order details, invoice and customer information are included automatically. You can use {{customer.first_name}} and {{order.number}} in this copy.': '订单明细、发票和客户信息会自动附带。正文中可使用 {{customer.first_name}} 和 {{order.number}}。',
-      'Sent to the customer right after a native store payment succeeds.': '原生店铺付款成功后立即发送给顾客。',
+      'Sent once after post-purchase offers finish and the final order total is confirmed.': '所有支付后加购流程结束且订单最终金额确认后，仅发送一次。',
       'Configure the sender name and reply-to address customers see on your emails.': '设置顾客在邮件中看到的发件人名称和回复地址。',
       'From identity': '发件身份信息',
       'Sender address': '发件地址',
@@ -122,6 +122,11 @@
       'SSL is automatic': 'SSL 自动配置',
       'BestShopio issues and renews SSL certificates for every connected storefront domain. You never touch a certificate or a server.': 'BestShopio 会为每个已连接的店铺前台域名自动签发并续期 SSL 证书，无需手动管理证书或服务器。',
       'Email sending domains': '邮件发件域名',
+      'BestShopio-managed default sending domain': 'BestShopio 托管的默认发件域名',
+      'Store service email · Default': '店铺服务邮箱 · 默认',
+      'Store registration email · Default': '店铺注册邮箱 · 默认',
+      'Customers’ replies will be sent to this address.': '顾客回复邮件时，回复内容将发送到此地址。',
+      'Enter a valid reply-to email address.': '请输入有效的回复邮箱地址。',
       'Used for transactional email. It does not create a storefront or checkout address.': '用于发送事务邮件；它不会创建店铺前台或结账地址。',
       'Sender domain': '发件域名',
       'The email address customers see is': '客户看到的电子邮件地址将显示为',
@@ -183,7 +188,7 @@
       'Template variables': '模板变量',
       'Email subject': '电子邮件主题',
       'Email body (HTML)': '电子邮件正文（HTML）',
-      'Use Preview to check the rendered email.': '使用“预览”检查渲染后的邮件。',
+      'Use the back button to check the rendered email.': '使用左上角返回按钮查看渲染后的邮件。',
       'You can use supported customer, order, and store variables in this template. Order, tracking, invoice, and address blocks are rendered safely when the email is sent.': '可在模板中使用受支持的顾客、订单和店铺变量。订单、物流、发票和地址区块会在发送时安全渲染。',
       'Add another store language to create a localized template.': '添加其他店铺语言后，即可创建本地化模板。',
       'Send test email': '发送测试邮件',
@@ -2145,7 +2150,7 @@
             ? { cls: 'pill-gray', label: 'BestShopio default' }
             : { cls: 'pill-orange', label: 'Pending verification' };
     const meta = d.default
-      ? tx('Free store domain · always available · Used for all transactional emails')
+      ? tx('BestShopio-managed default sending domain') + ' · ' + tx('Sender address') + ': ' + esc(senderAddress) + ' · ' + tx('Used for all transactional emails')
       : isActive
         ? tx('Used for all transactional emails') + ' · ' + esc(senderAddress)
         : d.status === 'connected'
@@ -2162,7 +2167,7 @@
       : '';
     return '<div class="dom-row">' +
       '<div class="dom-ico email">' + I.globe + '</div>' +
-      '<div class="dom-info"><div class="dom-name">' + esc(d.default ? senderAddress : d.domain) + '</div><div class="dom-meta">' + displayMeta + '</div></div>' +
+      '<div class="dom-info"><div class="dom-name">' + esc(d.domain) + '</div><div class="dom-meta">' + displayMeta + '</div></div>' +
       '<div class="dom-actions"><span class="pill ' + badge.cls + '"><span class="dot"></span>' + badge.label + '</span>' + del + '</div>' +
     '</div>';
   }
@@ -2798,11 +2803,20 @@
     const brand = D.notifications.brand || {};
     return brand.storeOwnerEmail || '';
   }
-  function nfReplyToAddress() {
+  function nfInheritedReplyToAddress() {
     const brand = D.notifications.brand || {};
+    return brand.contactEmail || nfStoreRegistrationEmail() || '';
+  }
+  function nfNormalizeEmail(value) {
+    const email = String(value || '').trim();
+    const at = email.lastIndexOf('@');
+    if (at <= 0 || at === email.length - 1) return email;
+    return email.slice(0, at) + '@' + email.slice(at + 1).toLowerCase();
+  }
+  function nfReplyToAddress() {
     // A merchant-configured Reply-to or service inbox wins. Bestreach does not
     // receive mail, so a new store falls back to its registration email instead.
-    return D.notifications.sender.profile.replyTo || brand.contactEmail || nfStoreRegistrationEmail() || nfSenderAddress();
+    return D.notifications.sender.profile.replyTo || nfInheritedReplyToAddress();
   }
   function nfBuildBody(ev, headline, copy) {
     const opening = '<h2 class="nf-h">' + esc(headline || '') + '</h2><p class="nf-lead">' + esc(copy || '') + '</p>';
@@ -3138,6 +3152,17 @@
       '<div style="margin-bottom:14px"><label class="nf-label" for="' + id + '">' + label + '</label>' +
       '<input class="input nf-sender-input" id="' + id + '" value="' + esc(value || '') + '"' + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : '') + (disabled ? ' disabled aria-disabled="true"' : '') + ' style="width:100%" />' +
       (hint ? '<div class="nf-hint">' + hint + '</div>' : '') + '</div>';
+    const inheritedReplyTo = nfInheritedReplyToAddress();
+    const effectiveReplyTo = profile.replyTo || inheritedReplyTo;
+    const replyToHint = profile.replyTo
+      ? 'Customers’ replies will be sent to this address.'
+      : n.brand.contactEmail
+        ? 'Store service email · Default'
+        : 'Store registration email · Default';
+    const replyToInput = '<div style="margin-bottom:14px"><label class="nf-label" for="nf-sender-reply">Reply-to</label>' +
+      '<input class="input nf-sender-input" id="nf-sender-reply" type="email" required value="' + esc(effectiveReplyTo) + '" aria-describedby="nf-sender-reply-hint nf-sender-reply-error" style="width:100%" />' +
+      '<div class="nf-hint" id="nf-sender-reply-hint">' + replyToHint + '</div>' +
+      '<div class="nf-field-error" id="nf-sender-reply-error" role="alert"></div></div>';
     const defaultDomain = sender.domains.find((d) => d.default) || null;
     const brandedDomain = sender.domains.find((d) => !d.default) || null;
     const senderAddressFor = (d) => ((d && d.default ? sender.platformLocalPart : profile.localPart) || sender.platformLocalPart) + '@' + (d ? d.domain : '');
@@ -3169,7 +3194,7 @@
         '<div class="panel card-pad"><div class="nf-section-title">From identity</div>' +
           input('From name', 'nf-sender-name', profile.fromName, 'Shown in the customer inbox for every transactional message.') +
           input('Sender address', 'nf-sender-local', active && active.default ? nfSenderAddress() : profile.localPart, active ? (active.default ? 'BestShopio provisions this address for your store. Connect a custom domain to edit the address prefix.' : 'The address uses the active connected domain: @' + esc(active.domain) + '.') : 'This address will be ready after the sender domain is connected.', '', !active || active.default) +
-          input('Reply-to', 'nf-sender-reply', profile.replyTo, n.brand.contactEmail ? 'Leave blank to use your store service email.' : 'Leave blank to use your store registration email.', n.brand.contactEmail || n.brand.storeOwnerEmail) +
+          replyToInput +
           '<button class="btn btn-primary" data-sender-save>Save sender identity</button></div>' +
         '<section class="nf-sender-domain-section"><div class="nf-section-title">Sending domain</div>' +
           defaultDomainCard + brandedDomainCard +
@@ -3179,16 +3204,34 @@
     );
 
     root.querySelector('[data-back]').onclick = () => { location.hash = '#/settings/notifications'; };
+    const replyToEl = root.querySelector('#nf-sender-reply');
+    const setReplyToError = (message) => {
+      const error = root.querySelector('#nf-sender-reply-error');
+      replyToEl.classList.toggle('is-error', !!message);
+      replyToEl.setAttribute('aria-invalid', message ? 'true' : 'false');
+      if (error) error.textContent = message || '';
+    };
+    const validateReplyTo = () => {
+      const value = nfNormalizeEmail(replyToEl.value);
+      replyToEl.value = value;
+      const valid = !!value && replyToEl.checkValidity();
+      setReplyToError(valid ? '' : 'Enter a valid reply-to email address.');
+      return valid;
+    };
+    replyToEl.addEventListener('blur', validateReplyTo);
+    replyToEl.addEventListener('input', () => setReplyToError(''));
     root.querySelector('[data-sender-save]').onclick = () => {
       const get = (id) => (root.querySelector('#' + id).value || '').trim();
-      const name = get('nf-sender-name'), rawLocalPart = get('nf-sender-local'), replyTo = get('nf-sender-reply');
+      const name = get('nf-sender-name'), rawLocalPart = get('nf-sender-local');
+      if (!validateReplyTo()) return replyToEl.focus();
+      const replyTo = nfNormalizeEmail(replyToEl.value);
       const localPart = active && active.default
         ? sender.platformLocalPart
         : rawLocalPart.replace(/[^a-z0-9._+-]/gi, '').toLowerCase();
       if (!name || !localPart) return toast('Complete the sender identity fields');
       profile.fromName = name;
       profile.localPart = localPart;
-      profile.replyTo = replyTo;
+      profile.replyTo = inheritedReplyTo && replyTo.toLowerCase() === nfNormalizeEmail(inheritedReplyTo).toLowerCase() ? '' : replyTo;
       toast('Sender identity saved');
       if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
       renderNotifSender();
@@ -3204,7 +3247,7 @@
     const editLabel = tx('Edit code');
     const crumbs = isCode ? editLabel : tx(ev.name);
     const actions = isCode
-      ? '<button class="btn btn-primary" data-preview>Preview</button>'
+      ? ''
       : '<button class="btn btn-default" data-test>' + tx('Send test') + '</button><button class="btn btn-primary" data-code>Edit code</button>';
     const preview =
       '<section class="nf-shop-preview"><div class="nf-pv-head"><div class="nf-pv-title">Preview</div>' +
@@ -3213,7 +3256,7 @@
     const variablePanel = isCode ? nfVariablePanel(ev) : '';
     const code =
       '<section class="nf-code-page"><div class="nf-code-card"><div class="nf-code-card-title">Preview</div><label class="nf-label" for="nf-subject">Email subject</label><input class="input" id="nf-subject" value="' + esc(c.subject || '') + '" style="width:100%;margin:7px 0 16px" />' +
-        '<label class="nf-label" for="nf-template">Email body (HTML)</label><div class="nf-code-wrap"><div class="nf-code-gutter" aria-hidden="true">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14<br>15<br>16</div><textarea id="nf-template" class="nf-code" spellcheck="false" wrap="soft">' + esc(source) + '</textarea></div><div class="nf-hint" style="margin-top:10px">Use Preview to check the rendered email.</div></div>' +
+        '<label class="nf-label" for="nf-template">Email body (HTML)</label><div class="nf-code-wrap"><div class="nf-code-gutter" aria-hidden="true">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14<br>15<br>16</div><textarea id="nf-template" class="nf-code" spellcheck="false" wrap="soft">' + esc(source) + '</textarea></div><div class="nf-hint" style="margin-top:10px">Use the back button to check the rendered email.</div></div>' +
       '<div class="nf-code-notice"><div class="nf-code-notice-title">Template variables</div><div>You can use supported customer, order, and store variables in this template. Order, tracking, invoice, and address blocks are rendered safely when the email is sent.</div></div>' +
       variablePanel +
       '</section>';
@@ -3232,7 +3275,6 @@
       location.hash = '#/settings/notifications';
     };
     root.querySelector('[data-code]')?.addEventListener('click', () => { location.hash = nfEditorPath(ev.code, 'code'); });
-    root.querySelector('[data-preview]')?.addEventListener('click', () => { nfSaveFromForm(ev); location.hash = nfEditorPath(ev.code, 'preview'); });
     root.querySelector('[data-test]')?.addEventListener('click', () => openNotifTestModal(ev));
     root.querySelectorAll('[data-dev]').forEach((bd) => bd.onclick = () => { notifDevice = bd.getAttribute('data-dev'); root.querySelectorAll('[data-dev]').forEach((x) => x.classList.toggle('on', x === bd)); nfUpdatePreview(ev); });
     ['nf-subject', 'nf-template'].forEach((id) => {
@@ -3322,6 +3364,8 @@
   .nf-sender-layout { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
   .nf-sender-input:disabled { background: #f5f7fa; border-color: #e1e6ed; color: #8b95a7; cursor: not-allowed; opacity: 1; }
   .nf-sender-input:disabled::placeholder { color: #a6afbd; }
+  .nf-sender-input.is-error { border-color: var(--err); box-shadow: 0 0 0 2px rgb(211 54 18 / 10%); }
+  .nf-field-error { min-height: 18px; margin-top: 5px; color: var(--err); font-size: 11.5px; line-height: 1.5; }
   .nf-section-title { font-size: 14px; font-weight: 650; color: var(--ink); margin-bottom: 16px; }
   .nf-sender-domain-section { display: flex; flex-direction: column; gap: 12px; }
   .nf-sender-domain-section .nf-section-title { margin: 0 2px 2px; }
