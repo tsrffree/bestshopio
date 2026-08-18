@@ -446,7 +446,7 @@ window.I18N.extend({
   "Welcome": "欢迎邮件",
   "Sent after a customer creates an account.": "在顾客创建账户后发送。",
   "Email verification code": "邮箱验证码",
-  "One-time code for sign-up and password reset.": "用于注册和重置密码的一次性验证码。",
+  "One-time code for password reset.": "用于重置密码的一次性验证码。",
   "Abandoned cart": "弃购提醒",
   "Remind shoppers who left items in their cart.": "提醒将商品留在购物车的顾客。",
   "Back in stock": "到货通知",

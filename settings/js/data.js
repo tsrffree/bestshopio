@@ -71,7 +71,7 @@ window.DATA_SETTINGS = {
           config: { enabled: false, subject: 'Customer account confirmation', preheader: 'You\'ve activated your customer account. Next time you shop with us, log in for faster checkout.',
             headline: 'Welcome to {{store.name}}!', copy: 'You\'ve activated your customer account. Next time you shop with us, log in for faster checkout.', updatedAt: '' } },
         { code: 'email_verification', name: 'Email verification code', cls: 'Transactional', priority: 'P1', required: true,
-          desc: 'One-time code for sign-up and password reset.',
+          desc: 'One-time code for password reset.',
           config: { enabled: true, subject: '{{verification.code}} is your code', preheader: 'Use this code to continue.',
             headline: 'Verification code', copy: 'Hi {{customer.first_name}}, use the code below to verify your email. It expires in 10 minutes.', updatedAt: '' } },
       ] },
