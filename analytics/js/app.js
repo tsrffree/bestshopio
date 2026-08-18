@@ -578,7 +578,7 @@
       const retComparison = comp && CHIP_STATE._comparisonRange ? rangeSeries(retTrend, CHIP_STATE._comparisonRange, 0.9) : null;
       const newretLabels = newComparison && newComparison.labels.length > newPrimary.labels.length ? newComparison.labels : newPrimary.labels;
       const newColor = '#0066e6';
-      const retColor = '#5ab1ef';
+      const retColor = '#f97316';
       const solidLegendIcon = 'path://M0 0H16V4H0Z';
       const dashedLegendIcon = 'path://M0 0H4V4H0ZM6 0H10V4H6ZM12 0H16V4H12Z';
       const newName = analyticsI18n('New customers');
@@ -606,12 +606,13 @@
       newretNode.dataset.axisLength = newretLabels.length;
       newretNode.dataset.primaryLength = newPrimary.values.length;
       newretNode.dataset.comparisonLength = newComparison?.values.length || 0;
+      const newretVals = [...newPrimary.values, ...retPrimary.values, ...(newComparison?.values || []), ...(retComparison?.values || [])];
       mkChart(newretNode, {
         grid: { left: 40, right: 16, top: 16, bottom: newComparison ? 56 : 36 },
         tooltip: { trigger: 'axis' },
         legend: { bottom: 0, data: newretLegend, itemHeight: 4, itemWidth: 16, textStyle: { color: '#62708d', fontSize: 12 } },
         xAxis: { type: 'category', data: newretLabels, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: timeAxisLabel(newretLabels.length, 280) },
-        yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+        yAxis: prdYAxis(newretVals),
         series: newretSeries,
       });
     }
@@ -923,7 +924,7 @@
       series.push({ type: 'line', name: 'Comparison', data: comp, smooth: true, symbol: 'none', itemStyle: { color }, lineStyle: { color, width: 1.5, type: 'dashed' } });
       legendData.push({ name: 'Comparison', icon: dashedLegendIcon });
     }
-    return { grid: { left: 54, right: 16, top: comp ? 30 : 16, bottom: 32 }, tooltip: { trigger: 'axis' }, legend: comp ? { data: legendData, top: 0, right: 0, itemHeight: 4, itemWidth: 16, textStyle: { color: '#62708d', fontSize: 11 } } : undefined, xAxis: { type: 'category', data: labels, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: timeAxisLabel(labels.length, 280) }, yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (v) => v >= 1e6 ? +(v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? +(v / 1e3).toFixed(0) + 'K' : v } }, series };
+    return { grid: { left: 54, right: 16, top: comp ? 30 : 16, bottom: 32 }, tooltip: { trigger: 'axis' }, legend: comp ? { data: legendData, top: 0, right: 0, itemHeight: 4, itemWidth: 16, textStyle: { color: '#62708d', fontSize: 11 } } : undefined, xAxis: { type: 'category', data: labels, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: timeAxisLabel(labels.length, 280) }, yAxis: prdYAxis([...(vals || []), ...(comp || [])]), series };
   }
   // ---- Bespoke report renderers (SHOPLINE-style; generic template for the rest) ----
   const TREND_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="14 7 21 7 21 14"></polyline></svg>';
@@ -1486,7 +1487,72 @@
     const neg = v < 0;
     return (neg ? '-' : '') + cur.sym + Math.abs(Math.round(v * cur.rate)).toLocaleString();
   };
-  const cAxis = (v) => { const a = Math.abs(v); return (v < 0 ? '-' : '') + (a >= 1e6 ? +(a / 1e6).toFixed(1) + 'M' : a >= 1e3 ? +(a / 1e3).toFixed(0) + 'K' : a); };
+  const cAxis = (v) => {
+    if (!Number.isFinite(v)) return '';
+    const sign = v < 0 ? '-' : '';
+    const a = Math.abs(v);
+    if (a >= 1e6) return sign + +(a / 1e6).toFixed(1) + 'M';
+    if (a >= 1e4) return sign + +(a / 1e3).toFixed(0) + 'K';
+    if (a >= 1e3) {
+      const k = +(a / 1e3).toFixed(1);
+      return sign + (Number.isInteger(k) ? k : k.toFixed(1)) + 'K';
+    }
+    if (a >= 10) return sign + Math.round(a);
+    return sign + +a.toFixed(a === 0 ? 0 : 2);
+  };
+  function seriesAxisValues(s) {
+    return [...(s?.vals || []), ...(s?.comp || [])].filter(Number.isFinite);
+  }
+  function prdRoundFirst(x) {
+    if (x <= 0) return 10;
+    const e = Math.floor(Math.log10(x));
+    const p = 10 ** e;
+    return (Math.ceil(x / p - 1e-9) || 1) * p;
+  }
+  function prdAxisExtent(values) {
+    const nums = (values || []).filter(Number.isFinite);
+    const dataMin = nums.length ? Math.min(...nums) : 0;
+    const dataMax = nums.length ? Math.max(...nums) : 0;
+    if (dataMax <= 0) {
+      const step = dataMin < 0 ? prdRoundFirst(Math.abs(dataMin) / 5) : 10;
+      return { min: -5 * step, max: 0, interval: step };
+    }
+    if (dataMin < 0) {
+      const step = prdRoundFirst(Math.max(dataMax, Math.abs(dataMin)) / 5);
+      return { min: -5 * step, max: 5 * step, interval: step };
+    }
+    const step = prdRoundFirst(dataMax / 5);
+    return { min: 0, max: 5 * step, interval: step };
+  }
+  function prdYAxis(values, extra) {
+    const extent = prdAxisExtent(values);
+    return Object.assign({
+      type: 'value',
+      min: extent.min,
+      max: extent.max,
+      interval: extent.interval,
+      splitNumber: 5,
+      splitLine: { lineStyle: { color: '#f1f3f6' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11, formatter: cAxis },
+    }, extra || {});
+  }
+  function makeValueAxis(source, values, position, fallbackFormatter) {
+    const formatter = source?.axisFormatter || fallbackFormatter;
+    if (source?.isRate) {
+      return {
+        type: 'value',
+        position,
+        scale: true,
+        min: ({ min, max }) => min - Math.max(Math.abs(max - min) * 0.12, Math.abs(max || min || 1) * 0.02),
+        max: ({ min, max }) => max + Math.max(Math.abs(max - min) * 0.12, Math.abs(max || min || 1) * 0.02),
+        splitLine: { lineStyle: { color: '#f1f3f6' } },
+        axisLabel: { color: '#94a3b8', fontSize: 11, hideOverlap: true, formatter },
+      };
+    }
+    const scaled = prdYAxis(values, { position, splitLine: position === 'right' ? { show: false } : { lineStyle: { color: '#f1f3f6' } } });
+    scaled.axisLabel = { color: '#94a3b8', fontSize: 11, hideOverlap: true, formatter };
+    return scaled;
+  }
   function aggDR(rows, unit, metrics, isB) {
     if (unit === 'Day') return rows;
     const size = unit === 'Week' ? 7 : rows.length, out = [];
@@ -1601,11 +1667,11 @@
         return [label, ...points.map((item) => `${item.marker}${item.seriesName}: ${tooltipValue(item)}`)].join('<br/>');
       },
     };
-    const defaultFormatter = hasRate && !hasValue ? (v) => v + '%' : cAxis;
-    const axisMin = ({ min, max }) => min - Math.max(Math.abs(max - min) * 0.12, Math.abs(max || min || 1) * 0.02);
-    const axisMax = ({ min, max }) => max + Math.max(Math.abs(max - min) * 0.12, Math.abs(max || min || 1) * 0.02);
-    const valueAxis = { type: 'value', scale: true, min: axisMin, max: axisMax, splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11, formatter: leftSeries?.axisFormatter || defaultFormatter } };
-    const secondaryAxis = { type: 'value', position: 'right', scale: true, min: axisMin, max: axisMax, splitLine: { show: false }, axisLabel: { color: '#94a3b8', fontSize: 11, formatter: rightSeries?.axisFormatter || (rightSeries?.isRate ? (v) => v + '%' : cAxis) } };
+    const defaultFormatter = hasRate && !hasValue ? (v) => `${+v.toFixed(1)}%` : cAxis;
+    const valuesOn = (axisIndex) => series.filter((s) => axisFor(s) === axisIndex).flatMap(seriesAxisValues);
+    const percentFormatter = (v) => `${+v.toFixed(1)}%`;
+    const valueAxis = makeValueAxis(leftSeries, valuesOn(0), 'left', leftSeries?.isRate ? percentFormatter : defaultFormatter);
+    const secondaryAxis = makeValueAxis(rightSeries, valuesOn(1), 'right', rightSeries?.isRate ? percentFormatter : cAxis);
     return { grid: { left: 56, right: dualAxis ? 64 : 20, top: 16, bottom: 44 }, tooltip, legend: { data: legendData, bottom: 0, itemHeight: 4, itemWidth: 16, textStyle: { color: '#62708d', fontSize: 12 } }, xAxis: { type: 'category', data: labels, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#94a3b8', fontSize: 11, interval: labelInterval, hideOverlap: true } }, yAxis: dualAxis ? [valueAxis, secondaryAxis] : valueAxis, series: ser };
   }
   function viewDateRangeReport(view, cfg, routeOpts) {
@@ -1847,9 +1913,6 @@
   }
   function performanceAxisFormat(metric, value) {
     if (metric.kind === 'percent') return `${+value.toFixed(1)}%`;
-    if (metric.kind === 'money' || metric.kind === 'money-average') {
-      return `${value < 0 ? '-' : ''}$${cAxis(Math.abs(value))}`;
-    }
     return cAxis(value);
   }
   // Store performance uses the selected comparison range in both the summary

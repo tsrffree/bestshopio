@@ -172,7 +172,7 @@
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
     var moduleV = id === 'settings' ? '20260817-domain-pairs1'
       : id === 'online-store' ? '20260806paypalfieldrhythm1'
-      : id === 'analytics' ? '20260817-landing-fill1' : V;
+      : id === 'analytics' ? '20260818-yaxis-six1' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every
     // other lazily loaded module.
     var chain = id === 'analytics'
