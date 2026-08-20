@@ -561,10 +561,11 @@
   // 各处理方「我们采用的集成方式」下 Express 块实际能出的方式。
   // PayPal 的 Card、Apple Pay、Google Pay 共用一个收款账户；具体钱包仍受
   // PayPal 能力、Checkout 域名和买家设备/浏览器共同约束。
-  // Adyen=Components / Checkout=Flow / NMI=Collect.js / Mollie=Components(GooglePay 待确认) / Braintree=Hosted Fields
+  // Adyen=Components / Checkout=Flow / NMI=Collect.js（仅卡；钱包不对接——改地址无法更新运费）
+  // Mollie=Components(GooglePay 待确认) / Braintree=Hosted Fields
   const PAY_EXPRESS = {
     stripe: ['applepay', 'googlepay', 'link', 'klarna', 'amazonpay'], airwallex: ['applepay', 'googlepay'],
-    paypal_cards: ['applepay', 'googlepay'], adyen: ['applepay', 'googlepay'], checkout: ['applepay', 'googlepay'], mollie: ['applepay'], nmi: ['applepay', 'googlepay'], braintree: ['applepay', 'googlepay'],
+    paypal_cards: ['applepay', 'googlepay'], adyen: ['applepay', 'googlepay'], checkout: ['applepay', 'googlepay'], mollie: ['applepay'], nmi: [], braintree: ['applepay', 'googlepay'],
   };
   // 连接弹窗字段规格（Stripe / Airwallex 字段、文案、Learn more 链接对齐线上 StripeAccount / AirwallexAccount）
   const PAY_FORMS = {
@@ -585,7 +586,8 @@
     adyen: { fields: [{ k: 'api', label: 'API key' }, { k: 'mer', label: 'Merchant account' }, { k: 'ck', label: 'Client key' }, { k: 'hmac', label: 'HMAC key' }] },
     checkout: { fields: [{ k: 'pub', label: 'Public key' }, { k: 'sec', label: 'Secret key' }, { k: 'wsig', label: 'Webhook signature key' }] },
     mollie: { fields: [{ k: 'api', label: 'API key (live)' }, { k: 'pid', label: 'Profile ID' }, { k: 'wsec', label: 'Webhook secret' }] },
-    nmi: { fields: [{ k: 'sk', label: 'Security key' }, { k: 'tk', label: 'Tokenization key' }, { k: 'wsk', label: 'Webhook signing key' }] },
+    nmi: { desc: 'Allows users to pay with Visa, Mastercard, American Express, Discover, Diners Club, and JCB. Apple Pay and Google Pay are not available with NMI.',
+      fields: [{ k: 'sk', label: 'Security key' }, { k: 'tk', label: 'Tokenization key' }, { k: 'wsk', label: 'Webhook signing key' }] },
     braintree: { fields: [{ k: 'mid', label: 'Merchant ID' }, { k: 'pub', label: 'Public key' }, { k: 'priv', label: 'Private key' }] },
     klarna_direct: { fields: [{ k: 'uid', label: 'API username (UID)' }, { k: 'pwd', label: 'API password' }, { k: 'region', label: 'Region（EU / NA / OC）' }] },
   };
@@ -638,11 +640,19 @@
     const paypalCards = a.key === 'paypal_cards';
     const express = pExpressFor(a);
     const expIcos = express.map((id) => PAY_ICON[id]).join(' ');
-    const intro = 'Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.';
+    const cardOnly = !express.length;
+    const intro = cardOnly
+      ? 'Once a processor is connected, card input shows at checkout. This processor does not provide Apple Pay or Google Pay.'
+      : 'Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.';
     const cardMeta = paypalCards ? 'PayPal Card Fields · Visa / Mastercard / Amex …' : 'Visa / Mastercard / Amex / UnionPay …';
-    const expressRow = paypalCards
-      ? '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-cfg="paypal">Manage PayPal connection ↗</span></span></div></div>'
-      : '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span></span></div></div>';
+    const expressMeta = cardOnly
+      ? (a.key === 'nmi'
+        ? 'NMI currently supports card payments only. Apple Pay and Google Pay are not available. To offer wallets, switch the card processor to Stripe, Airwallex, or PayPal.'
+        : 'This processor supports card payments only. Apple Pay and Google Pay are not available.')
+      : paypalCards
+        ? 'Auto-rendered by buyer environment · <span class="lnkico" data-cfg="paypal">Manage PayPal connection ↗</span>'
+        : 'Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span>';
+    const expressRow = '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">' + expressMeta + '</span></div></div>';
     return '<div class="panel card-pad">' +
       '<div class="slot-head"><span class="slot-title">Processed by ' + esc(a.name) + '</span>' + picker + '</div>' +
       '<div class="sec-sub" style="margin:0 0 14px">' + intro + '</div>' +
@@ -710,8 +720,11 @@
     const paypalImpact = key === 'paypal_cards'
       ? '<div class="dnote" style="margin-top:10px">Cards will move to PayPal. Apple Pay and Google Pay will appear only after the PayPal account, checkout domain, and buyer environment are eligible.</div>'
       : '';
+    const nmiImpact = key === 'nmi'
+      ? '<div class="dnote" style="margin-top:10px">Apple Pay and Google Pay will no longer appear at checkout. Buyers can still pay by card through NMI. PayPal Wallet and Klarna are not affected.</div>'
+      : '';
     modal({ title: 'Switch card processor', width: 440, okText: 'Switch',
-      body: '<div style="font-size:13.5px;line-height:1.65;color:var(--ink-body)">Cards and Express Checkout at checkout will switch processor. The payment methods buyers see may change accordingly.</div><div style="font-size:13px;margin-top:8px"><b>' + esc(cur ? cur.name : '—') + '</b> → <b>' + esc(p.name) + '</b></div>' + paypalImpact + '<div class="muted" style="font-size:12px;margin-top:10px">Switch during off-peak hours; in-flight transactions are unaffected.</div>',
+      body: '<div style="font-size:13.5px;line-height:1.65;color:var(--ink-body)">Cards and Express Checkout at checkout will switch processor. The payment methods buyers see may change accordingly.</div><div style="font-size:13px;margin-top:8px"><b>' + esc(cur ? cur.name : '—') + '</b> → <b>' + esc(p.name) + '</b></div>' + paypalImpact + nmiImpact + '<div class="muted" style="font-size:12px;margin-top:10px">Switch during off-peak hours; in-flight transactions are unaffected.</div>',
       onOk: (m, close) => { D.payments.cardProcessor = key; close(); renderPayments(); toast('Switched successfully'); } });
   }
 
@@ -815,9 +828,9 @@
     '.payv2 .slot-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}' +
     '.payv2 .slot-row .ic{display:flex;gap:4px;align-items:center;flex-wrap:wrap}' +
     '.payv2 .slot-row .ic img{height:20px}' +
-    '.payv2 .slot-row .bd{display:flex;flex-direction:column}' +
+    '.payv2 .slot-row .bd{display:flex;flex-direction:column;flex:1;min-width:0}' +
     '.payv2 .slot-row .lbl{font-weight:600;font-size:13.5px;color:var(--ink)}' +
-    '.payv2 .slot-row .meta{font-size:12px;color:var(--ink-muted);margin-top:2px}' +
+    '.payv2 .slot-row .meta{font-size:12px;color:var(--ink-muted);margin-top:2px;line-height:1.5}' +
     '.payv2 .slot-row .right{margin-left:auto}' +
     '.payv2 .sw{width:34px;height:20px;border-radius:9999px;background:#cfd5e4;position:relative;cursor:pointer;transition:background .15s;flex:none;display:inline-block}' +
     '.payv2 .sw.on{background:var(--brand)}' +

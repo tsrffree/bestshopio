@@ -150,7 +150,7 @@ window.DATA_SETTINGS = {
       { key: 'adyen',     name: 'Adyen',        connected: false, phase2: true },
       { key: 'checkout',  name: 'Checkout.com', connected: false, phase2: true },
       { key: 'mollie',    name: 'Mollie',       connected: false, phase2: true },
-      { key: 'nmi',       name: 'NMI',          connected: false, phase2: true },
+      { key: 'nmi',       name: 'NMI',          connected: false, phase2: true }, // Card only (Collect.js); no Apple/Google Pay
       { key: 'braintree', name: 'Braintree',    connected: false, phase2: true },
     ],
     // PayPal 账户只连一次：Wallet 可独立启用；Cards、Apple Pay、Google Pay
