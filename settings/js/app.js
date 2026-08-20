@@ -243,21 +243,20 @@
     ]);
   }
 
-  // ---- toast (platform default: top, white card + green check) ----
-  const toast = (msg) => {
-    document.querySelectorAll('.settings-toast').forEach((el) => el.remove());
+  // ---- toast — same top-centred card as BestCheckout (green circle + check) ----
+  const toast = (msg, type) => {
+    const level = type || (/failed|error|失败/i.test(String(msg)) ? 'error' : 'success');
+    const tone = level === 'error' ? '#ff4d4f' : level === 'warning' ? '#faad14' : '#52c41a';
+    const glyph = level === 'error' ? '×' : level === 'warning' ? '!' : '✓';
+    document.querySelectorAll('.set-message').forEach((message) => message.remove());
     const t = document.createElement('div');
-    const icon = document.createElement('span');
-    const text = document.createElement('span');
-    icon.textContent = '✓';
-    text.textContent = msg;
-    t.className = 'settings-toast';
+    t.className = 'set-message ' + level;
     t.setAttribute('role', 'status');
-    t.append(icon, text);
-    t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1f2433;border:1px solid #e6e8ee;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:200;box-shadow:0 6px 20px rgba(20,30,55,.14)';
-    icon.style.cssText = 'color:#1f8f4e;display:inline-flex;font-weight:700';
+    t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;max-width:min(560px,calc(100vw - 48px));padding:9px 16px;background:#fff;color:rgba(0,0,0,.88);border-radius:8px;font-size:14px;line-height:1.45;z-index:300;box-shadow:0 6px 16px rgb(0 0 0 / 8%),0 3px 6px -4px rgb(0 0 0 / 12%),0 9px 28px 8px rgb(0 0 0 / 5%)';
+    t.innerHTML = '<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:' + tone + ';color:#fff;font-size:12px;font-weight:700;line-height:1;flex:none">' + glyph + '</span><span></span>';
+    t.lastElementChild.textContent = msg;
     document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2200);
+    setTimeout(() => t.remove(), 2000);
   };
 
   // ---- confirm dialog (mirrors Ant Modal.confirm) ----
@@ -567,6 +566,24 @@
     stripe: ['applepay', 'googlepay', 'link', 'klarna', 'amazonpay'], airwallex: ['applepay', 'googlepay'],
     paypal_cards: ['applepay', 'googlepay'], adyen: ['applepay', 'googlepay'], checkout: ['applepay', 'googlepay'], mollie: ['applepay'], nmi: [], braintree: ['applepay', 'googlepay'],
   };
+  // Official merchant dashboards. Stripe has a public payment-methods URL; others
+  // land on login / dashboard home because payment-method pages need an account context.
+  const PAY_DASH = {
+    stripe: 'https://dashboard.stripe.com/settings/payment_methods',
+    airwallex: 'https://www.airwallex.com/app/login',
+    adyen: 'https://ca-live.adyen.com/ca/ca/login.shtml',
+    checkout: 'https://dashboard.checkout.com',
+    mollie: 'https://my.mollie.com/dashboard/login',
+    nmi: 'https://secure.nmi.com/merchants/login.php',
+    braintree: 'https://www.braintreegateway.com/login',
+    paypal: 'https://developer.paypal.com/dashboard',
+    paypal_cards: 'https://developer.paypal.com/dashboard',
+  };
+  function pDashLink(key, label) {
+    const href = PAY_DASH[key];
+    if (!href) return '<span class="lnkico">' + label + '</span>';
+    return '<a class="lnkico" href="' + href + '" target="_blank" rel="noopener noreferrer">' + label + '</a>';
+  }
   // 连接弹窗字段规格（Stripe / Airwallex 字段、文案、Learn more 链接对齐线上 StripeAccount / AirwallexAccount）
   const PAY_FORMS = {
     stripe: { desc: 'Allows users to pay with Card, Apple Pay, Google Pay, Link, Amazon Pay, and Klarna (where available).',
@@ -644,21 +661,19 @@
     const intro = cardOnly
       ? 'Once a processor is connected, card input shows at checkout. This processor does not provide Apple Pay or Google Pay.'
       : 'Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.';
-    const cardMeta = paypalCards ? 'PayPal Card Fields · Visa / Mastercard / Amex …' : 'Visa / Mastercard / Amex / UnionPay …';
+    const cardMeta = (paypalCards ? 'PayPal Card Fields · Visa / Mastercard / Amex …' : 'Visa / Mastercard / Amex / UnionPay …') + ' · ' + pDashLink(a.key, 'Manage in dashboard ↗');
     const expressMeta = cardOnly
       ? (a.key === 'nmi'
         ? 'NMI currently supports card payments only. Apple Pay and Google Pay are not available. To offer wallets, switch the card processor to Stripe, Airwallex, or PayPal.'
         : 'This processor supports card payments only. Apple Pay and Google Pay are not available.')
-      : paypalCards
-        ? 'Auto-rendered by buyer environment · <span class="lnkico" data-cfg="paypal">Manage PayPal connection ↗</span>'
-        : 'Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span>';
+      : 'Auto-rendered by buyer environment';
     const expressRow = '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">' + expressMeta + '</span></div></div>';
     return '<div class="panel card-pad">' +
       '<div class="slot-head"><span class="slot-title">Processed by ' + esc(a.name) + '</span>' + picker + '</div>' +
       '<div class="sec-sub" style="margin:0 0 14px">' + intro + '</div>' +
       '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Cards</span><span class="meta">' + cardMeta + '</span></div></div>' +
       expressRow +
-      '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-dash="' + a.key + '">↻ Refresh</span></div>' +
+      '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-refresh>↻ Refresh</span></div>' +
     '</div>';
   }
 
@@ -736,7 +751,12 @@
     if (key === 'paypal') D.payments.paypal.connected = true;
     else if (key === 'paypal_cards') return;
     else if (key === 'klarna_direct') { D.payments.klarna.directConnected = true; D.payments.klarna.directOn = true; }
-    else { const pr = D.payments.processors.find((p) => p.key === key); pr.connected = true; if (!D.payments.processors.some((p) => p.connected && p.key === D.payments.cardProcessor)) D.payments.cardProcessor = key; }
+    else {
+      const pr = D.payments.processors.find((p) => p.key === key);
+      const hadActive = !!pActive();
+      pr.connected = true;
+      if (!hadActive) D.payments.cardProcessor = key;
+    }
   }
   function pDisconnect(key) {
     if (key === 'paypal') {
@@ -836,7 +856,7 @@
     '.payv2 .sw.on{background:var(--brand)}' +
     '.payv2 .sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgb(0 0 0/20%)}' +
     '.payv2 .sw.on i{left:16px}' +
-    '.payv2 .lnkico{color:var(--brand);cursor:pointer}.payv2 .lnkico:hover{text-decoration:underline}' +
+    '.payv2 .lnkico{color:var(--brand);cursor:pointer;text-decoration:none}.payv2 a.lnkico{color:var(--brand)}.payv2 .lnkico:hover{text-decoration:underline}' +
     '.payv2 .syncline{font-size:12px;color:var(--ink-muted);padding-top:12px;border-top:1px solid var(--hair);display:flex;gap:8px;flex-wrap:wrap;align-items:center}' +
     '.payv2 .imeth{display:flex;align-items:center;gap:13px;padding:15px 16px;margin-bottom:12px}' +
     '.payv2 .paypal-method{display:block}.payv2 .imeth-head{display:flex;align-items:center;gap:13px}' +
@@ -889,7 +909,7 @@
     root.querySelectorAll('[data-setproc]').forEach((el) => el.onclick = () => pConfirmSwitch(el.dataset.setproc));
     root.querySelectorAll('[data-itg]').forEach((el) => el.onclick = () => { const k = el.dataset.itg; if (k === 'paypal') D.payments.paypal.walletOn = !D.payments.paypal.walletOn; else if (k === 'klarna_direct') D.payments.klarna.directOn = !D.payments.klarna.directOn; renderPayments(); });
     root.querySelectorAll('[data-cfg]').forEach((el) => el.onclick = () => pOpenConnect(el.dataset.cfg));
-    root.querySelectorAll('[data-dash]').forEach((el) => el.onclick = () => toast('(Prototype) Opens the processor dashboard — Payment method configurations'));
+    root.querySelectorAll('[data-refresh]').forEach((el) => el.onclick = () => toast('Synced from the active processor'));
   }
 
   // (旧 openProviderModal 已移除——连接/管理改由 pOpenConnect 承接，见上)
