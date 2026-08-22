@@ -8,6 +8,117 @@
 
   const blk = (id, html, sel) => '<div class="ck-blk' + (sel ? ' os-block-sel' : '') + '" data-block-id="' + esc(id) + '">' + html + '</div>';
   const TAG = '<svg class="ck-tag-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+  const discountPart = (item, key) => {
+    const direct = +((item || {})[key]) || 0;
+    if (direct || key !== 'order') return direct;
+    // Backward-compatible snapshot rows used `amount` for an order-level discount.
+    return !(+item.product || +item.shipping) ? (+item.amount || 0) : 0;
+  };
+  const discountCode = (item) => esc(item.code || item.label || 'Discount');
+
+  function multiOrderCard(order, currency) {
+    const lines = (order.lines || []).map((line) => {
+      const source = line.lineSource || (line.downsell ? 'DOWNSELL' : (line.upsell ? 'UPSELL' : ''));
+      const flag = source === 'UPSELL' || source === 'DOWNSELL'
+        ? '<span class="ck-mo-flag offer">Special offer</span>' : '';
+      const qty = +line.qty || 1;
+      const finalPrice = (+line.price || 0) * qty;
+      const comparePrice = (+line.compareAt || 0) * qty;
+      const compareHtml = comparePrice > finalPrice
+        ? '<span class="ck-mo-price-cmp">' + money(comparePrice) + '</span>' : '';
+      const deal = line.deal && comparePrice > finalPrice
+        ? '<div class="ck-mo-meta">' + TAG + '<span>' + esc(line.deal) + ' (−' + money(comparePrice - finalPrice) + ')</span></div>'
+        : '';
+      const subscription = line.subscription
+        ? '<div class="ck-mo-meta">' + TAG + '<span>' + esc(line.subscription.label) +
+          (line.subscription.save ? ' (−' + money(line.subscription.save) + ')' : '') + '</span></div>'
+        : '';
+      const image = line.bundle
+        ? '<div class="ck-mo-bundle-badge">Bundle</div>'
+        : '<div class="ck-mo-img"><img src="' + esc(line.image || '') + '" alt=""><span>' + qty + '</span></div>';
+      const children = line.bundle
+        ? '<div class="ck-mo-bundle-items">' + (line.bundleItems || []).map((item) =>
+            '<div class="ck-mo-bundle-child">' +
+              '<div class="ck-mo-child-img"><img src="' + esc(item.image || '') + '" alt=""><span>' + (+item.qty || 1) + '</span></div>' +
+              '<div class="ck-mo-info"><div class="ck-mo-child-title"><span>Included</span>' + esc(item.title || 'Bundle item') + '</div>' +
+                (item.variant ? '<div class="ck-mo-variant">' + esc(item.variant) + '</div>' : '') +
+              '</div>' +
+            '</div>'
+          ).join('') + '</div>'
+        : '';
+      return '<div class="ck-mo-line-group"><div class="ck-mo-line' + (line.bundle ? ' bundle' : '') + '">' +
+        image +
+        '<div class="ck-mo-info"><div class="ck-mo-title">' + esc(line.title || 'Product') + flag + '</div>' +
+          (line.variant ? '<div class="ck-mo-variant">' + esc(line.variant) + '</div>' : '') +
+          subscription + deal +
+        '</div>' +
+        '<div class="ck-mo-price">' + compareHtml + '<strong>' + money(finalPrice) + '</strong></div>' +
+      '</div>' + children + '</div>';
+    }).join('');
+    const applied = order.discounts || [];
+    const productDiscount = applied.reduce((sum, item) => sum + discountPart(item, 'product'), 0);
+    const orderDiscounts = applied.filter((item) => discountPart(item, 'order') > 0);
+    const shippingDiscounts = applied.filter((item) => discountPart(item, 'shipping') > 0);
+    const shippingDiscount = shippingDiscounts.reduce((sum, item) => sum + discountPart(item, 'shipping'), 0);
+    const productDiscountHtml = productDiscount > 0
+      ? '<div class="ck-mo-row discount"><span>Product Discount</span><b>−' + money(productDiscount) + '</b></div>' : '';
+    const orderDiscountHtml = orderDiscounts.length
+      ? '<div class="ck-mo-row ck-mo-discount-title"><span>Order Discount</span><b></b></div>' +
+        orderDiscounts.map((item) =>
+          '<div class="ck-mo-row discount code"><span>' + TAG + discountCode(item) + '</span><b>−' + money(discountPart(item, 'order')) + '</b></div>'
+        ).join('')
+      : '';
+    const shipping = +order.shipping || 0;
+    const shippingNet = Math.max(0, shipping - shippingDiscount);
+    const shippingPrice = shippingDiscount > 0 && shipping > 0
+      ? '<span class="ck-mo-ship-prices"><s>' + money(shipping) + '</s><strong>' + (shippingNet > 0 ? money(shippingNet) : 'FREE') + '</strong></span>'
+      : (shipping ? money(shipping) : 'FREE');
+    const shippingCodes = shippingDiscounts.map((item) =>
+      '<div class="ck-mo-row discount code"><span>' + TAG + discountCode(item) + '</span><b>−' + money(discountPart(item, 'shipping')) + '</b></div>'
+    ).join('');
+    return '<section class="ck-mo-card">' +
+      '<header class="ck-mo-head"><div><span class="ck-mo-kicker">Order</span><strong>' + esc(order.orderNumber || '') + '</strong></div></header>' +
+      '<div class="ck-mo-lines">' + lines + '</div>' +
+      '<div class="ck-mo-totals">' +
+        '<div class="ck-mo-row"><span>Subtotal · ' + (order.lines || []).reduce((n, line) => n + (+line.qty || 1), 0) + ' items</span><b>' + money(order.subtotal || 0) + '</b></div>' +
+        productDiscountHtml + orderDiscountHtml +
+        '<div class="ck-mo-row"><span>Shipping</span><b>' + shippingPrice + '</b></div>' +
+        shippingCodes +
+        '<div class="ck-mo-row total"><span>Total</span><b><small>' + esc(currency) + '</small>' + money(order.total || 0) + '</b></div>' +
+      '</div>' +
+    '</section>';
+  }
+  function renderMultiOrderSummary(s, ctx, snap) {
+    const orders = (snap.orders || []).filter((order) => (order.lines || []).length);
+    const currency = snap.currency || 'USD';
+    const totalPaid = snap.totalPaid != null
+      ? +snap.totalPaid
+      : orders.reduce((total, order) => total + (+order.paid || +order.total || 0), 0);
+    const cards = orders.map((order) => multiOrderCard(order, order.currency || currency)).join('');
+    const overview = '<div class="ck-mo-overview"><div><strong>' + orders.length + ' orders placed</strong></div>' +
+      '<div><span>Total paid</span><strong><small>' + esc(currency) + '</small>' + money(totalPaid) + '</strong></div></div>';
+    if (ctx.mob) {
+      const collapsed = (s.mobile_default || 'collapsed') === 'collapsed';
+      const head = s.heading || 'Order summary';
+      const bg = s.background_color || 'var(--ck-sum-bg)';
+      const txt = s.text_color || 'var(--ck-sum-text)';
+      const totalColor = s.total_color || txt;
+      return '<div class="ck-summary mob tymob ck-multi-mobile' + (collapsed ? ' collapsed' : '') + '" data-ck-summary style="background:' + bg + ';color:' + txt + ';--ck-mo-text:' + txt + ';--ck-mo-total:' + totalColor + '">' +
+        '<button class="ck-tymsum-head" type="button" data-ck-sum-toggle>' +
+          '<span class="ck-tymsum-title">' + esc(head) + '<span class="ck-tymsum-chev">▾</span></span>' +
+          '<span class="ck-tymsum-total" style="color:' + totalColor + '"><span class="cur">' + esc(currency) + '</span>' + money(totalPaid) + '</span>' +
+        '</button>' +
+        '<div class="ck-summary-body"><div class="ck-multi-summary">' + cards + '</div></div>' +
+      '</div>';
+    }
+    const heading = s.show_heading_pc
+      ? '<h3 class="ck-sum-h">' + esc(s.heading || 'Order summary') + '</h3>' : '';
+    const txt = s.text_color || 'var(--ck-sum-text)';
+    const totalColor = s.total_color || txt;
+    return '<div class="ck-summary ck-multi-shell" style="color:' + txt + ';--ck-mo-text:' + txt + ';--ck-mo-total:' + totalColor + '"><div class="ck-multi-summary">' +
+      heading + cards + overview +
+    '</div></div>';
+  }
 
   OS.register('checkout-order-summary', {
     name: 'Order Summary', icon: 'cart',
@@ -41,6 +152,9 @@
       // hides every interactive bit — no coupon input, no editable qty (PRD §5.3/§14).
       const snap = ctx.snapshot;
       const mock = ctx.checkout || {};
+      if (snap && Array.isArray(snap.orders) && snap.orders.filter((order) => (order.lines || []).length).length > 1) {
+        return renderMultiOrderSummary(s, ctx, snap);
+      }
       // Live add-ons: upsell picks become extra cart lines; insurance / VIP become
       // their own summary rows (computed centrally in app.js, shared by every surface).
       const add = snap ? { rows: [], lines: [] } : (ctx.ckAddons || { rows: [], lines: [] });
@@ -65,9 +179,9 @@
       // Item 2 — Shopify itemises discounts into three types: product (line-item),
       // order, and shipping. Each type sums across every applied coupon; each non-zero
       // type renders its own row and all of them deduct from the Total.
-      const dProduct = appliedList.reduce((t, c) => t + (+c.product || 0), 0);
-      const dOrder = appliedList.reduce((t, c) => t + (+c.order || 0), 0);
-      const dShip = appliedList.reduce((t, c) => t + (+c.shipping || 0), 0);
+      const dProduct = appliedList.reduce((t, c) => t + discountPart(c, 'product'), 0);
+      const dOrder = appliedList.reduce((t, c) => t + discountPart(c, 'order'), 0);
+      const dShip = appliedList.reduce((t, c) => t + discountPart(c, 'shipping'), 0);
       const discount = dProduct + dOrder + dShip;
       const tax = snap ? (snap.tax || 0) : (mock.tax || 0);
       const addonTotal = (add.rows || []).reduce((t, r) => t + (+r.amount || 0), 0);
@@ -87,8 +201,10 @@
         const cmp = l.compareAt && l.compareAt > l.price ? '<span class="ck-line-cmp">' + money(l.compareAt) + '</span>' : '';
         const deal = (l.deal && l.compareAt && l.compareAt > l.price)
           ? '<div class="ck-line-deal">' + TAG + '<span>' + esc(l.deal) + ' (−' + money((l.compareAt - l.price) * l.qty) + ')</span></div>' : '';
-        // Final-order lines may carry an accepted upsell/downsell flag (PRD §14.4).
-        const flag = l.upsell ? '<span class="ck-line-flag">Added offer</span>' : (l.downsell ? '<span class="ck-line-flag">Special offer</span>' : '');
+        // Base-order previews use one buyer-facing label for either offer source.
+        const source = l.lineSource || (l.downsell ? 'DOWNSELL' : (l.upsell ? 'UPSELL' : ''));
+        const flag = source === 'UPSELL' || source === 'DOWNSELL'
+          ? '<span class="ck-line-flag">Special offer</span>' : '';
         const variantHtml = l.variant ? '<div class="ck-line-v">' + esc(l.variant) + '</div>' : '';
         // Item 3 — subscription cadence tag (the (−$x) is the subscription saving).
         const subTag = l.subscription
@@ -144,26 +260,42 @@
       const sub = find('subtotal'), dis = find('discount'), shp = find('shipping'), tx = find('tax'), tot = find('total');
       const savingsLine = savings > 0 ? '<div class="ck-savings">' + TAG + '<span>Total savings ' + money(savings) + '</span></div>' : '';
       const addonRows = (add.rows || []).map((r) => '<div class="ck-trow ck-addon"><span class="lbl">' + esc(r.label) + '</span><span class="amt">' + money(r.amount) + '</span></div>').join('');
-      // Item 2 — a separate discount row per non-zero type (Shopify-style labels), on both
-      // Checkout and Thank you. On Thank you the coupon input is hidden, so the applied
-      // discount code(s) render as read-only chip rows above the itemised amounts.
-      const discRows = [];
-      if (dProduct > 0) discRows.push(['Product discount', dProduct]);
-      if (dOrder > 0) discRows.push(['Order discount', dOrder]);
-      if (dShip > 0) discRows.push(['Shipping discount', dShip]);
-      const codeRows = snap
-        ? appliedList.filter((c) => c.code).map((c) =>
-            '<div class="ck-trow ck-disc-code"><span class="lbl"><span class="ck-code-chip">' + TAG + '<span class="code">' + esc(c.code) + '</span></span></span><span class="amt"></span></div>').join('')
+      // Shopify-style grouping: Order Discount is a heading followed by each code and
+      // its amount; Shipping shows gross → net, followed by each shipping code.
+      const productDiscountRow = dProduct > 0
+        ? '<div class="ck-trow ck-disc"><span class="lbl">Product Discount</span><span class="amt">−' + money(dProduct) + '</span></div>'
         : '';
-      const discInner = codeRows + discRows.map((d) => '<div class="ck-trow ck-disc"><span class="lbl">' + esc(d[0]) + '</span><span class="amt">−' + money(d[1]) + '</span></div>').join('');
+      const orderDiscountItems = appliedList.filter((item) => discountPart(item, 'order') > 0);
+      const orderDiscountRows = orderDiscountItems.length
+        ? '<div class="ck-trow ck-disc-heading"><span class="lbl">Order Discount</span><span class="amt"></span></div>' +
+          orderDiscountItems.map((item) =>
+            '<div class="ck-trow ck-disc-code"><span class="lbl">' + TAG + '<span class="code">' + discountCode(item) + '</span></span>' +
+              '<span class="amt">−' + money(discountPart(item, 'order')) + '</span></div>'
+          ).join('')
+        : '';
+      const discInner = productDiscountRow + orderDiscountRows;
       const discountHtml = discInner
         ? blk(dis.id, discInner, sel === dis.id)
         : '';
+      const shippingDiscountItems = appliedList.filter((item) => discountPart(item, 'shipping') > 0);
+      const shippingNet = Math.max(0, shipPrice - dShip);
+      const shippingAmount = dShip > 0 && shipPrice > 0
+        ? '<span class="ck-ship-prices"><s>' + money(shipPrice) + '</s><strong>' + (shippingNet > 0 ? money(shippingNet) : 'FREE') + '</strong></span>'
+        : (shipPrice ? money(shipPrice) : 'FREE');
+      const shippingCodeRows = shippingDiscountItems.map((item) =>
+        '<div class="ck-trow ck-disc-code ck-ship-code"><span class="lbl">' + TAG + '<span class="code">' + discountCode(item) + '</span></span>' +
+          '<span class="amt">−' + money(discountPart(item, 'shipping')) + '</span></div>'
+      ).join('');
+      const shippingSettings = shp.settings || {};
+      const shippingHtml = blk(shp.id,
+        '<div class="ck-trow ck-shipping-main"><span class="lbl">' + esc(shippingSettings.row_label || 'Shipping') + '</span><span class="amt">' + shippingAmount + '</span></div>' +
+        shippingCodeRows,
+        sel === shp.id);
       const totals = '<div class="ck-totals">' +
         row(sub, money(subtotal), { suffix: ' <span class="ck-itemc">· ' + itemCount + ' items</span>' }) +
         discountHtml +
-        row(shp, shipPrice ? money(shipPrice) : 'Free') +
-        row(tx, money(tax)) +
+        shippingHtml +
+        (snap ? '' : row(tx, money(tax))) +
         addonRows +
         blk(tot.id, '<div class="ck-trow grand" style="color:' + totalColor + '"><span class="lbl">' + esc((tot.settings || {}).row_label || 'Total') + '</span><span class="amt"><span class="cur">' + esc(cur) + '</span>' + money(total) + '</span></div>', sel === tot.id) +
         savingsLine +
@@ -263,4 +395,45 @@
       }));
     },
   });
+
+  OS.css('ck-multi-order-summary', `
+  .ck-trow.ck-disc-heading{margin-bottom:7px}.ck-trow.ck-disc-heading .lbl{font-weight:500}
+  .ck-trow.ck-disc-code{margin-bottom:10px;padding-left:0;color:var(--ck-sum-muted);font-size:var(--ck-small-fs)}
+  .ck-trow.ck-disc-code .lbl{color:var(--ck-sum-muted);gap:7px}.ck-trow.ck-disc-code .ck-tag-i{flex:none}
+  .ck-trow.ck-disc-code .code{letter-spacing:.01em}.ck-trow.ck-disc-code .amt{color:var(--ck-sum-text);font-size:var(--ck-base-fs)}
+  .ck-trow.ck-shipping-main{margin-bottom:7px}.ck-ship-prices{display:inline-flex;align-items:center;gap:8px}
+  .ck-ship-prices s{color:var(--ck-sum-muted);font-weight:400}.ck-ship-prices strong{font-weight:500;color:var(--ck-sum-text)}
+  .ck-multi-summary{display:flex;flex-direction:column;gap:14px}
+  .ck-mo-overview{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:16px;border:1px solid var(--ck-divider);border-radius:10px;background:rgba(255,255,255,.6)}
+  .ck-mo-overview>div{display:flex;flex-direction:column;gap:3px}.ck-mo-overview strong{color:var(--ck-mo-text,var(--ck-text));font-size:15px}
+  .ck-mo-overview span{color:var(--ck-muted);font-size:11px;line-height:1.45}.ck-mo-overview>div:last-child{text-align:right;flex:none}
+  .ck-mo-overview>div:last-child strong{font-size:20px;color:var(--ck-mo-total,var(--ck-mo-text,var(--ck-text)))}.ck-mo-overview small,.ck-mo-row.total small{font-size:10px;font-weight:500;color:var(--ck-muted);margin-right:5px}
+  .ck-mo-card{border:1px solid var(--ck-divider);border-radius:10px;background:rgba(255,255,255,.74);overflow:hidden}
+  .ck-mo-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border-bottom:1px solid var(--ck-divider)}
+  .ck-mo-head>div{display:flex;align-items:baseline;gap:7px;min-width:0}.ck-mo-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ck-muted)}
+  .ck-mo-head strong{font-size:13px;color:var(--ck-mo-text,var(--ck-text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ck-mo-lines{padding:2px 14px}.ck-mo-line-group{border-bottom:1px solid var(--ck-divider)}.ck-mo-line-group:last-child{border-bottom:0}
+  .ck-mo-line{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:11px;padding:12px 0}.ck-mo-line.bundle{align-items:flex-start;padding-bottom:8px}
+  .ck-mo-img{position:relative;width:48px;height:48px;border-radius:8px;background:#f4f4f4;overflow:visible}
+  .ck-mo-img img{width:100%;height:100%;display:block;object-fit:cover;border-radius:8px}.ck-mo-img>span{position:absolute;right:-6px;top:-6px;min-width:19px;height:19px;padding:0 4px;border-radius:10px;background:#707070;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center}
+  .ck-mo-info{min-width:0}.ck-mo-title{font-size:12px;color:var(--ck-mo-text,var(--ck-text));line-height:1.35;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ck-mo-variant{font-size:10.5px;color:var(--ck-muted);margin-top:3px}
+  .ck-mo-meta{display:flex;align-items:center;gap:5px;margin-top:4px;color:var(--ck-muted);font-size:10.5px}.ck-mo-meta .ck-tag-i{flex:none}
+  .ck-mo-bundle-badge{width:48px;min-height:30px;display:flex;align-items:center;justify-content:center;border-radius:7px;background:#111;color:#fff;font-size:10px;font-weight:700;padding:5px}
+  .ck-mo-bundle-items{padding:0 0 10px 59px}.ck-mo-bundle-child{display:grid;grid-template-columns:36px minmax(0,1fr);gap:9px;align-items:center;padding:6px 0}
+  .ck-mo-child-img{position:relative;width:36px;height:36px}.ck-mo-child-img img{width:100%;height:100%;object-fit:cover;border-radius:6px}.ck-mo-child-img>span{position:absolute;right:-5px;top:-5px;min-width:16px;height:16px;border-radius:9px;background:#707070;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center}
+  .ck-mo-child-title{font-size:10.5px;color:var(--ck-mo-text,var(--ck-text));line-height:1.35}.ck-mo-child-title>span{display:inline-block;margin-right:6px;padding:2px 6px;border-radius:5px;background:#fff2e3;color:#d9822b;font-size:9px;font-weight:700}
+  .ck-mo-price{font-size:12px;color:var(--ck-mo-text,var(--ck-text));white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;gap:2px}.ck-mo-price strong{font-weight:600}.ck-mo-price-cmp{font-size:10px;font-weight:400;color:var(--ck-muted);text-decoration:line-through}.ck-mo-flag{font-size:9px;font-weight:700;line-height:1;border-radius:999px;padding:4px 6px;text-transform:uppercase;letter-spacing:.035em}
+  .ck-mo-flag.offer{background:#edf5f0;color:#35634b}
+  .ck-mo-totals{border-top:1px solid var(--ck-divider);padding:9px 14px 12px}.ck-mo-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;font-size:11px;color:var(--ck-mo-text,var(--ck-text))}
+  .ck-mo-row b{font-weight:500;color:var(--ck-mo-text,var(--ck-text));white-space:nowrap}.ck-mo-row.discount span{display:inline-flex;align-items:center;gap:5px}.ck-mo-row.discount{color:#59655f}
+  .ck-mo-row.ck-mo-discount-title{padding-bottom:1px}.ck-mo-row.ck-mo-discount-title span{font-weight:500}.ck-mo-row.discount.code{font-size:10.5px;padding-top:2px}.ck-mo-row.discount.code .ck-tag-i{flex:none}
+  .ck-mo-ship-prices{display:inline-flex;align-items:center;gap:7px}.ck-mo-ship-prices s{color:var(--ck-muted);font-weight:400}.ck-mo-ship-prices strong{color:var(--ck-mo-text,var(--ck-text));font-weight:500}
+  .ck-mo-row.total{border-top:1px solid var(--ck-divider);margin-top:5px;padding-top:10px;font-size:14px;color:var(--ck-mo-total,var(--ck-mo-text,var(--ck-text)))}.ck-mo-row.total b{font-size:15px;font-weight:700;color:var(--ck-mo-total,var(--ck-mo-text,var(--ck-text)))}
+  .ckpage.mob .ck-multi-summary{gap:12px}.ckpage.mob .ck-mo-overview{border-left:0;border-right:0;border-radius:0;padding:14px var(--ck-mob-pad)}
+  .ckpage.mob .ck-mo-overview>div:first-child span{display:none}.ckpage.mob .ck-mo-card{margin:0 var(--ck-mob-pad);border-radius:8px}
+  .ckpage.mob .ck-multi-mobile .ck-mo-overview{padding:0 0 12px;border:0;border-bottom:1px solid var(--ck-divider)}
+  .ckpage.mob .ck-multi-mobile .ck-mo-card{margin:0}
+  .ck-multi-mobile .ck-tymsum-title{color:var(--ck-mo-text,var(--ck-text))}
+  @media(max-width:440px){.ck-mo-overview{align-items:center}.ck-mo-overview>div:last-child strong{font-size:17px}.ck-mo-line{grid-template-columns:44px minmax(0,1fr) auto}.ck-mo-img{width:44px;height:44px}}
+  `);
 })();

@@ -6,6 +6,11 @@
   if (!window.OS) return;
   const { esc, money, ckFloat } = OS;
   const TAG = '<svg class="ck-tag-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+  const discountPart = (item, key) => {
+    const direct = +((item || {})[key]) || 0;
+    if (direct || key !== 'order') return direct;
+    return !(+item.product || +item.shipping) ? (+item.amount || 0) : 0;
+  };
 
   OS.register('checkout-order-summary-bar', {
     name: 'Order Summary (top bar)', icon: 'cart',
@@ -37,11 +42,10 @@
       const shipPrice = snap ? (snap.shipping || 0) : (ship.price || 0);
       // Reflect the applied coupons (shared runtime key) so this bar matches the
       // bottom Order Summary. Multiple coupons stack. Default: none → no discount.
-      // The snapshot carries a single lump discount instead of live coupon rows.
-      const appliedList = snap ? [] : ((OS.ckState || {})['ck-coupons'] || []);
-      const dOrder = snap ? 0 : appliedList.reduce((t, c) => t + (+c.order || 0), 0);
-      const dShip = snap ? 0 : appliedList.reduce((t, c) => t + (+c.shipping || 0), 0);
-      const dProduct = snap ? (snap.discount || 0) : appliedList.reduce((t, c) => t + (+c.product || 0), 0);
+      const appliedList = snap ? (snap.discounts || []) : ((OS.ckState || {})['ck-coupons'] || []);
+      const dOrder = appliedList.reduce((t, c) => t + discountPart(c, 'order'), 0);
+      const dShip = appliedList.reduce((t, c) => t + discountPart(c, 'shipping'), 0);
+      const dProduct = appliedList.reduce((t, c) => t + discountPart(c, 'product'), 0);
       const discount = dProduct + dOrder + dShip;
       const tax = snap ? (snap.tax || 0) : (mock.tax || 0);
       const addonTotal = (add.rows || []).reduce((t, r) => t + (+r.amount || 0), 0);
@@ -80,15 +84,29 @@
       }
       const trow = (lbl, val) => '<div class="ck-trow"><span class="lbl">' + esc(lbl) + '</span><span class="amt">' + val + '</span></div>';
       const addonRows = (add.rows || []).map((r) => trow(r.label, money(r.amount))).join('');
-      const discRows = snap
-        ? (discount > 0 ? trow('Discount', '−' + money(discount)) : '')
-        : ((dProduct > 0 ? trow('Product discount', '−' + money(dProduct)) : '') +
-          (dOrder > 0 ? trow('Order discount', '−' + money(dOrder)) : '') +
-          (dShip > 0 ? trow('Shipping discount', '−' + money(dShip)) : ''));
+      const productDiscountRow = dProduct > 0 ? trow('Product Discount', '−' + money(dProduct)) : '';
+      const orderDiscountItems = appliedList.filter((item) => discountPart(item, 'order') > 0);
+      const orderDiscountRows = orderDiscountItems.length
+        ? '<div class="ck-trow ck-disc-heading"><span class="lbl">Order Discount</span><span class="amt"></span></div>' +
+          orderDiscountItems.map((item) =>
+            '<div class="ck-trow ck-disc-code"><span class="lbl">' + TAG + '<span class="code">' + esc(item.code || item.label || 'Discount') + '</span></span>' +
+              '<span class="amt">−' + money(discountPart(item, 'order')) + '</span></div>'
+          ).join('')
+        : '';
+      const shippingDiscountItems = appliedList.filter((item) => discountPart(item, 'shipping') > 0);
+      const shippingNet = Math.max(0, shipPrice - dShip);
+      const shippingAmount = dShip > 0 && shipPrice > 0
+        ? '<span class="ck-ship-prices"><s>' + money(shipPrice) + '</s><strong>' + (shippingNet > 0 ? money(shippingNet) : 'FREE') + '</strong></span>'
+        : (shipPrice ? money(shipPrice) : 'FREE');
+      const shippingCodeRows = shippingDiscountItems.map((item) =>
+        '<div class="ck-trow ck-disc-code ck-ship-code"><span class="lbl">' + TAG + '<span class="code">' + esc(item.code || item.label || 'Discount') + '</span></span>' +
+          '<span class="amt">−' + money(discountPart(item, 'shipping')) + '</span></div>'
+      ).join('');
       const totals = '<div class="ck-totals">' +
         trow('Subtotal', money(subtotal)) +
-        discRows +
-        trow('Shipping', shipPrice ? money(shipPrice) : 'Free') +
+        productDiscountRow + orderDiscountRows +
+        '<div class="ck-trow ck-shipping-main"><span class="lbl">Shipping</span><span class="amt">' + shippingAmount + '</span></div>' +
+        shippingCodeRows +
         trow('Taxes', money(tax)) +
         addonRows +
         '<div class="ck-trow grand" style="color:' + totalColor + '"><span class="lbl">Total</span><span class="amt">' + money(total) + '</span></div>' +

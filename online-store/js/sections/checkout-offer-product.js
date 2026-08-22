@@ -77,6 +77,14 @@
     const parts = String(value || '').split('::');
     return { productId: parts[0] || '', variantId: parts[1] && parts[1] !== 'default' ? parts[1] : '' };
   };
+  const mappingPurchasedVariantRefs = (mapping) => {
+    if (mapping && Array.isArray(mapping.purchasedVariantIds)) return mapping.purchasedVariantIds;
+    return mapping && mapping.purchasedProductId ? [mapping.purchasedProductId] : [];
+  };
+  const canonicalVariantRef = (value) => {
+    const ref = productRef(value);
+    return ref.productId ? ref.productId + '::' + (ref.variantId || 'default') : '';
+  };
   const productsForRefs = (values, catalog) => {
     const groups = [];
     (values || []).forEach((value) => {
@@ -162,8 +170,11 @@
       }
     } else if (rule === 'mapping') {
       const mappings = Array.isArray(settings.product_mappings) ? settings.product_mappings : [];
-      matchedMapping = mappings.find((mapping) => mapping.purchasedProductId && orderIds.has(mapping.purchasedProductId) &&
-        Array.isArray(mapping.recommendedProductIds) && mapping.recommendedProductIds.length) || null;
+      matchedMapping = mappings.find((mapping) => mappingPurchasedVariantRefs(mapping).some((value) => {
+        const ref = productRef(value);
+        return order.lines.some((line) => line.productId === ref.productId &&
+          (!ref.variantId || ref.variantId === String(line.variantId || 'default')));
+      }) && Array.isArray(mapping.recommendedProductIds) && mapping.recommendedProductIds.length) || null;
       candidateRefs = matchedMapping ? matchedMapping.recommendedProductIds.slice() : [];
     } else if (rule === 'most_expensive' || rule === 'least_expensive') {
       const ranked = order.lines.filter((line) => +line.quantity > 0 && (+line.paidAmount / +line.quantity) > 0).sort((a, b) => {
@@ -187,8 +198,7 @@
         if (!availableProduct(product) || purchased.has(id) || priorIds.has(id)) return;
         if (rule === 'best_sellers' && ctx.checkoutPage === 'downsell' &&
             (upsellThreshold == null || effectivePrice(product, settings, offer.currency) >= upsellThreshold)) return;
-        const excludeOriginal = rule === 'best_sellers' || settings.exclude_original_order_products !== false;
-        if (excludeOriginal && orderIds.has(id) && !(allowOriginalPrimary && !isDefault)) return;
+        if (orderIds.has(id) && !(allowOriginalPrimary && !isDefault)) return;
         filtered.push(product);
       });
     };
@@ -259,16 +269,13 @@
         info: 'Select up to 10 products, then choose the eligible variants. Drag to set storefront order.',
         visibleWhen: (s) => (s.recommendation_rule || 'best_sellers') === 'specific' },
       { key: 'product_mappings', label: 'Order product mapping', control: 'product_mappings', default: [], max: 50,
-        info: 'The first mapping matched from top to bottom wins.',
+        info: 'Select one or more purchased product variants per mapping. A mapping matches when the order contains any selected variant; the first matched mapping wins.',
         visibleWhen: (s) => s.recommendation_rule === 'mapping' },
       { sub: 'Default products' },
       { key: 'default_products', label: 'Default product variants', control: 'ordered_variants', default: [], max: 10,
         info: 'Select fallback products and their eligible variants, then drag to set priority.' },
       { key: 'fill_default_products', label: 'Fill with default products', control: 'toggle', default: true },
       { sub: 'Product filters' },
-      { key: 'exclude_original_order_products', label: 'Exclude original order products', control: 'toggle', default: true,
-        info: 'Most/Least expensive rules may still return the selected purchased product.',
-        visibleWhen: (s) => (s.recommendation_rule || 'best_sellers') !== 'best_sellers' },
       { key: 'maximum_products', label: 'Maximum products', control: 'number', default: 4, min: 1, max: 10,
         info: 'Enter a value from 1 to 10. The storefront displays no more than this number.' },
       { sub: 'Discount' },
@@ -311,8 +318,8 @@
       return {
         specific_products: ['p3::p3-blk-m', 'p5::default', 'p6::default', 'p7::default'],
         product_mappings: [
-          { id: 'map-p1', purchasedProductId: 'p1', recommendedProductIds: ['p3::p3-blk-m', 'p6::default'] },
-          { id: 'map-p5', purchasedProductId: 'p5', recommendedProductIds: ['p7::default', 'p8::default'] },
+          { id: 'map-p1', purchasedVariantIds: ['p1::default'], recommendedProductIds: ['p3::p3-blk-m', 'p6::default'] },
+          { id: 'map-p5', purchasedVariantIds: ['p5::default'], recommendedProductIds: ['p7::default', 'p8::default'] },
         ],
         default_products: [],
       };
@@ -329,9 +336,14 @@
         if (mappings.length > 50) issues.push('You can create up to 50 product mappings.');
         const seen = new Set();
         mappings.forEach((mapping, index) => {
-          if (!mapping.purchasedProductId) issues.push('Mapping ' + (index + 1) + ': Select a purchased product.');
-          else if (seen.has(mapping.purchasedProductId)) issues.push('Mapping ' + (index + 1) + ': A mapping for this product already exists.');
-          else seen.add(mapping.purchasedProductId);
+          const purchasedRefs = mappingPurchasedVariantRefs(mapping).map(canonicalVariantRef).filter(Boolean);
+          if (!purchasedRefs.length) {
+            issues.push('Mapping ' + (index + 1) + ': Select at least one purchased product variant.');
+          } else {
+            const duplicate = purchasedRefs.some((ref) => seen.has(ref));
+            if (duplicate) issues.push('Mapping ' + (index + 1) + ': A purchased product variant is already used in another mapping.');
+            purchasedRefs.forEach((ref) => seen.add(ref));
+          }
           if (!Array.isArray(mapping.recommendedProductIds) || !mapping.recommendedProductIds.length) {
             issues.push('Mapping ' + (index + 1) + ': Select at least one recommended product variant.');
           }
@@ -563,6 +575,9 @@
               offerFinalPrice: quote.finalUnit,
               offer_final_price: quote.finalUnit,
               currency,
+              lineSource: (ctx && ctx.checkoutPage) === 'downsell' ? 'DOWNSELL' : 'UPSELL',
+              orderRole: (((OS.ckState || {})['post-purchase-offer-flow'] || {}).mergeWindowClosed)
+                ? 'LATE_UPSELL' : 'BASE',
             };
             line[(ctx && ctx.checkoutPage) === 'downsell' ? 'downsell' : 'upsell'] = true;
             const existingLine = locked.findIndex((item) => item.id === line.id);

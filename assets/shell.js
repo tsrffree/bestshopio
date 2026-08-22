@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260817-analytics-v1-scope1'; // cache-bust for lazy-loaded module scripts
+  var V = '20260820-home-apps1'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var clarityMark = '<img class="nav-ico clarity-mark" src="https://claritystatic.azureedge.net/images/logo.ico" alt="" aria-hidden="true" referrerpolicy="no-referrer">';
   var ICONS = {
@@ -58,7 +58,10 @@
   try {
     var qsStore = new URLSearchParams(location.search).get('store');
     activeStore = STORES.filter(function (store) { return store.name === qsStore; })[0] || null;
-    if (activeStore) SITE.store = activeStore.name;
+    if (activeStore) {
+      SITE.store = activeStore.name;
+      if (activeStore.storefrontDomain || activeStore.url) SITE.storefrontDomain = activeStore.storefrontDomain || activeStore.url;
+    }
     // V1.139 provisioning still sends ?new=1. Normal entry derives the Home from store state.
     isNewStore = !!(activeStore && activeStore.homeState === 'setup') || new URLSearchParams(location.search).get('new') === '1';
   } catch (e) {}
@@ -171,7 +174,7 @@
     // Online store is a self-contained Theme editor. Version it independently so
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
     var moduleV = id === 'settings' ? '20260820-psp-dash5'
-      : id === 'online-store' ? '20260806paypalfieldrhythm1'
+      : id === 'online-store' ? '20260822theme-sync1'
       : id === 'analytics' ? '20260818-yaxis-six1' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every
     // other lazily loaded module.
@@ -182,6 +185,10 @@
     // first so a direct #/customers entry cannot fall back to stale duplicate mocks.
     chain = chain.then(function () {
       if (id === 'customers' && !window.DATA_ORDERS) return loadScript('orders/js/data.js?v=' + V);
+    });
+    chain = chain.then(function () {
+      if (id === 'online-store' && !window.POST_PURCHASE_ORDER_MOCK)
+        return loadScript('assets/post-purchase-order-mock.js?v=' + moduleV);
     });
     chain = chain.then(function () {
       if (id === 'subscriptions' && window.DATA_SUBS) return;
@@ -294,6 +301,35 @@
   }
 
   // ---------- Merchant operating Home ----------
+  function homeScenarioFlags() {
+    var id = isNewStore ? 'setup' : ((activeStore && activeStore.homeScenario) || 'attention');
+    var scenarios = {
+      attention: { fulfill: true, pastDue: true, trackingWarn: true, subscriptions: true, bundles: true },
+      healthy: { fulfill: false, pastDue: false, trackingWarn: false, subscriptions: true, bundles: true },
+      'no-subs': { fulfill: true, pastDue: false, trackingWarn: false, subscriptions: false, bundles: true },
+      'no-apps': { fulfill: false, pastDue: false, trackingWarn: false, subscriptions: false, bundles: false },
+      setup: { fulfill: false, pastDue: false, trackingWarn: false, subscriptions: false, bundles: false }
+    };
+    return scenarios[id] || scenarios.attention;
+  }
+  function homeStoreHealth(items, scenario) {
+    var domain = SITE.storefrontDomain || 'lovocross.com';
+    return (items || []).map(function (item) {
+      var next = {
+        label: item.label,
+        value: item.value,
+        detail: item.detail,
+        tone: item.tone,
+        href: item.href
+      };
+      if (next.label === 'Online store') next.detail = domain;
+      if (next.label === 'Event tracking' && !scenario.trackingWarn) {
+        next.value = 'Connected';
+        next.tone = 'ok';
+      }
+      return next;
+    });
+  }
   function homeEsc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
@@ -314,11 +350,16 @@
     };
     return states[order.order_status] || ['Open', 'muted'];
   }
-  function homeOrderTags(order) {
+  function homeOrderTags(order, scenario) {
     var tags = [];
-    if (order.source === 'BestCheckout') tags.push('<span class="home-order-tag home-order-source">BestCheckout</span>');
-    if (order.bundle) tags.push('<span class="home-order-tag">Bundle</span>');
-    if (order.sub || order.has_subscription) tags.push('<span class="home-order-tag home-order-sub">Subscription</span>');
+    var channel = order.channel || order.source;
+    if (channel && channel !== 'Online store' && channel !== 'BestCheckout') {
+      tags.push('<span class="home-order-tag home-order-source">' + homeEsc(channel) + '</span>');
+    }
+    if (order.bundle && !(scenario && scenario.bundles === false)) tags.push('<span class="home-order-tag">Bundle</span>');
+    if (scenario && scenario.subscriptions !== false && (order.sub || order.has_subscription)) {
+      tags.push('<span class="home-order-tag home-order-sub">Subscription</span>');
+    }
     return tags.join('');
   }
   function homeChartHtml(period) {
@@ -350,25 +391,30 @@
     return '<a class="home-kpi" href="' + metric.href + '"><span class="home-kpi-label">' + homeEsc(metric.title) + '</span>' +
       '<strong>' + homeEsc(metric.value) + '</strong><span class="home-kpi-meta"><b>' + homeEsc(metric.change) + '</b> ' + homeEsc(comparison) + '</span></a>';
   }
-  function homeAttentionHtml(orders, subscriptions) {
-    var fulfillment = orders.filter(function (order) { return order.order_status === 'to_ship' && order.payment_status === 'paid'; }).length;
-    var writeback = orders.filter(function (order) {
-      return order.source === 'BestCheckout' && (order.shopify_writeback_status === 'pending' || order.shopify_writeback_status === 'failed');
-    }).length;
-    var pastDue = subscriptions.filter(function (subscription) { return subscription.status === 'past_due'; }).length;
+  function homeAttentionHtml(orders, subscriptions, storeHealth, scenario) {
+    var fulfillOrders = scenario.subscriptions === false
+      ? orders.filter(function (order) { return !order.sub && !order.has_subscription; })
+      : orders;
+    var fulfillment = scenario.fulfill ? fulfillOrders.filter(function (order) { return order.order_status === 'to_ship' && order.payment_status === 'paid'; }).length : 0;
+    var pastDue = scenario.pastDue ? subscriptions.filter(function (subscription) { return subscription.status === 'past_due'; }).length : 0;
+    var tracking = scenario.trackingWarn ? (storeHealth || []).filter(function (item) { return item.label === 'Event tracking' && item.tone === 'warn'; })[0] : null;
     var items = [];
     if (fulfillment) items.push({ count: fulfillment, label: 'Orders to fulfill', detail: 'Paid orders are ready to ship', href: '#/orders', icon: 'inbox', tone: 'warn' });
     if (pastDue) items.push({ count: pastDue, label: 'Subscription charge failed', detail: 'Review the contract before the next retry', href: '#/subscriptions/contracts', icon: 'refresh', tone: 'danger' });
-    if (writeback) items.push({ count: writeback, label: 'BestCheckout order needs review', detail: 'Shopify write-back requires attention', href: '#/bestcheckout/connect', icon: 'card', tone: 'warn' });
-    if (!items.length) return '<section class="home-attention home-attention-clear"><div class="home-attention-clear-icon">' + ICONS.home + '</div><div><strong>Everything is on track</strong><span>No orders, subscriptions, or checkout connections need action right now.</span></div></section>';
-    return '<section class="home-attention"><div class="home-attention-top"><div><div class="home-overline">Needs attention</div><div class="home-attention-title">Keep today&apos;s sales moving</div></div><a class="home-text-link" href="#/orders">View all orders</a></div><div class="home-attention-grid">' + items.map(function (item) {
+    if (tracking) items.push({ count: 2, label: 'Event tracking needs review', detail: tracking.detail || 'Google and Meta events', href: tracking.href || '#/google', icon: 'analytics', tone: 'warn' });
+    if (!items.length) return '<section class="home-attention home-attention-clear"><div class="home-attention-clear-icon">' + ICONS.home + '</div><div><strong>Everything is on track</strong><span>No orders or subscriptions need action right now.</span></div></section>';
+    return '<section class="home-attention"><div class="home-attention-top"><div><div class="home-overline">Needs attention</div><div class="home-attention-title">Keep today&apos;s sales moving</div></div><a class="home-text-link" href="#/orders">View all orders</a></div><div class="home-attention-grid home-attention-count-' + items.length + '">' + items.map(function (item) {
       return '<a class="home-attention-item" href="' + item.href + '"><span class="home-attention-icon home-attention-' + item.tone + '">' + (ICONS[item.icon] || ICONS.inbox) + '</span><span class="home-attention-copy"><b>' + item.count + '</b><strong>' + item.label + '</strong><small>' + item.detail + '</small></span><span class="home-row-caret">&rsaquo;</span></a>';
     }).join('') + '</div></section>';
   }
-  function homeRecentOrdersHtml(orders) {
-    var rows = orders.slice(0, 5).map(function (order) {
+  function homeRecentOrdersHtml(orders, scenario) {
+    var rows = orders.filter(function (order) {
+      if (scenario && scenario.subscriptions === false && (order.sub || order.has_subscription)) return false;
+      if (scenario && scenario.bundles === false && order.bundle) return false;
+      return true;
+    }).slice(0, 5).map(function (order) {
       var state = homeOrderState(order);
-      return '<a class="home-order-row" href="#/orders/' + homeEsc(order.order_id) + '"><span class="home-order-main"><span class="home-order-id">' + homeEsc(order.order_sn) + '</span><span class="home-order-customer">' + homeEsc((order.user || {}).nickname || 'Guest') + '</span><span class="home-order-tags">' + homeOrderTags(order) + '</span></span><span class="home-order-side">' + homePill(state[0], state[1]) + '<strong>$' + Number(order.total || 0).toFixed(2) + '</strong></span></a>';
+      return '<a class="home-order-row" href="#/orders/' + homeEsc(order.order_id) + '"><span class="home-order-main"><span class="home-order-id">' + homeEsc(order.order_sn) + '</span><span class="home-order-customer">' + homeEsc((order.user || {}).nickname || 'Guest') + '</span><span class="home-order-tags">' + homeOrderTags(order, scenario) + '</span></span><span class="home-order-side">' + homePill(state[0], state[1]) + '<strong>$' + Number(order.total || 0).toFixed(2) + '</strong></span></a>';
     }).join('');
     return rows || '<div class="home-empty-list">Your latest paid orders will appear here.</div>';
   }
@@ -378,15 +424,12 @@
       return '<a class="home-health-row" href="' + item.href + '"><span class="home-health-icon">' + (ICONS[icons[index]] || ICONS.settings) + '</span><span class="home-health-copy"><strong>' + homeEsc(item.label) + '</strong><small>' + homeEsc(item.detail) + '</small></span><span class="home-health-value home-health-' + item.tone + '">' + homeEsc(item.value) + '</span></a>';
     }).join('');
   }
-  function homeRevenueHtml(orders, subscriptions, subMetrics) {
-    var bcOrders = orders.filter(function (order) { return order.source === 'BestCheckout' && order.payment_status === 'paid'; }).length;
-    var bcIssues = orders.filter(function (order) {
-      return order.source === 'BestCheckout' && (order.shopify_writeback_status === 'pending' || order.shopify_writeback_status === 'failed');
-    }).length;
-    var pastDue = subscriptions.filter(function (subscription) { return subscription.status === 'past_due'; }).length;
-    var subHtml = subMetrics ? '<a class="home-app-row" href="#/subscriptions/contracts"><span class="home-app-icon home-app-sub">' + ICONS.refresh + '</span><span class="home-app-copy"><strong>Subscriptions</strong><small>Recurring revenue health</small></span><span class="home-app-stats"><b>' + homeEsc(subMetrics.activeSubs) + '</b><small>active</small><b class="' + (pastDue ? 'home-stat-danger' : '') + '">' + pastDue + '</b><small>past due</small></span><span class="home-row-caret">&rsaquo;</span></a>' : '';
-    var bcHtml = '<a class="home-app-row" href="#/bestcheckout"><span class="home-app-icon home-app-checkout">' + ICONS.card + '</span><span class="home-app-copy"><strong>BestCheckout</strong><small>External checkout operations</small></span><span class="home-app-stats"><b>' + bcOrders + '</b><small>paid orders</small><b class="' + (bcIssues ? 'home-stat-warn' : '') + '">' + bcIssues + '</b><small>needs review</small></span><span class="home-row-caret">&rsaquo;</span></a>';
-    return subHtml + bcHtml;
+  function homeRevenueHtml(orders, subscriptions, subMetrics, scenario) {
+    var pastDue = scenario.pastDue ? subscriptions.filter(function (subscription) { return subscription.status === 'past_due'; }).length : 0;
+    var activeSubs = scenario.subscriptions && subMetrics && subMetrics.activeSubs != null ? subMetrics.activeSubs : '0';
+    var bundlePaid = scenario.bundles ? orders.filter(function (order) { return order.bundle; }).length : 0;
+    return '<a class="home-app-row" href="#/subscriptions"><span class="home-app-icon home-app-sub">' + ICONS.refresh + '</span><span class="home-app-copy"><strong>Subscriptions</strong><small>Recurring revenue health</small></span><span class="home-app-stats"><b>' + homeEsc(activeSubs) + '</b><small>active</small><b class="' + (pastDue ? 'home-stat-danger' : '') + '">' + pastDue + '</b><small>past due</small></span><span class="home-row-caret">&rsaquo;</span></a>' +
+      '<a class="home-app-row" href="#/bundles"><span class="home-app-icon home-app-bundle">' + ICONS.box + '</span><span class="home-app-copy"><strong>Bundles</strong><small>Quantity breaks and build-a-box</small></span><span class="home-app-stats"><b>' + bundlePaid + '</b><small>paid orders</small></span><span class="home-row-caret">&rsaquo;</span></a>';
   }
   function renderNewStoreHome() {
     var launchRows = [
@@ -409,20 +452,21 @@
   }
   function renderHome() {
     if (isNewStore) { renderNewStoreHome(); return; }
-    var data = window.DATA_HOME || { periods: {}, storeHealth: [], update: {} };
+    var scenario = homeScenarioFlags();
+    var data = window.DATA_HOME || { periods: {}, storeHealth: [] };
     var period = data.periods[homeRange] || data.periods['7d'] || { label: 'Last 7 days', comparison: 'vs previous period', metrics: [], series: [], labels: [] };
     var orders = ((window.DATA_ORDERS || {}).ORDERS || []).filter(function (order) { return order && order.payment_status === 'paid'; });
     var subscriptions = ((window.DATA_SUBS || {}).contracts || []);
     var subMetrics = (window.DATA_SUBS || {}).metrics || null;
+    var storeHealth = homeStoreHealth(data.storeHealth || [], scenario);
     var rangeTabs = [['today', 'Today'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days']].map(function (tab) {
       return '<button type="button" class="home-range-tab' + (homeRange === tab[0] ? ' active' : '') + '" data-home-range="' + tab[0] + '" aria-pressed="' + (homeRange === tab[0] ? 'true' : 'false') + '">' + tab[1] + '</button>';
     }).join('');
     root.innerHTML = '<div class="home-page"><div class="home-head"><div><div class="home-overline">Store overview</div><h1>Good morning, ' + homeEsc(SITE.store || 'your store') + '</h1><p>Keep an eye on the work that moves today&apos;s sales forward.</p></div><div class="home-actions"><a class="btn" href="#/online-store">View store</a><a class="btn btn-primary" href="#/products">Add product</a></div></div>' +
-      homeAttentionHtml(orders, subscriptions) +
+      homeAttentionHtml(orders, subscriptions, storeHealth, scenario) +
       '<section class="home-performance"><div class="home-section-head home-performance-head"><div><h2>Performance</h2><p>' + homeEsc(period.label) + ' ' + homeEsc(period.comparison) + '</p></div><div class="home-range-tabs" role="group" aria-label="Performance period">' + rangeTabs + '</div></div><div class="home-kpi-grid">' + (period.metrics || []).map(function (metric) { return homeMetricHtml(metric, period.comparison); }).join('') + '</div></section>' +
-      '<div class="home-main-grid"><section class="home-panel home-chart-panel"><div class="home-section-head"><div><h2>Sales performance</h2><p>' + homeEsc(period.label) + '</p></div><a class="home-text-link" href="#/analytics">Open Analytics</a></div>' + homeChartHtml(period) + '</section><section class="home-panel home-health-panel"><div class="home-section-head"><div><h2>Store health</h2><p>Sales-critical connections</p></div><a class="home-icon-link" href="#/settings/base" aria-label="Open settings">' + ICONS.settings + '</a></div><div class="home-health-list">' + homeHealthHtml(data.storeHealth || []) + '</div></section></div>' +
-      '<div class="home-detail-grid"><section class="home-panel home-orders-panel"><div class="home-section-head"><div><h2>Recent orders</h2><p>Latest paid orders across your sales channels</p></div><a class="home-text-link" href="#/orders">View all orders</a></div><div class="home-order-list">' + homeRecentOrdersHtml(orders) + '</div></section><section class="home-panel home-revenue-panel"><div class="home-section-head"><div><h2>Revenue health</h2><p>Recurring and external checkout</p></div></div><div class="home-app-list">' + homeRevenueHtml(orders, subscriptions, subMetrics) + '</div></section></div>' +
-      '<section class="home-update"><span class="home-update-mark">' + homeEsc((data.update || {}).version || 'Update') + '</span><div><strong>' + homeEsc((data.update || {}).title || 'BestShopio updates') + '</strong><span>' + homeEsc((data.update || {}).detail || '') + '</span></div><a class="home-text-link" href="' + homeEsc((data.update || {}).href || '#/home') + '">Review</a></section></div>';
+      '<div class="home-main-grid"><section class="home-panel home-chart-panel"><div class="home-section-head"><div><h2>Sales performance</h2><p>' + homeEsc(period.label) + '</p></div><a class="home-text-link" href="#/analytics">Open Analytics</a></div>' + homeChartHtml(period) + '</section><section class="home-panel home-health-panel"><div class="home-section-head"><div><h2>Store health</h2><p>Sales-critical connections</p></div><a class="home-icon-link" href="#/settings/base" aria-label="Open settings">' + ICONS.settings + '</a></div><div class="home-health-list">' + homeHealthHtml(storeHealth) + '</div></section></div>' +
+      '<div class="home-detail-grid"><section class="home-panel home-orders-panel"><div class="home-section-head"><div><h2>Recent orders</h2><p>Latest paid orders across your sales channels</p></div><a class="home-text-link" href="#/orders">View all orders</a></div><div class="home-order-list">' + homeRecentOrdersHtml(orders, scenario) + '</div></section><section class="home-panel home-revenue-panel"><div class="home-section-head"><div><h2>Revenue health</h2><p>Subscriptions and Bundles</p></div></div><div class="home-app-list">' + homeRevenueHtml(orders, subscriptions, subMetrics, scenario) + '</div></section></div></div>';
     wireHome();
   }
 
@@ -446,6 +490,7 @@
     removeSettings();
     var moduleId = ROUTE_MODULE[p.first] || p.first;
     var activeId = p.first;
+    if (p.first === 'checkout') activeId = 'online-store';
     if (p.first === 'analytics') { var asub = p.rest.split('/')[0]; activeId = asub ? 'analytics-' + asub : 'analytics'; }
     if (p.first === 'subscriptions') { var ssub = p.rest.split('/')[0]; activeId = ssub ? 'subscriptions-' + ssub : 'subscriptions'; }
     curActiveId = activeId;
@@ -637,7 +682,13 @@
 
     // Pluggable-app toggles (Apps page) call this to re-render the sidebar in place.
     window.Shell = { refresh: function () { if (navEl) renderSidebar(curActiveId); } };
-    if (!location.hash) location.replace('#/home');
+    var qs = new URLSearchParams(location.search || '');
+    if (qs.get('preview_id')) {
+      if ((location.hash || '').indexOf('#/online-store') !== 0)
+        location.replace(location.pathname + location.search + '#/online-store');
+    } else if (!location.hash) {
+      location.replace('#/home');
+    }
     window.addEventListener('hashchange', dispatch);
     dispatch();
   }

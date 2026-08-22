@@ -1,8 +1,28 @@
-/* Custom HTML — raw HTML embed (no child blocks).
-   Outputs the author's HTML verbatim (trusted prototype — intentionally not escaped),
-   with toggles to drop the section's vertical / horizontal spacing. No hydrate. */
+/* Custom HTML — sanitized HTML embed (no child blocks).
+   Keeps presentational markup while removing executable/global content so editor and
+   buyer-preview chrome cannot be reached from merchant HTML. No hydrate. */
 (function () {
   const OS = window.OS;
+  function sanitizeHtml(raw) {
+    const template = document.createElement('template');
+    template.innerHTML = String(raw == null ? '' : raw);
+    template.content.querySelectorAll('script,style,iframe,object,embed,link,meta,base,form').forEach((el) => el.remove());
+    template.content.querySelectorAll('*').forEach((el) => {
+      Array.from(el.attributes).forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        const value = String(attr.value || '').trim();
+        const urlValue = value.replace(/[\u0000-\u0020]+/g, '');
+        if (name.indexOf('on') === 0 || name === 'srcdoc' || name === 'formaction' || name === 'form' ||
+            name === 'for' || name === 'popovertarget' || name === 'commandfor' ||
+            ((name === 'href' || name === 'xlink:href') && /^(javascript:|data:)/i.test(urlValue)) ||
+            (name === 'src' && /^(javascript:|data:(?!image\/(?:png|jpe?g|gif|webp|avif)(?:;base64)?,))/i.test(urlValue))) {
+          el.removeAttribute(attr.name);
+        }
+      });
+      if (el.tagName === 'A' && el.getAttribute('target') === '_blank') el.setAttribute('rel', 'noopener noreferrer');
+    });
+    return template.innerHTML;
+  }
   OS.css('customhtml', [
     '.chx{box-sizing:border-box}',
     '.chx .ch-inner{margin:0 auto}',
@@ -18,7 +38,8 @@
       { key: 'full_width', control: 'toggle', label: 'Full width', default: false },
       { key: 'remove_vertical_spacing', control: 'toggle', label: 'Remove vertical spacing', default: false },
       { key: 'remove_horizontal_spacing', control: 'toggle', label: 'Remove horizontal spacing', default: false },
-      { key: 'html', control: 'custom_css', label: 'HTML', default: DEFAULT_HTML, placeholder: '<div>…</div>' },
+      { key: 'html', control: 'custom_css', label: 'HTML', default: DEFAULT_HTML, placeholder: '<div>…</div>',
+        info: 'Scripts, global style tags, iframes and inline event handlers are removed for storefront safety.' },
       { sub: 'Colors' },
       { key: 'background', control: 'color', label: 'Background', default: 'transparent', allowTransparent: true },
       { key: 'text', control: 'color', label: 'Text', default: '', allowTransparent: true, info: 'Blank inherits the theme text color.' },
@@ -33,7 +54,7 @@
       const maxW = s.full_width ? '100%' : OS.pageWidth(t) + 'px';
 
       const body = (s.html != null && String(s.html).trim() !== '')
-        ? String(s.html) // trusted prototype: render verbatim, do NOT escape
+        ? sanitizeHtml(s.html)
         : '<div class="ch-empty">Add HTML in the settings panel.</div>';
 
       return '<div class="chx" style="background:' + bg + ';color:' + text + ';font-family:' + OS.bodyFamily(t) + ';padding:' + padV + 'px ' + padH + 'px">' +

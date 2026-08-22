@@ -31,13 +31,22 @@
         text = name ? text.replace(/\{\{\s*customer_name\s*\}\}/g, name) : 'Thank you';
       }
       const iconColor = s.success_icon_color || 'var(--ck-accent)';
-      const conf = (s.show_confirmation_number !== false && snap.confirmationNumber)
-        ? '<div class="tyos-conf">Confirmation #' + esc(snap.confirmationNumber) + '</div>' : '';
-      const card = s.success_message
+      const orders = Array.isArray(snap.orders) ? snap.orders : [];
+      const orderCount = orders.length || 1;
+      const confirmationValue = orderCount > 1
+        ? orders.map((order) => order.orderNumber || '').filter(Boolean).join(', ')
+        : (snap.confirmationNumber ? '#' + snap.confirmationNumber : '');
+      const conf = (s.show_confirmation_number !== false && confirmationValue)
+        ? '<div class="tyos-conf">Confirmation ' + esc(confirmationValue) + '</div>' : '';
+      const successText = orderCount > 1 && s.success_message === 'Your order is confirmed'
+        ? 'Your orders are confirmed' : s.success_message;
+      const emailText = orderCount > 1 && s.email_message === "You'll receive a confirmation email soon"
+        ? "You'll receive " + orderCount + ' confirmation emails soon' : s.email_message;
+      const card = successText
         ? '<div class="tyos-card">' +
-            '<div class="tyos-card-txt"><div class="tyos-success">' + esc(s.success_message) + '</div>' +
-            (s.email_message ? '<div class="tyos-email">' + esc(s.email_message) + '</div>' : '') + '</div></div>'
-        : (s.email_message ? '<div class="tyos-email solo">' + esc(s.email_message) + '</div>' : '');
+            '<div class="tyos-card-txt"><div class="tyos-success">' + esc(successText) + '</div>' +
+            (emailText ? '<div class="tyos-email">' + esc(emailText) + '</div>' : '') + '</div></div>'
+        : (emailText ? '<div class="tyos-email solo">' + esc(emailText) + '</div>' : '');
 
       return '<div class="cksec tyos">' +
         '<div class="tyos-top">' +

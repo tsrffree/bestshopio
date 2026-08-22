@@ -40,6 +40,7 @@
     gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
     eye: svg('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>', 15),
     eyeOff: svg('<path d="M9.9 4.24A9 9 0 0 1 12 4c6 0 10 7 10 7a13 13 0 0 1-1.67 2.18M6.6 6.6A13 13 0 0 0 2 11s4 7 10 7a9 9 0 0 0 4.5-1.2"/><path d="m2 2 20 20"/>', 15),
+    clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 15),
     trash: svg('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>', 14),
     grip: svg('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14),
     plus: svg('<path d="M12 5v14M5 12h14"/>', 14),
@@ -53,6 +54,10 @@
     play: svg('<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>'),
     desktop: svg('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>', 15),
     mobile: svg('<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>', 15),
+    external: svg('<path d="M14 3h7v7"/><path d="m10 14 11-11"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>', 15),
+    copy: svg('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', 15),
+    link: svg('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>', 15),
+    more: svg('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>', 16),
     lock: svg('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', 13),
     image: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>', 14),
   };
@@ -181,6 +186,103 @@
   //  STATE  (3 snapshots + UI state, mirrors theme-editor.canvas)
   // ==========================================================================
   let ED = null;
+  const PREVIEW_STORAGE_KEY = 'bestshopio-theme-preview-snapshots-v3';
+  const MERCHANT_PREVIEW_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  const PREVIEW_TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  let ACTIVE_PREVIEW = null;
+  let ACTIVE_PREVIEW_EXPIRY_TIMER = null;
+  let ACTIVE_PREVIEW_BAR_HIDDEN = false;
+
+  function previewStore() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PREVIEW_STORAGE_KEY) || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (e) { return {}; }
+  }
+  function writePreviewStore(store) {
+    try { localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(store)); return true; }
+    catch (e) { toast('Preview could not be created. Browser storage is unavailable.', 'err'); return false; }
+  }
+  function prunePreviewStore(store) {
+    const now = Date.now();
+    Object.keys(store).forEach((id) => {
+      const item = store[id];
+      if (!item || item.version !== 3 || !item.merchantExpiresAt) { delete store[id]; return; }
+      if (item.merchantExpiresAt > now) return;
+      if (!item.tombstoneUntil || item.tombstoneUntil <= now) { delete store[id]; return; }
+      // Keep a compact terminal record so repeated visits remain "expired", not "not found".
+      if (item.theme) {
+        store[id] = {
+          version: 3, id: item.id, editorHash: item.editorHash,
+          merchantExpiresAt: item.merchantExpiresAt, tombstoneUntil: item.tombstoneUntil,
+          expired: true,
+        };
+      }
+    });
+    return store;
+  }
+  function newPreviewId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID().replace(/-/g, '').slice(0, 20);
+    }
+    return uid('preview').replace(/[^a-z0-9]/gi, '') + Math.random().toString(36).slice(2, 10);
+  }
+  function previewUrl(id) {
+    // Production-like store domain + query params. Prototype keeps the current path/hash SPA.
+    const url = new URL(location.href.split('#')[0], location.origin);
+    ['preview_id', 'preview_token', 'store', 'new'].forEach((key) => url.searchParams.delete(key));
+    url.searchParams.set('preview_id', id || '');
+    url.hash = '#/online-store';
+    return url.toString();
+  }
+  function editorHashForState() {
+    if (isCheckout()) {
+      return '#/checkout/' + encodeURIComponent(ED.meta.handle) + (ED.checkoutPage !== 'checkout' ? '/' + ED.checkoutPage : '');
+    }
+    return '#/online-store/edit/' + encodeURIComponent(ED.meta.handle);
+  }
+  function previewSourceForSavedState() {
+    return hasDraft() ? 'saved' : 'published';
+  }
+  function createPreviewSnapshot() {
+    const now = Date.now();
+    const snapshot = {
+      version: 3,
+      id: newPreviewId(),
+      themeHandle: ED.meta.handle,
+      themeName: ED.savedTheme.name || ED.meta.title || 'Theme',
+      source: previewSourceForSavedState(),
+      surface: ED.surface,
+      currentPage: ED.currentPage,
+      checkoutPage: ED.checkoutPage,
+      tplSel: clone(ED.tplSel || {}),
+      ckTplSel: clone(ED.ckTplSel || {}),
+      previewSel: clone(ED.previewSel || {}),
+      resourceContext: isResourcePage() ? { pageType: ED.currentPage, resource: clone(previewResource()) } : null,
+      device: ED.device,
+      // Merchant preview deliberately excludes unsaved editor changes.
+      theme: clone(ED.savedTheme),
+      editorHash: editorHashForState(),
+      createdAt: now,
+      merchantExpiresAt: now + MERCHANT_PREVIEW_TTL_MS,
+      tombstoneUntil: now + MERCHANT_PREVIEW_TTL_MS + PREVIEW_TOMBSTONE_TTL_MS,
+    };
+    const store = prunePreviewStore(previewStore());
+    store[snapshot.id] = snapshot;
+    return writePreviewStore(store) ? snapshot : null;
+  }
+  function resolvePreviewSnapshot(id) {
+    const now = Date.now();
+    const store = prunePreviewStore(previewStore());
+    const snapshot = store[id];
+    if (!snapshot) return { error: 'missing' };
+    if (snapshot.expired || snapshot.merchantExpiresAt <= now) {
+      return { error: 'expired', editorHash: snapshot.editorHash };
+    }
+    if (snapshot.version !== 3 || !snapshot.theme || !snapshot.theme.templates ||
+        !snapshot.theme.checkout || !snapshot.theme.checkout.templates) return { error: 'missing' };
+    return { snapshot };
+  }
 
   function buildSettingsDefaults() { return groupDefaults(D.SETTINGS_GROUPS); }
   function buildCkSettingsDefaults() { return groupDefaults(D.CHECKOUT_SETTINGS_GROUPS || []); }
@@ -201,11 +303,16 @@
         }).filter(Boolean);
       }
       if (field.control === 'product_mappings' && Array.isArray(settings[field.key])) {
-        settings[field.key] = settings[field.key].map((mapping) => Object.assign({}, mapping, {
-          recommendedProductIds: (mapping.recommendedProductIds || []).map((ref) => {
-            const info = variantRefInfo(ref); return info && info.ref;
-          }).filter(Boolean),
-        }));
+        settings[field.key] = settings[field.key].map((mapping) => {
+          const normalized = Object.assign({}, mapping, {
+            purchasedVariantIds: mappingPurchasedVariantRefs(mapping),
+            recommendedProductIds: (mapping.recommendedProductIds || []).map((ref) => {
+              const info = variantRefInfo(ref); return info && info.ref;
+            }).filter(Boolean),
+          });
+          delete normalized.purchasedProductId;
+          return normalized;
+        });
       }
     });
     return settings;
@@ -266,6 +373,7 @@
     Object.keys(D.CHECKOUT_TEMPLATE_SETS || {}).forEach((pt) => {
       ckTemplates[pt] = { list: (D.CHECKOUT_TEMPLATE_SETS[pt] || []).map((s) => ({
         id: s.id, name: s.name, isDefault: !!s.isDefault, basedOn: s.basedOn,
+        previewOrderScenario: s.previewOrderScenario,
         sections: (ckBase[pt] || []).map(matSection),
       })) };
     });
@@ -288,6 +396,8 @@
       ckTplSel: {},                    // { checkout|upsell|downsell|thankyou: templateId } — active checkout template per type
       previewSel: {},                  // { product|collection: resourceId } — preview only; never persisted
       device: 'desktop',
+      fullPreview: false,              // editor chrome collapsed; canvas still reflects unsaved working state
+      previewOnly: false,              // buyer-only snapshot route; disables editor selection affordances
       leftMode: 'sections',            // 'sections' | 'settings'
       selection: { kind: 'header' },   // announcement|header|footer | {kind:'section',sectionId} | {kind:'block',sectionId,blockId}
       expand: { header: true, template: true, footer: true },
@@ -295,15 +405,15 @@
       busy: null,                      // 'saving' | 'publishing' | 'discarding' | null
       settingsExpand: settingsExpandInit(),
     };
-    // Seed a default applied discount so the Checkout Order Summary shows the discount code
-    // chip + Order discount + Shipping discount rows out of the box (buyer-side runtime
-    // state, not a theme edit). Removable/re-appliable like any coupon.
-    const seedCode = 'THANKS';
-    const seed = ((D.CHECKOUT_MOCK || {}).coupons || {})[seedCode];
-    if (seed) {
+    // Seed order + shipping discount codes so the Checkout Order Summary demonstrates
+    // Shopify-style grouped discount details out of the box (buyer runtime state only).
+    OS.ckState = {};
+    const seeds = ((D.CHECKOUT_MOCK || {}).coupons || {});
+    OS.ckState['ck-coupons'] = ['WELCOME5', 'FREESHIP'].map((code) => {
+      const seed = seeds[code] || {};
       const product = +seed.product || 0, order = +seed.order || 0, shipping = +seed.shipping || 0;
-      OS.ckState['ck-coupons'] = [{ code: seedCode, product: product, order: order, shipping: shipping, amount: product + order + shipping }];
-    }
+      return { code, product, order, shipping, amount: product + order + shipping };
+    }).filter((item) => item.amount > 0);
   }
   function settingsExpandInit() { const o = {}; D.SETTINGS_GROUPS.forEach((g) => { o[g.key] = !!g.open; }); (D.CHECKOUT_SETTINGS_GROUPS || []).forEach((g) => { o['ck:' + g.key] = !!g.open; }); return o; }
 
@@ -444,6 +554,10 @@
   const assignedResourceIds = (pt, tpl) => ((tpl || curTpl()).assignedResourceIds || []);
   function previewResource(pt) {
     pt = pt || ED.currentPage;
+    const frozenContext = ACTIVE_PREVIEW && ACTIVE_PREVIEW.resourceContext;
+    if (ED.previewOnly && frozenContext && frozenContext.pageType === pt && frozenContext.resource) {
+      return frozenContext.resource;
+    }
     const list = resourceList(pt); const selected = ED.previewSel[pt];
     return list.find((r) => r.id === selected) ||
       list.find((r) => assignedResourceIds(pt).indexOf(r.id) >= 0) ||
@@ -515,6 +629,14 @@
   // ==========================================================================
   function renderBuilder(handle, surface, page) {
     if (!ED || ED.meta.handle !== handle) startEditor(handle);
+    else if (ED.previewOnly) {
+      // A preview URL can be opened directly in the current tab. Returning to an editor route
+      // must restore editing affordances instead of reusing the buyer-only canvas state.
+      ED.previewOnly = false;
+      ED.fullPreview = false;
+      ED.leftMode = 'sections';
+      ED.selection = defaultSelection();
+    }
     // Entered via a route that pins a surface (e.g. #/checkout) — align the editor to it.
     if (surface && ED.surface !== surface) {
       ED.surface = surface;
@@ -526,9 +648,7 @@
       ED.checkoutPage = page; ED.leftMode = 'sections'; ED.selection = defaultSelection();
     }
     closeBuilder(); ensureStyles();
-    // Keep the synced Theme editor faithful to its source copy. The merchant shell's
-    // runtime i18n otherwise partially translates newly added English strings.
-    const b = h('<div class="os-builder i18n-skip" id="os-builder"></div>');
+    const b = h('<div class="os-builder i18n-skip' + (ED.fullPreview ? ' os-full-preview' : '') + '" id="os-builder"></div>');
     b.appendChild(topBar());
     const body = h('<div class="os-body"></div>');
     body.appendChild(leftPanel());
@@ -538,7 +658,11 @@
     document.body.appendChild(b);
     wireTop(); wireLeft(); wireCanvas();
     if (ED.leftMode === 'settings' || ED.selection.kind === 'theme-settings') wireSettings(); else wireRight();
-    applyHighlight(); scrollToSelected();
+    applyHighlight();
+    if (ED._canvasScroll != null) {
+      const sc = document.getElementById('os-cscroll'); if (sc) sc.scrollTop = ED._canvasScroll;
+      ED._canvasScroll = null;
+    } else scrollToSelected();
   }
   function closeBuilder() { const ex = document.getElementById('os-builder'); if (ex) ex.remove(); closePops(); }
 
@@ -553,8 +677,8 @@
       '<div class="os-top-l">' +
         '<button class="back-btn" id="t-back" title="Back to themes">' + I.back + '</button>' +
         '<div class="os-rail">' +
-          '<button class="os-rail-b' + (!inSettings() ? ' on' : '') + '" data-rail="sections" title="Sections">' + I.layers + '</button>' +
-          '<button class="os-rail-b' + (inSettings() ? ' on' : '') + '" data-rail="settings" title="Theme settings">' + I.gear + '</button>' +
+          '<button class="os-rail-b' + (!ED.fullPreview && !inSettings() ? ' on' : '') + '" data-rail="sections" title="' + (!ED.fullPreview && !inSettings() ? 'Hide sections' : 'Sections') + '">' + I.layers + '</button>' +
+          '<button class="os-rail-b' + (!ED.fullPreview && inSettings() ? ' on' : '') + '" data-rail="settings" title="' + (!ED.fullPreview && inSettings() ? 'Hide theme settings' : 'Theme settings') + '">' + I.gear + '</button>' +
         '</div>' +
         '<span class="os-tname">' + esc(ED.theme.name) + '</span>' +
         '<span class="pill ' + pill[0] + '"><span class="dot"></span>' + pill[1] + '</span>' +
@@ -571,6 +695,7 @@
         '</div>' +
       '</div>' +
       '<div class="os-top-r">' +
+        '<button class="btn btn-default os-preview-open" id="t-preview"' + (busy ? ' disabled' : '') + '>' + I.eye + '<span>Preview</span></button>' +
         '<button class="btn btn-default" id="t-discard"' + (dirty && !busy ? '' : ' disabled') + '>Discard</button>' +
         '<button class="btn btn-default" id="t-save"' + (dirty && !busy ? '' : ' disabled') + '>' + (busy === 'saving' ? 'Saving…' : 'Save') + '</button>' +
         '<button class="btn ' + (issues.length ? 'btn-warn' : 'btn-primary') + '" id="t-pub"' + (((dirty || draft) && !busy) ? '' : ' disabled') + ' title="' + (issues.length ? issues.length + ' validation issue(s)' : 'Publish to storefront') + '">' +
@@ -606,12 +731,31 @@
   function wireTop() {
     const b = document.getElementById('os-builder');
     b.querySelector('#t-back').onclick = () => attemptLeave(() => { location.hash = '#/online-store'; });
-    b.querySelectorAll('[data-rail]').forEach((x) => x.onclick = () => { ED.leftMode = x.getAttribute('data-rail'); if (ED.leftMode === 'settings') ED.selection = { kind: 'theme-settings' }; else if (ED.selection.kind === 'theme-settings') ED.selection = defaultSelection(); rerender(); });
+    b.querySelectorAll('[data-rail]').forEach((x) => x.onclick = () => {
+      const mode = x.getAttribute('data-rail');
+      const alreadyOpen = mode === 'settings' ? inSettings() : !inSettings();
+      rememberCanvasScroll();
+      if (alreadyOpen && !ED.fullPreview) { ED.fullPreview = true; rerender(); return; }
+      ED.fullPreview = false;
+      ED.leftMode = mode;
+      if (ED.leftMode === 'settings') ED.selection = { kind: 'theme-settings' };
+      else if (ED.selection.kind === 'theme-settings') ED.selection = defaultSelection();
+      rerender();
+    });
     const psel = b.querySelector('#t-page'); if (psel) psel.onclick = () => openPageSelector(psel);
     b.querySelectorAll('[data-dev]').forEach((x) => x.onclick = () => { const d = x.getAttribute('data-dev'); if (d !== ED.device) { ED.device = d; refreshTop(); refreshCanvas(); } });
+    const preview = b.querySelector('#t-preview'); if (preview && !preview.disabled) preview.onclick = requestSavedPreview;
+    const exitFull = b.querySelector('[data-exit-full-preview]'); if (exitFull) exitFull.onclick = () => exitFullPreview();
     const dis = b.querySelector('#t-discard'); if (dis && !dis.disabled) dis.onclick = onDiscard;
     const sv = b.querySelector('#t-save'); if (sv && !sv.disabled) sv.onclick = onSave;
     const pb = b.querySelector('#t-pub'); if (pb && !pb.disabled) pb.onclick = onPublish;
+  }
+  function rememberCanvasScroll() {
+    const sc = document.getElementById('os-cscroll'); ED._canvasScroll = sc ? sc.scrollTop : 0;
+  }
+  function exitFullPreview() {
+    if (!ED || !ED.fullPreview) return;
+    rememberCanvasScroll(); ED.fullPreview = false; rerender();
   }
 
   // -------------------------------------------------------------- LEFT (tree / settings groups)
@@ -865,15 +1009,19 @@
   // -------------------------------------------------------------- CENTER (preview canvas)
   function centerPanel() {
     const c = h('<div class="os-center"></div>');
-    const hint = usageScopeHint();
-    c.innerHTML = '<div class="os-canvas-bar">' + esc(previewBarText()) + '</div>' +
+    const hint = ED.fullPreview ? '' : usageScopeHint();
+    c.innerHTML = '<div class="os-canvas-bar"><span data-preview-bar-text>' + esc(previewBarText()) + '</span>' +
+      (ED.fullPreview ? '<button type="button" data-exit-full-preview>Exit full-width preview <kbd>Esc</kbd></button>' : '') + '</div>' +
       (hint ? '<div class="os-scope-hint">' + I.info + '<span>' + esc(hint) + '</span></div>' : '') +
       '<div class="os-canvas-scroll" id="os-cscroll"><div class="os-frame ' + ED.device + '" id="os-frame">' + canvasHtml() + '</div></div>';
     return c;
   }
   function previewBarText() {
     const resource = isResourcePage() ? previewResource() : null;
-    return (isCheckout() ? 'Preview' : 'Live preview') + ' · ' + pageLabel() +
+    const prefix = ED.fullPreview
+      ? ((isDirty() || hasDraft()) ? 'Draft preview' : 'Published preview')
+      : (isCheckout() ? 'Preview' : 'Live preview');
+    return prefix + ' · ' + pageLabel() +
       (resource ? ' · ' + resource.title : '') +
       ' · ' + (ED.device === 'desktop' ? 'Desktop' : 'Mobile');
   }
@@ -908,19 +1056,111 @@
     if (!secs.length) html += '<div class="os-empty-canvas">This template has no visible sections.<br>Add one from the left, or switch page type.</div>';
     return html;
   }
+  function thankyouPreviewScenario() {
+    const tpl = curCkTpl();
+    if (tpl && tpl.previewOrderScenario) return tpl.previewOrderScenario;
+    if (curCkTplId() === 'survey-thankyou') return 'dual';
+    if (curCkTplId() === 'base-order') return 'base';
+    return 'standard';
+  }
+  function isOfferLine(line) {
+    const source = line && (line.lineSource || (line.downsell ? 'DOWNSELL' : (line.upsell ? 'UPSELL' : '')));
+    return source === 'UPSELL' || source === 'DOWNSELL';
+  }
+  function offerLinesLast(lines) {
+    const list = Array.isArray(lines) ? lines : [];
+    return list.filter((line) => !isOfferLine(line)).concat(list.filter(isOfferLine));
+  }
+  function recalculatePreviewOrder(order) {
+    order.subtotal = (order.lines || []).reduce((total, line) =>
+      total + (+line.price || 0) * (+line.qty || 1), 0);
+    const discount = (order.discounts || []).reduce((total, item) =>
+      total + (+item.amount || 0) + (+item.product || 0) + (+item.order || 0) + (+item.shipping || 0), 0);
+    order.total = order.subtotal - discount + (+order.shipping || 0) + (+order.tax || 0);
+    order.paid = order.total;
+    return order;
+  }
+  function dualOrderPreviewSnapshot(snapshot) {
+    snapshot.orders = (snapshot.orders || []).map((order) => {
+      order.lines = offerLinesLast(order.lines);
+      return order;
+    });
+    snapshot.lines = snapshot.orders.reduce((all, order) => all.concat(order.lines || []), []);
+    return snapshot;
+  }
+  function singleOrderPreviewSnapshot(snapshot, scenario) {
+    const orders = Array.isArray(snapshot.orders) ? snapshot.orders : [];
+    const order = orders.find((item) => item.orderRole === 'BASE') || orders[0];
+    const asCheckoutLine = (line) => Object.assign({}, line, {
+      compareAt: isOfferLine(line) ? null : line.compareAt,
+      lineSource: 'CHECKOUT',
+      upsell: false,
+      downsell: false,
+    });
+    if (!order) {
+      if (scenario === 'standard') snapshot.lines = (snapshot.lines || []).map(asCheckoutLine);
+      return snapshot;
+    }
+    order.lines = scenario === 'standard'
+      ? (order.lines || []).filter((line) => line.fixtureType !== 'subscription' && line.fixtureType !== 'bundle').map(asCheckoutLine)
+      : offerLinesLast(order.lines);
+    recalculatePreviewOrder(order);
+    snapshot.orders = [order];
+    snapshot.orderNumber = order.orderNumber || snapshot.orderNumber;
+    snapshot.lines = clone(order.lines || []);
+    snapshot.subtotal = +order.subtotal || 0;
+    snapshot.shipping = +order.shipping || 0;
+    snapshot.tax = +order.tax || 0;
+    snapshot.total = +order.total || 0;
+    snapshot.totalPaid = order.paid != null ? +order.paid : snapshot.total;
+    return snapshot;
+  }
   function thankyouSnapshot() {
     const snap = clone(D.THANKYOU_SNAPSHOT || {});
     const accepted = Array.isArray(OS.ckState['post-purchase-accepted-lines'])
       ? clone(OS.ckState['post-purchase-accepted-lines']) : [];
     const offerFlow = (OS.ckState || {})['post-purchase-offer-flow'] || {};
-    if (!accepted.length && !offerFlow.visited) return snap;
-    snap.lines = (snap.lines || []).filter((line) => !line.upsell && !line.downsell).concat(accepted);
+    const scenario = thankyouPreviewScenario();
+    if (!accepted.length && !offerFlow.visited) {
+      return scenario === 'dual' ? dualOrderPreviewSnapshot(snap) : singleOrderPreviewSnapshot(snap, scenario);
+    }
+    const orders = Array.isArray(snap.orders) ? snap.orders : [];
+    if (orders.length) {
+      orders.forEach((order) => {
+        order.lines = (order.lines || []).filter((line) =>
+          !line.upsell && !line.downsell && line.lineSource !== 'UPSELL' && line.lineSource !== 'DOWNSELL');
+      });
+      accepted.forEach((line) => {
+        line.lineSource = line.downsell ? 'DOWNSELL' : 'UPSELL';
+        const role = line.orderRole || (offerFlow.mergeWindowClosed ? 'LATE_UPSELL' : 'BASE');
+        const target = orders.find((order) => order.orderRole === role) ||
+          orders.find((order) => order.orderRole === 'BASE') || orders[0];
+        if (target) target.lines.push(line);
+      });
+      snap.orders = orders.filter((order) => (order.lines || []).length > 0).map((order) => {
+        order.subtotal = order.lines.reduce((total, line) =>
+          total + (+line.price || 0) * (+line.qty || 1), 0);
+        const orderDiscount = (order.discounts || []).reduce((total, item) =>
+          total + (+item.amount || 0) + (+item.product || 0) + (+item.order || 0) + (+item.shipping || 0), 0);
+        order.total = order.subtotal - orderDiscount + (+order.shipping || 0) + (+order.tax || 0);
+        order.paid = order.total;
+        return order;
+      });
+      snap.lines = snap.orders.reduce((all, order) => all.concat(order.lines || []), []);
+      snap.subtotal = snap.orders.reduce((total, order) => total + (+order.subtotal || 0), 0);
+      snap.shipping = snap.orders.reduce((total, order) => total + (+order.shipping || 0), 0);
+      snap.tax = snap.orders.reduce((total, order) => total + (+order.tax || 0), 0);
+      snap.total = snap.orders.reduce((total, order) => total + (+order.total || 0), 0);
+      snap.totalPaid = snap.orders.reduce((total, order) => total + (+order.paid || 0), 0);
+    } else {
+      snap.lines = (snap.lines || []).filter((line) => !line.upsell && !line.downsell).concat(accepted);
+      snap.subtotal = snap.lines.reduce((total, line) => total + (+line.price || 0) * (+line.qty || 1), 0);
+      snap.discount = (snap.discounts || []).reduce((total, item) =>
+        total + (+item.product || 0) + (+item.order || 0) + (+item.shipping || 0), 0);
+      snap.total = snap.subtotal - snap.discount + (+snap.shipping || 0) + (+snap.tax || 0);
+    }
     if (accepted[0] && accepted[0].currency) snap.currency = accepted[0].currency;
-    snap.subtotal = snap.lines.reduce((total, line) => total + (+line.price || 0) * (+line.qty || 1), 0);
-    snap.discount = (snap.discounts || []).reduce((total, item) =>
-      total + (+item.product || 0) + (+item.order || 0) + (+item.shipping || 0), 0);
-    snap.total = snap.subtotal - snap.discount + (+snap.shipping || 0) + (+snap.tax || 0);
-    return snap;
+    return scenario === 'dual' ? dualOrderPreviewSnapshot(snap) : singleOrderPreviewSnapshot(snap, scenario);
   }
   function ctxFor(scope, id, selBool, selBlk, isFirst, transHdr) { return { mob: ED.device === 'mobile', tokens: tokens(), scope, sectionId: id, selected: selBool, selectedBlockId: selBlk, sample: D.SAMPLE, resource: isResourcePage() ? previewResource() : null, isFirst: !!isFirst, transparentHeader: !!transHdr, page: ED.currentPage, surface: ED.surface, checkoutPage: ED.checkoutPage, checkoutTemplateId: isCheckout() ? curCkTplId() : '', precedingUpsellTemplateId: isCheckout() ? ckTplIdOf('upsell') : '', checkout: D.CHECKOUT_MOCK, offer: isOfferPage() ? ((D.OFFER_MOCKS || {})[ED.checkoutPage] || null) : null, snapshot: isThankyou() ? thankyouSnapshot() : null, ckAddons: CK_ADDONS }; }
 
@@ -1149,20 +1389,89 @@
   }
   function unknown(kind) { return '<div class="os-render-err">Section “' + esc(kind) + '” isn’t available yet.</div>'; }
 
+  function previewBoundaryNotice(message) {
+    toast(message || 'This action is unavailable in preview. No live data was changed.');
+  }
+  function wirePreviewBoundaries(frame) {
+    frame.addEventListener('submit', (event) => {
+      event.preventDefault(); event.stopImmediatePropagation();
+      previewBoundaryNotice('Form submissions are disabled in preview. No customer data was saved.');
+    }, true);
+    frame.addEventListener('click', (event) => {
+      const target = event.target;
+      const cta = target.closest('[data-ck-cta]');
+      if (cta) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        if (cta.classList.contains('loading')) return;
+        cta.classList.add('loading');
+        cta.textContent = cta.getAttribute('data-loading') || 'Processing...';
+        previewBoundaryNotice('Simulated checkout only — no order, payment, or inventory change was created.');
+        setTimeout(() => goCheckoutPage('upsell'), 900);
+        return;
+      }
+      if (target.closest('[data-ck-signin],[data-ck-signout]') ||
+          (target.closest('a') && /\/(account|login|register)(?:\/|$|\?)/i.test(target.closest('a').getAttribute('href') || ''))) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        previewBoundaryNotice('Customer account actions are disabled in preview.');
+        return;
+      }
+      if (target.closest('.nl-btn,.ft-fbtn')) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        previewBoundaryNotice('Subscriptions are disabled in preview. No customer data was saved.');
+        return;
+      }
+      if (target.closest('.tycu-link,[data-review-submit],.review-submit')) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        previewBoundaryNotice('Customer messages and reviews cannot be submitted in preview.');
+        return;
+      }
+      if (target.closest('.tycs-btn')) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        ED.surface = 'online-store'; ED.currentPage = 'home'; ED.selection = { kind: 'none' };
+        renderStandalonePreview();
+        return;
+      }
+      if (target.closest('[data-offer-accept]')) {
+        previewBoundaryNotice('Simulated add only — the live order and payment method are unchanged.');
+        return;
+      }
+      const link = target.closest('a');
+      if (link) {
+        const href = String(link.getAttribute('href') || '').trim();
+        try {
+          const url = href ? new URL(href, location.href) : null;
+          if (url && /^https?:$/.test(url.protocol) && url.host !== location.host) {
+            event.preventDefault(); event.stopImmediatePropagation();
+            previewBoundaryNotice('External apps and service links are disabled in preview.');
+          }
+        } catch (e) {}
+      }
+    }, true);
+  }
   function wireCanvas() {
     const frame = document.getElementById('os-frame'); if (!frame) return;
     wireFloatFields(frame);
-    frame.querySelectorAll('[data-csel-global]').forEach((el) => el.addEventListener('click', (e) => {
-      const blk = e.target.closest('[data-block-id]');
-      const scope = el.getAttribute('data-csel-global');
-      if (blk && el.contains(blk)) { e.stopPropagation(); /* globals expose block selection too (footer) */ select({ kind: 'block', sectionId: scope, blockId: blk.getAttribute('data-block-id') }); return; }
-      select({ kind: scope });
-    }));
-    frame.querySelectorAll('[data-csel]').forEach((el) => el.addEventListener('click', (e) => {
-      const blk = e.target.closest('[data-block-id]'); const id = el.getAttribute('data-csel');
-      if (blk && el.contains(blk)) { e.stopPropagation(); select({ kind: 'block', sectionId: id, blockId: blk.getAttribute('data-block-id') }); return; }
-      select({ kind: 'section', sectionId: id });
-    }));
+    if (ED.previewOnly) wirePreviewBoundaries(frame);
+    if (ED.previewOnly || ED.fullPreview) {
+      frame.addEventListener('click', (event) => {
+        const link = event.target.closest('a'); if (!link) return;
+        const href = String(link.getAttribute('href') || '').trim();
+        if (!href || href === '#' || href.indexOf('#/') === 0) event.preventDefault();
+      });
+    }
+    if (!ED.fullPreview && !ED.previewOnly) {
+      frame.querySelectorAll('[data-csel-global]').forEach((el) => el.addEventListener('click', (e) => {
+        const blk = e.target.closest('[data-block-id]');
+        const scope = el.getAttribute('data-csel-global');
+        if (blk && el.contains(blk)) { e.stopPropagation(); /* globals expose block selection too (footer) */ select({ kind: 'block', sectionId: scope, blockId: blk.getAttribute('data-block-id') }); return; }
+        select({ kind: scope });
+      }));
+      frame.querySelectorAll('[data-csel]').forEach((el) => el.addEventListener('click', (e) => {
+        const blk = e.target.closest('[data-block-id]'); const id = el.getAttribute('data-csel');
+        if (blk && el.contains(blk)) { e.stopPropagation(); select({ kind: 'block', sectionId: id, blockId: blk.getAttribute('data-block-id') }); return; }
+        select({ kind: 'section', sectionId: id });
+      }));
+    }
     // hydrate each section for storefront interactivity (carousels, accordions, drag sliders…)
     frame.querySelectorAll('.os-sec').forEach((secEl) => {
       const id = secEl.getAttribute('data-csel'); const gscope = secEl.getAttribute('data-csel-global');
@@ -1376,6 +1685,19 @@
       (removable ? '<button type="button" class="os-op-remove" data-op-remove="' + esc(info.ref) + '" aria-label="Remove ' + esc(product.title + ' · ' + info.variantTitle) + '">×</button>' : '') +
       '<span class="os-op-grip" title="Drag to reorder">' + I_grip + '</span></div>';
   }
+  function mappingPurchasedVariantRefs(mapping) {
+    let values = mapping && Array.isArray(mapping.purchasedVariantIds) ? mapping.purchasedVariantIds : [];
+    if (!values.length && mapping && mapping.purchasedProductId) {
+      const product = (D.SAMPLE.products || []).find((item) => item.id === mapping.purchasedProductId);
+      const variants = product && Array.isArray(product.variants) ? product.variants : [];
+      values = product ? (variants.length
+        ? variants.map((variant) => product.id + VARIANT_REF_SEP + variant.id)
+        : [product.id + VARIANT_REF_SEP + 'default']) : [];
+    }
+    return values.map((ref) => {
+      const info = variantRefInfo(ref); return info && info.ref;
+    }).filter(Boolean);
+  }
   function orderedProductsControl(f, val, dk) {
     const ids = Array.isArray(val) ? val : [];
     const rows = ids.map((id) => productRowHtml(id, true)).join('');
@@ -1394,20 +1716,23 @@
     const mappings = Array.isArray(val) ? val : [];
     const cards = mappings.map((m, index) => {
       m = m || {};
-      const purchased = m && m.purchasedProductId ? productRowHtml(m.purchasedProductId, false) : '<div class="os-map-empty">Select a purchased product</div>';
+      const purchasedRefs = mappingPurchasedVariantRefs(m);
+      const purchased = purchasedRefs.map((ref) => variantRowHtml(ref, true)).join('');
       const recommended = (m && Array.isArray(m.recommendedProductIds) ? m.recommendedProductIds : []).map((ref) => variantRowHtml(ref, true)).join('');
-      const duplicate = m.purchasedProductId && mappings.some((other, otherIndex) => otherIndex < index && other && other.purchasedProductId === m.purchasedProductId);
-      const invalid = !m.purchasedProductId
-        ? 'Select a purchased product.'
-        : duplicate ? 'A mapping for this product already exists.'
+      const duplicate = purchasedRefs.some((ref) => mappings.some((other, otherIndex) =>
+        otherIndex < index && mappingPurchasedVariantRefs(other).indexOf(ref) >= 0));
+      const invalid = !purchasedRefs.length
+        ? 'Select at least one purchased product variant.'
+        : duplicate ? 'A purchased product variant is already used in another mapping.'
         : !(m.recommendedProductIds || []).length ? 'Select at least one recommended product variant.' : '';
       return '<div class="os-map-card" draggable="true" data-map-id="' + esc(m.id || String(index)) + '" data-map-index="' + index + '">' +
         '<div class="os-map-head"><span class="os-map-grip">' + I_grip + '</span><strong>Mapping ' + (index + 1) + '</strong>' +
           '<button type="button" data-map-remove="' + index + '">Remove</button></div>' +
-        '<label class="os-map-label">Purchased product</label><div class="os-map-purchased">' + purchased + '</div>' +
-        '<button type="button" class="os-map-action" data-map-purchased="' + index + '">' + (m.purchasedProductId ? 'Change product' : 'Select product') + '</button>' +
-        '<label class="os-map-label">Recommended variants</label>' +
-        (recommended ? '<div class="os-op-rows" data-map-rec-list="' + index + '">' + recommended + '</div>' : '<div class="os-map-empty">No recommended variants</div>') +
+        '<label class="os-map-label">Purchased product variants</label>' +
+        (purchased ? '<div class="os-op-rows" data-map-purchased-list="' + index + '">' + purchased + '</div>' : '<div class="os-map-empty">No purchased product variants</div>') +
+        '<button type="button" class="os-map-action" data-map-purchased="' + index + '">' + (purchased ? 'Change variants' : 'Select variants') + '</button>' +
+        '<label class="os-map-label">Recommended product variants</label>' +
+        (recommended ? '<div class="os-op-rows" data-map-rec-list="' + index + '">' + recommended + '</div>' : '<div class="os-map-empty">No recommended product variants</div>') +
         '<button type="button" class="os-map-action" data-map-recommended="' + index + '">' + (recommended ? 'Change variants' : 'Select variants') + '</button>' +
         (invalid ? '<div class="os-map-error">' + esc(invalid) + '</div>' : '') +
       '</div>';
@@ -1547,19 +1872,35 @@
     if (add) add.onclick = () => {
       const arr = clone(getArr());
       if (arr.length >= max) { toast('You can create up to ' + max + ' product mappings.', 'err'); return; }
-      arr.push({ id: uid('map'), purchasedProductId: '', recommendedProductIds: [] }); setArr(arr);
+      arr.push({ id: uid('map'), purchasedVariantIds: [], recommendedProductIds: [] }); setArr(arr);
     };
     root.querySelectorAll('[data-map-remove]').forEach((button) => {
       button.onclick = () => { const arr = clone(getArr()); arr.splice(+button.getAttribute('data-map-remove'), 1); setArr(arr); };
     });
     root.querySelectorAll('[data-map-purchased]').forEach((button) => {
       button.onclick = () => {
-        const index = +button.getAttribute('data-map-purchased'); const arr = getArr(); const current = (arr[index] || {}).purchasedProductId || '';
-        openPickerPop(button, 'product', current, (id) => {
-          if (arr.some((m, i) => i !== index && m.purchasedProductId === id)) { toast('A mapping for this product already exists.', 'err'); return; }
-          update(index, { purchasedProductId: id });
-        }, true);
+        const index = +button.getAttribute('data-map-purchased'); const arr = getArr();
+        openVariantPickerPop(button, mappingPurchasedVariantRefs(arr[index]), (refs) => {
+          const used = new Set();
+          arr.forEach((mapping, mappingIndex) => {
+            if (mappingIndex !== index) mappingPurchasedVariantRefs(mapping).forEach((ref) => used.add(ref));
+          });
+          if (refs.some((ref) => used.has(ref))) {
+            toast('A purchased product variant is already used in another mapping.', 'err'); return;
+          }
+          update(index, { purchasedVariantIds: refs });
+        }, 10);
       };
+    });
+    root.querySelectorAll('[data-map-purchased-list]').forEach((list) => {
+      const index = +list.getAttribute('data-map-purchased-list');
+      list.querySelectorAll('[data-op-remove]').forEach((button) => {
+        button.onclick = () => update(index, { purchasedVariantIds: mappingPurchasedVariantRefs(getArr()[index]).filter((ref) =>
+          ref !== button.getAttribute('data-op-remove')) });
+      });
+      wireIdRows(list, '[data-op-id]', 'data-op-id',
+        () => mappingPurchasedVariantRefs(getArr()[index]),
+        (ids) => update(index, { purchasedVariantIds: ids }));
     });
     root.querySelectorAll('[data-map-recommended]').forEach((button) => {
       button.onclick = () => {
@@ -2398,6 +2739,7 @@
   // template only carries its own component structure.
   function cloneTemplate(pt, src, id, name) {
     const base = { id: id, name: name, basedOn: src.id, isDefault: false, sections: (src.sections || []).map(cloneSectionInstance) };
+    if (isCkType(pt) && src.previewOrderScenario) base.previewOrderScenario = src.previewOrderScenario;
     if (!isCkType(pt)) { base.assigned = 0; base.assignedResourceIds = []; }
     return base;
   }
@@ -2525,6 +2867,11 @@
     if ((page === 'upsell' || page === 'downsell') && !postPurchaseEnabled()) page = 'thankyou';
     if (isOfferPage() && page === 'thankyou') OS.ckSet('post-purchase-offer-flow', { visited: true });
     ED.checkoutPage = page;
+    if (ED.previewOnly) {
+      ED.selection = { kind: 'none' };
+      renderStandalonePreview();
+      return;
+    }
     ED.selection = defaultSelection();
     ED.leftMode = 'sections';
     syncSurfaceHash();
@@ -2544,11 +2891,37 @@
   //  SAVE / DISCARD / PUBLISH  (+ validation)
   // ==========================================================================
   function onSave() {
-    if (!isDirty()) return;
-    const issues = validate(true);
-    if (issues.length) { openIssues(issues, 'saving'); return; }
+    saveDraft();
+  }
+  function saveDraft(onDone, validationDone) {
+    if (!isDirty()) { if (onDone) onDone(); return true; }
+    if (!validationDone) {
+      const issues = validate(true);
+      if (issues.length) { openIssues(issues, 'saving'); return false; }
+    }
     ED.busy = 'saving'; refreshTop();
-    setTimeout(() => { ED.savedTheme = clone(ED.theme); ED.meta.updated_time = nowStr(); ED.busy = null; refreshTop(); toast('Draft saved'); }, 360);
+    setTimeout(() => {
+      ED.savedTheme = clone(ED.theme);
+      ED.meta.updated_time = nowStr();
+      ED.busy = null;
+      refreshTop();
+      refreshPreviewBarLabel();
+      toast('Draft saved');
+      if (onDone) onDone();
+    }, 360);
+    return true;
+  }
+  function requestSavedPreview() {
+    // Open the latest saved draft/published state; unsaved editor changes stay in the editor.
+    if (!ED || ED.busy || ED.previewOnly) return;
+    openSavedPreview();
+  }
+  function openSavedPreview() {
+    const snapshot = createPreviewSnapshot();
+    if (!snapshot) return;
+    const url = previewUrl(snapshot.id);
+    const win = window.open(url, '_blank');
+    if (!win) toast('Preview was blocked. Allow pop-ups and try again.', 'err');
   }
   function onDiscard() {
     openConfirm({ title: 'Discard changes?', body: 'Are you sure you want to revert to the last saved state? Your unsaved changes will be lost.', okText: 'Discard', danger: true,
@@ -2559,7 +2932,14 @@
     const issues = validate();
     if (issues.length) { openIssues(issues); return; }
     ED.busy = 'publishing'; refreshTop();
-    setTimeout(() => { if (isDirty()) ED.savedTheme = clone(ED.theme); ED.publishedTheme = clone(ED.savedTheme); ED.busy = null; refreshTop(); toast('Published to storefront'); }, 480);
+    setTimeout(() => {
+      if (isDirty()) ED.savedTheme = clone(ED.theme);
+      ED.publishedTheme = clone(ED.savedTheme);
+      ED.busy = null;
+      refreshTop();
+      refreshPreviewBarLabel();
+      toast('Published to storefront');
+    }, 480);
   }
   function validate(customOnly) {
     const out = [];
@@ -2636,10 +3016,281 @@
   }
 
   // ==========================================================================
+  //  MERCHANT BUYER PREVIEW  (?preview_id=... · merchant session only)
+  // ==========================================================================
+  function removeStandalonePreview() {
+    const shell = document.getElementById('os-preview-shell');
+    if (shell && shell._previewCleanup) shell._previewCleanup();
+    if (shell) shell.remove();
+    document.body.classList.remove('os-preview-active', 'os-preview-merchant', 'os-preview-bar-hidden');
+  }
+  function closeStandalonePreview() {
+    removeStandalonePreview();
+    if (ACTIVE_PREVIEW_EXPIRY_TIMER) clearTimeout(ACTIVE_PREVIEW_EXPIRY_TIMER);
+    ACTIVE_PREVIEW_EXPIRY_TIMER = null;
+    ACTIVE_PREVIEW = null;
+    ACTIVE_PREVIEW_BAR_HIDDEN = false;
+  }
+  function renderPreviewRoute(id) {
+    closeBuilder(); closeStandalonePreview(); ensureStyles();
+    const result = resolvePreviewSnapshot(id);
+    if (!result.snapshot) { renderPreviewFailure(result.error, result.editorHash); return; }
+    const snapshot = result.snapshot;
+    startEditor(snapshot.themeHandle);
+    const publishedBaseline = clone(ED.publishedTheme);
+    const previewContext = snapshot;
+    ED.theme = clone(snapshot.theme);
+    ED.savedTheme = clone(snapshot.theme);
+    ED.publishedTheme = snapshot.source === 'published' ? clone(snapshot.theme) : publishedBaseline;
+    ED.surface = snapshot.surface === 'checkout' ? 'checkout' : 'online-store';
+    ED.currentPage = previewContext.currentPage || 'home';
+    ED.checkoutPage = isCkType(previewContext.checkoutPage) ? previewContext.checkoutPage : 'checkout';
+    if (!ED.theme.templates[ED.currentPage]) ED.currentPage = Object.keys(ED.theme.templates)[0] || 'home';
+    if (!ED.theme.checkout.templates[ED.checkoutPage]) ED.checkoutPage = Object.keys(ED.theme.checkout.templates)[0] || 'checkout';
+    ED.tplSel = clone(previewContext.tplSel || {});
+    ED.ckTplSel = clone(previewContext.ckTplSel || {});
+    ED.previewSel = clone(previewContext.previewSel || {});
+    ED.device = previewContext.device === 'mobile' ? 'mobile' : 'desktop';
+    ED.selection = { kind: 'none' };
+    ED.previewOnly = true;
+    ED.fullPreview = false;
+    ACTIVE_PREVIEW = snapshot;
+    if (root) root.innerHTML = '';
+    renderStandalonePreview();
+  }
+  function renderPreviewFailure(reason, editorHash) {
+    closeBuilder(); removeStandalonePreview(); ensureStyles();
+    if (ACTIVE_PREVIEW_EXPIRY_TIMER) clearTimeout(ACTIVE_PREVIEW_EXPIRY_TIMER);
+    ACTIVE_PREVIEW_EXPIRY_TIMER = null;
+    ACTIVE_PREVIEW = null;
+    const expired = reason === 'expired';
+    const copy = expired
+      ? ['This preview has expired', 'Return to the editor and open Preview again to continue reviewing.', 'Your theme edits are still in the editor.']
+      : ({
+        missing: ['This preview is unavailable', 'The link may be incomplete, cleared, or no longer valid.', 'Only signed-in merchants can open theme previews.'],
+      }[reason] || ['This preview is unavailable', 'This preview could not be opened.', 'Return to the editor and try again.']);
+    if (root) root.innerHTML = '';
+    const shell = h('<div class="os-preview-shell os-preview-failure i18n-skip" id="os-preview-shell"></div>');
+    shell.innerHTML =
+      '<div class="os-preview-empty' + (expired ? ' is-expired' : '') + '">' +
+        '<div class="os-preview-empty-icon" aria-hidden="true">' + (expired ? I.clock : I.eyeOff) + '</div>' +
+        '<h1>' + esc(copy[0]) + '</h1>' +
+        '<p>' + esc(copy[1]) + '</p>' +
+        (copy[2] ? '<p class="os-preview-empty-note">' + esc(copy[2]) + '</p>' : '') +
+        '<button type="button" class="btn btn-primary" data-preview-home>' + (editorHash ? 'Back to editor' : 'Back to themes') + '</button>' +
+      '</div>';
+    document.body.appendChild(shell);
+    shell.querySelector('[data-preview-home]').onclick = () => {
+      clearPreviewQueryParams();
+      location.hash = editorHash || '#/online-store';
+    };
+  }
+  function previewSourceLabel() {
+    if (!ACTIVE_PREVIEW) return 'Preview';
+    if (ACTIVE_PREVIEW.source === 'published') return 'Published preview';
+    return 'Draft preview';
+  }
+  function previewExpiry() {
+    return ACTIVE_PREVIEW ? ACTIVE_PREVIEW.merchantExpiresAt : 0;
+  }
+  function previewExpiryText(ts) {
+    const left = Math.max(0, Number(ts || 0) - Date.now());
+    const mins = Math.max(1, Math.ceil(left / 60000));
+    if (mins >= 1440) return 'Expires in ' + Math.ceil(mins / 1440) + ' days';
+    if (mins >= 60) return 'Expires in ' + Math.ceil(mins / 60) + ' hours';
+    return 'Expires in ' + mins + ' min';
+  }
+  function previewTemplateName() {
+    const tpl = isCheckout() ? curCkTpl() : curTpl();
+    const resource = isResourcePage() ? previewResource() : null;
+    return ((tpl && tpl.name) || 'Default') + (resource ? ' · ' + resource.title : '');
+  }
+  function previewLimitsPanelHtml() {
+    const checkout = isCheckout();
+    const page = checkout ? ED.checkoutPage : ED.currentPage;
+    const allowed = checkout
+      ? (page === 'checkout'
+        ? ['Fill contact, shipping, billing, and card mock fields', 'Apply mock discounts and choose mock delivery or payment options', 'Continue through the simulated post-purchase flow']
+        : page === 'thankyou'
+          ? ['Inspect the fixed, de-identified order snapshot', 'Return to the Online Store preview']
+          : ['Choose variants and quantities', 'Add offers to the local preview order or skip to the next page'])
+      : ['Browse internal pages and responsive layouts', 'Use galleries, filters, selectors, search, and other local UI', 'Add, update, or remove items in the preview-only cart'];
+    const blocked = checkout
+      ? ['Payment authorization or capture', 'Order creation, inventory reservation, fulfillment, or discount redemption', 'Customer/account updates, notifications, analytics, or third-party automation']
+      : ['Customer sign-in, registration, or account changes', 'Newsletter, contact, review, or other form submissions', 'Real checkout, external app authorization, or third-party service writes'];
+    const rows = (items) => items.map((item) => '<li><span aria-hidden="true">•</span>' + esc(item) + '</li>').join('');
+    return '<section class="os-preview-limits-panel" data-preview-limits-panel hidden aria-label="Preview interaction limits">' +
+      '<div class="os-preview-limits-head"><div>' + I.lock + '<div><strong>Preview interaction limits</strong><span>Merchant-only sandbox</span></div></div>' +
+      '<button type="button" data-preview-limits-close aria-label="Close preview limits">' + I.x + '</button></div>' +
+      '<div class="os-preview-limits-group allowed"><strong>Available to test</strong><ul>' + rows(allowed) + '</ul></div>' +
+      '<div class="os-preview-limits-group blocked"><strong>Never executed</strong><ul>' + rows(blocked) + '</ul></div>' +
+      '<p>No live business data is changed. This merchant preview expires 30 days after creation.</p>' +
+    '</section>';
+  }
+  function standalonePreviewBarHtml() {
+    const source = ACTIVE_PREVIEW.source;
+    const published = source === 'published';
+    const status = published ? 'Published' : 'Draft';
+    const statusClass = published ? 'published' : 'draft';
+    const statusTitle = previewSourceLabel() + ' · ' + previewExpiryText(previewExpiry());
+    return '<footer class="os-preview-bar" aria-label="Theme preview controls">' +
+      '<div class="os-preview-bar-left">' +
+        '<span class="os-preview-brand" aria-label="BestShopio">B</span>' +
+        '<span class="os-preview-bar-theme" title="' + esc(ACTIVE_PREVIEW.themeName) + '">' + esc(ACTIVE_PREVIEW.themeName) + '</span>' +
+        '<span class="os-preview-bar-status ' + statusClass + '" title="' + esc(statusTitle) + '">' + esc(status) + '</span>' +
+      '</div>' +
+      '<div class="os-preview-bar-actions">' +
+        '<button type="button" class="os-preview-limits-trigger" data-preview-limits aria-label="Show preview interaction limits" title="Preview limits" aria-expanded="false">' + I.lock + '<span>Preview limits</span></button>' +
+        previewLimitsPanelHtml() +
+        '<div class="os-preview-more-wrap">' +
+          '<button type="button" class="os-preview-bar-icon" data-preview-more aria-label="More preview actions" title="More" aria-expanded="false">' + I.more + '</button>' +
+          '<div class="os-preview-menu" data-preview-menu role="menu" hidden>' +
+            '<button type="button" data-preview-hide-bar role="menuitem">' + I.eyeOff + '<span>Hide bar</span></button>' +
+            '<button type="button" data-preview-exit role="menuitem">' + I.x + '<span>Exit preview</span></button>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="os-preview-edit" data-preview-editor>Edit theme</button>' +
+      '</div>' +
+    '</footer>' +
+    '<button type="button" class="os-preview-bar-reveal" data-preview-show-bar title="Show preview bar" aria-label="Show preview bar">' +
+      '<span class="os-preview-brand">B</span>' + I.eye +
+    '</button>';
+  }
+  function renderStandalonePreview() {
+    if (!ED || !ACTIVE_PREVIEW) return;
+    removeStandalonePreview(); ensureStyles();
+    ED.device = window.innerWidth <= 640 ? 'mobile' : 'desktop';
+    let canvasMarkup = '', renderFailed = false;
+    try { canvasMarkup = canvasHtml(); }
+    catch (e) { renderFailed = true; }
+    const shell = h('<div class="os-preview-shell merchant i18n-skip' + (ACTIVE_PREVIEW_BAR_HIDDEN ? ' bar-hidden' : '') + '" id="os-preview-shell"></div>');
+    shell.innerHTML =
+      '<main class="os-preview-stage">' + (renderFailed
+        ? '<div class="os-preview-render-fail">' + I.eyeOff + '<h2>Preview couldn’t be rendered</h2><p>The saved snapshot is intact. Retry the preview or return to the editor.</p><button type="button" class="btn btn-primary" data-preview-retry>Retry</button></div>'
+        : '<div class="os-preview-frame os-frame ' + ED.device + '" id="os-frame">' + canvasMarkup + '</div>') + '</main>' +
+      standalonePreviewBarHtml();
+    document.body.appendChild(shell);
+    document.body.classList.add('os-preview-active');
+    document.body.classList.add('os-preview-merchant');
+    if (ACTIVE_PREVIEW_BAR_HIDDEN) document.body.classList.add('os-preview-bar-hidden');
+    wireStandalonePreview(shell);
+    if (!renderFailed) wireCanvas();
+    schedulePreviewExpiry();
+  }
+  function schedulePreviewExpiry() {
+    if (ACTIVE_PREVIEW_EXPIRY_TIMER) clearTimeout(ACTIVE_PREVIEW_EXPIRY_TIMER);
+    if (!ACTIVE_PREVIEW) return;
+    const delay = Math.max(0, previewExpiry() - Date.now()) + 50;
+    ACTIVE_PREVIEW_EXPIRY_TIMER = setTimeout(() => {
+      const result = resolvePreviewSnapshot(ACTIVE_PREVIEW.id);
+      if (!result.snapshot) renderPreviewFailure(result.error, ACTIVE_PREVIEW.editorHash);
+      else schedulePreviewExpiry();
+    }, Math.min(delay, 2147483647));
+  }
+  function wireStandalonePreview(shell) {
+    let resizeTimer = null;
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const device = window.innerWidth <= 640 ? 'mobile' : 'desktop';
+        if (ED && ED.previewOnly && device !== ED.device) renderStandalonePreview();
+      }, 120);
+    };
+    window.addEventListener('resize', onResize);
+    shell._previewCleanup = () => { clearTimeout(resizeTimer); window.removeEventListener('resize', onResize); };
+    const retry = shell.querySelector('[data-preview-retry]');
+    if (retry) retry.onclick = renderStandalonePreview;
+    const editor = shell.querySelector('[data-preview-editor]');
+    if (editor) editor.onclick = returnToEditorFromPreview;
+    const limits = shell.querySelector('[data-preview-limits]');
+    const limitsPanel = shell.querySelector('[data-preview-limits-panel]');
+    const limitsClose = shell.querySelector('[data-preview-limits-close]');
+    const setLimitsOpen = (open) => {
+      if (!limits || !limitsPanel) return;
+      limitsPanel.hidden = !open;
+      limits.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    if (limits) limits.onclick = (event) => { event.stopPropagation(); setLimitsOpen(limitsPanel.hidden); };
+    if (limitsClose) limitsClose.onclick = () => { setLimitsOpen(false); limits.focus(); };
+    const more = shell.querySelector('[data-preview-more]');
+    const menu = shell.querySelector('[data-preview-menu]');
+    if (more && menu) {
+      more.onclick = (event) => {
+        event.stopPropagation();
+        menu.hidden = !menu.hidden;
+        more.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+      };
+      shell.addEventListener('click', (event) => {
+        if (!menu.hidden && !event.target.closest('[data-preview-menu]')) {
+          menu.hidden = true; more.setAttribute('aria-expanded', 'false');
+        }
+        if (limitsPanel && !limitsPanel.hidden && !event.target.closest('[data-preview-limits-panel],[data-preview-limits]')) setLimitsOpen(false);
+      });
+      shell.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          if (!menu.hidden) { menu.hidden = true; more.setAttribute('aria-expanded', 'false'); more.focus(); }
+          else if (limitsPanel && !limitsPanel.hidden) { setLimitsOpen(false); limits.focus(); }
+        }
+      });
+    }
+    const hide = shell.querySelector('[data-preview-hide-bar]');
+    if (hide) hide.onclick = () => setStandalonePreviewBarHidden(shell, true);
+    const show = shell.querySelector('[data-preview-show-bar]');
+    if (show) show.onclick = () => setStandalonePreviewBarHidden(shell, false);
+    const exit = shell.querySelector('[data-preview-exit]');
+    if (exit) exit.onclick = exitStandalonePreview;
+  }
+  function setStandalonePreviewBarHidden(shell, hidden) {
+    ACTIVE_PREVIEW_BAR_HIDDEN = !!hidden;
+    shell.classList.toggle('bar-hidden', ACTIVE_PREVIEW_BAR_HIDDEN);
+    document.body.classList.toggle('os-preview-bar-hidden', ACTIVE_PREVIEW_BAR_HIDDEN);
+    if (!hidden) {
+      const more = shell.querySelector('[data-preview-more]');
+      if (more) more.focus();
+    }
+  }
+  function clearPreviewQueryParams() {
+    try {
+      const url = new URL(location.href);
+      let changed = false;
+      ['preview_id', 'preview_token'].forEach((key) => {
+        if (url.searchParams.has(key)) { url.searchParams.delete(key); changed = true; }
+      });
+      if (changed) history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch (e) {}
+  }
+  function exitStandalonePreview() {
+    clearPreviewQueryParams();
+    window.close();
+    setTimeout(() => { if (!window.closed) location.hash = '#/online-store'; }, 120);
+  }
+  function returnToEditorFromPreview() {
+    const fallback = ACTIVE_PREVIEW && ACTIVE_PREVIEW.editorHash ? ACTIVE_PREVIEW.editorHash : '#/online-store';
+    clearPreviewQueryParams();
+    window.close();
+    setTimeout(() => { if (!window.closed) location.hash = fallback; }, 120);
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && ED && ED.fullPreview && document.getElementById('os-builder') &&
+        !document.querySelector('.modal-backdrop,.pop-layer')) {
+      exitFullPreview();
+    }
+  });
+  window.addEventListener('storage', (event) => {
+    if (!ACTIVE_PREVIEW || event.key !== PREVIEW_STORAGE_KEY) return;
+    const result = resolvePreviewSnapshot(ACTIVE_PREVIEW.id);
+    if (!result.snapshot) renderPreviewFailure(result.error, ACTIVE_PREVIEW.editorHash);
+  });
+
+  // ==========================================================================
   //  REFRESHERS
   // ==========================================================================
   function rerender() { renderBuilder(ED.meta.handle); }
   function refreshTop() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-top'); const nw = topBar(); old.replaceWith(nw); wireTop(); }
+  function refreshPreviewBarLabel() {
+    const bar = document.querySelector('[data-preview-bar-text]');
+    if (bar && ED && !ED.previewOnly) bar.textContent = previewBarText();
+  }
   function refreshTree() {
     const b = document.getElementById('os-builder'); if (!b) return;
     const old = b.querySelector('.os-left');
@@ -2660,7 +3311,16 @@
     const newSc = nw.querySelector('.os-right-scroll'); if (newSc && sameSel) newSc.scrollTop = sy;
     ED._rightKey = rightSelKey();
   }
-  function refreshCanvas() { const fr = document.getElementById('os-frame'); if (!fr) return; fr.className = 'os-frame ' + ED.device; fr.innerHTML = canvasHtml(); wireCanvas(); applyHighlight(); const bar = document.querySelector('.os-canvas-bar'); if (bar) bar.textContent = previewBarText(); }
+  function refreshCanvas() {
+    const fr = document.getElementById('os-frame'); if (!fr) return;
+    let markup;
+    try { markup = canvasHtml(); }
+    catch (e) { if (ED.previewOnly) { renderStandalonePreview(); return; } throw e; }
+    fr.className = (ED.previewOnly ? 'os-preview-frame ' : '') + 'os-frame ' + ED.device;
+    fr.innerHTML = markup;
+    wireCanvas(); applyHighlight();
+    const bar = document.querySelector('[data-preview-bar-text]'); if (bar) bar.textContent = previewBarText();
+  }
   // Buyer-side add-on toggles recompute the Order Summary by re-rendering the canvas.
   // Deferred so the triggering click finishes bubbling (selection) before teardown.
   OS.ckRecalc = function () { requestAnimationFrame(function () { if (isCheckout()) refreshCanvas(); }); };
@@ -2747,11 +3407,46 @@
   // ==========================================================================
   //  ROUTER / SIDEBAR
   // ==========================================================================
+  let routeGeneration = 0;
   function route(rest) {
-    closePops();
+    const first = (location.hash || '').replace(/^#\/?/, '').split('/')[0];
+    const liveRest = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean).slice(1).join('/');
+    const rawRest = rest || '';
+    if (rawRest !== liveRest) return; // Ignore a stale shell dispatch for an older same-module hash.
+    const generation = ++routeGeneration;
+    closePops(); closeStandalonePreview();
+    const queryAt = rawRest.indexOf('?');
+    const routePath = queryAt >= 0 ? rawRest.slice(0, queryAt) : rawRest;
+    const search = new URLSearchParams(location.search || '');
+    const previewIdParam = search.get('preview_id') || '';
+    if (previewIdParam) {
+      ensureSections().then(() => {
+        if (generation !== routeGeneration) return;
+        renderPreviewRoute(previewIdParam);
+      });
+      return;
+    }
+    const previewMatch = first === 'online-store'
+      ? routePath.match(/^preview\/([^/]+)$/) : null;
+    if (previewMatch) {
+      let previewId = '';
+      try {
+        previewId = decodeURIComponent(previewMatch[1]);
+      } catch (e) {
+        renderPreviewFailure('missing'); return;
+      }
+      ensureSections().then(() => {
+        if (generation !== routeGeneration) return;
+        renderPreviewRoute(previewId);
+      });
+      return;
+    }
+    if (routePath.indexOf('preview/') === 0) {
+      renderPreviewFailure('missing');
+      return;
+    }
     // Dedicated Checkout editor route: #/checkout or #/checkout/:handle (bookmarkable —
     // opens the builder straight on the Checkout surface, no Online-store detour).
-    const first = (location.hash || '').replace(/^#\/?/, '').split('/')[0];
     if (first === 'checkout') {
       // #/checkout/:handle[/<checkout|upsell|downsell|thankyou>]
       const routeParts = (rest || '').split('?');
@@ -2759,15 +3454,20 @@
       let page = 'checkout';
       ['thankyou', 'upsell', 'downsell', 'checkout'].forEach((pg) => { const i = parts.indexOf(pg); if (i >= 0) { page = pg; parts.splice(i, 1); } });
       const handle = parts[0] || (D.THEMES[0] && D.THEMES[0].handle) || 'aura';
-      ensureSections().then(() => renderBuilder(decodeURIComponent(handle), 'checkout', page));
+      ensureSections().then(() => { if (generation === routeGeneration) renderBuilder(decodeURIComponent(handle), 'checkout', page); });
       return;
     }
-    const m = (rest || '').match(/^edit\/(.+)$/);
-    if (m) { ensureSections().then(() => renderBuilder(decodeURIComponent(m[1]), 'online-store')); }
+    const m = routePath.match(/^edit\/(.+)$/);
+    if (m) {
+      ensureSections().then(() => { if (generation === routeGeneration) renderBuilder(decodeURIComponent(m[1]), 'online-store'); });
+    }
     else renderList();
   }
   window.VIEWS = window.VIEWS || {};
-  window.VIEWS['online-store'] = { render: function (el, rest) { root = el; route(rest || ''); }, unmount: function () { closeBuilder(); } };
+  window.VIEWS['online-store'] = {
+    render: function (el, rest) { root = el; route(rest || ''); },
+    unmount: function () { routeGeneration++; closeBuilder(); closeStandalonePreview(); },
+  };
 
   // upgrade the sidebar entry to active (mirrors the prior prototype's helper)
   function activateSidebar() {
@@ -2804,10 +3504,13 @@
      full-screen editor chrome (.os-builder is z-index 140); the shared .pop-layer defaults to
      80, which hid menus behind the tree / preview canvas. Keep below modal backdrops (240). */
   .pop-layer{z-index:200}
+  body.os-preview-active .pop-layer{z-index:540}
   .os-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--hair);background:#fff;flex-shrink:0}
   .os-top-l{display:flex;align-items:center;gap:12px;min-width:0}
   .os-top-c{display:flex;align-items:center;gap:10px;justify-content:center}
   .os-top-r{display:flex;align-items:center;gap:8px;justify-self:end}
+  .os-preview-open{display:inline-flex;align-items:center;gap:6px}
+  .os-preview-open svg{flex:none}
   .os-rail{display:inline-flex;background:var(--panel);border-radius:8px;padding:3px;gap:2px}
   .os-rail-b{width:32px;height:28px;border:0;background:none;color:var(--ink-muted);border-radius:6px;display:grid;place-items:center;cursor:pointer}
   .os-rail-b.on{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -2890,6 +3593,14 @@
   .btn-danger{background:var(--err);color:#fff}.btn-danger:hover{background:#b3401f}
   .os-top .btn[disabled]{opacity:.45;cursor:not-allowed}
   .os-body{flex:1;min-height:0;display:grid;grid-template-columns:300px 1fr 340px;overflow:hidden}
+  .os-builder.os-full-preview .os-body{grid-template-columns:1fr}
+  .os-builder.os-full-preview .os-left,.os-builder.os-full-preview .os-right{display:none}
+  .os-builder.os-full-preview .os-canvas-scroll{padding:12px}
+  .os-builder.os-full-preview .os-frame.desktop{max-width:none;box-shadow:none;border-radius:0}
+  .os-builder.os-full-preview .os-frame.mobile{max-width:390px}
+  .os-builder.os-full-preview .os-sec{cursor:default;outline-color:transparent!important}
+  .os-builder.os-full-preview .os-sec-tag{display:none}
+  .os-builder.os-full-preview .os-block-sel{outline:none}
 
   /* left tree */
   .os-left{border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0;background:#fff}
@@ -2938,7 +3649,9 @@
 
   /* center canvas */
   .os-center{display:flex;flex-direction:column;min-height:0;background:#eef0f3}
-  .os-canvas-bar{flex-shrink:0;padding:7px 14px;font-size:12px;color:var(--ink-muted);background:#f7f8fa;border-bottom:1px solid var(--hair)}
+  .os-canvas-bar{flex-shrink:0;min-height:31px;padding:6px 14px;font-size:12px;color:var(--ink-muted);background:#f7f8fa;border-bottom:1px solid var(--hair);display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box}
+  .os-canvas-bar button{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--brand);font:600 11.5px inherit;cursor:pointer;white-space:nowrap}
+  .os-canvas-bar kbd{padding:1px 5px;border:1px solid var(--ctl);border-bottom-width:2px;border-radius:4px;background:#fff;color:var(--ink-muted);font:10px ui-monospace,monospace}
   .os-canvas-scroll{flex:1;overflow:auto;padding:20px;display:flex;justify-content:center;align-items:flex-start}
   .os-frame{width:100%;max-width:1080px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08);border-radius:4px;overflow:hidden;transition:max-width .2s}
   .os-frame.mobile{max-width:390px}
@@ -3138,8 +3851,79 @@
   .os-issue{display:flex;gap:8px;font-size:13px;color:var(--ink-body);line-height:1.5}
   .os-issue-w{font-weight:600;color:var(--ink);flex:none}
 
+  /* Merchant buyer preview */
+  .os-preview-shell{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;background:#fff;color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+  .os-preview-stage{position:relative;z-index:1;isolation:isolate;flex:1;min-height:0;overflow:auto;padding:0;background:#fff}
+  .os-preview-frame,.os-preview-frame.mobile,.os-preview-frame.desktop{width:100%;max-width:none;min-height:100%;background:#fff;box-shadow:none;border-radius:0;overflow:hidden}
+  .os-preview-shell .os-sec{cursor:default;outline:none!important}
+  .os-preview-shell .os-sec-tag{display:none}
+  .os-preview-shell .os-block-sel{outline:none}
+  .os-preview-bar{position:relative;z-index:5;min-height:48px;padding:6px 8px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:18px;flex:none;background:#181818;color:#f4f4f4;border-top:1px solid #2e2e2e;box-shadow:0 -2px 12px rgba(0,0,0,.12)}
+  .os-preview-bar-left,.os-preview-bar-actions{display:flex;align-items:center;min-width:0}
+  .os-preview-bar-left{gap:8px;overflow:hidden}
+  .os-preview-brand{width:24px;height:24px;display:grid;place-items:center;flex:none;border-radius:6px;background:#f4f4f4;color:#161616;font-size:13px;font-weight:800;line-height:1}
+  .os-preview-bar-theme{max-width:min(320px,35vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e9e9e9;font-size:12px;font-weight:550}
+  .os-preview-bar-status{flex:none;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:700;line-height:1.4}
+  .os-preview-bar-status.draft{background:#173f59;color:#80cbf2}
+  .os-preview-bar-status.published{background:#173f31;color:#8ed9b6}
+  .os-preview-bar-actions{justify-content:flex-end;gap:5px;flex:none}
+  .os-preview-bar-icon{width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:#d5d5d5;display:grid;place-items:center;cursor:pointer}
+  .os-preview-bar-icon:hover,.os-preview-bar-icon[aria-expanded="true"]{background:#303030;color:#fff}
+  .os-preview-bar-icon:focus-visible,.os-preview-limits-trigger:focus-visible,.os-preview-edit:focus-visible,.os-preview-menu button:focus-visible,.os-preview-bar-reveal:focus-visible{outline:2px solid #63a8ff;outline-offset:2px}
+  .os-preview-bar-icon[disabled]{opacity:.4;cursor:not-allowed}
+  .os-preview-limits-trigger{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#d5d5d5;display:flex;align-items:center;gap:7px;font:600 11px inherit;cursor:pointer}
+  .os-preview-limits-trigger:hover,.os-preview-limits-trigger[aria-expanded="true"]{background:#303030;color:#fff}
+  .os-preview-limits-panel{position:absolute;right:72px;bottom:calc(100% + 8px);width:min(390px,calc(100vw - 24px));padding:16px;background:#fff;border:1px solid #dedede;border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.24);box-sizing:border-box;color:#242424}
+  .os-preview-limits-panel[hidden]{display:none}
+  .os-preview-limits-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .os-preview-limits-head>div{display:flex;align-items:flex-start;gap:10px}.os-preview-limits-head>div>svg{width:18px;height:18px;margin-top:2px;color:#3f5368}
+  .os-preview-limits-head strong{display:block;font-size:14px}.os-preview-limits-head span{display:block;margin-top:2px;color:#748091;font-size:11px}
+  .os-preview-limits-head button{width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:#667085;display:grid;place-items:center;cursor:pointer}
+  .os-preview-limits-head button:hover{background:#f0f2f5}.os-preview-limits-head button svg{width:14px;height:14px}
+  .os-preview-limits-group{margin-top:14px;padding:12px;border-radius:9px;background:#f5f7f9}
+  .os-preview-limits-group>strong{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#3e4c5d}
+  .os-preview-limits-group ul{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+  .os-preview-limits-group li{display:flex;align-items:flex-start;gap:7px;color:#525e6c;font-size:11.5px;line-height:1.45}
+  .os-preview-limits-group li span{color:#23845a;font-weight:800}.os-preview-limits-group.blocked li span{color:#a0443a}
+  .os-preview-limits-panel>p{margin:12px 2px 0;color:#7a8491;font-size:10.5px;line-height:1.45}
+  .os-preview-more-wrap{position:relative;display:flex}
+  .os-preview-menu{position:absolute;right:0;bottom:calc(100% + 8px);width:150px;padding:5px;background:#fff;border:1px solid #e2e2e2;border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;flex-direction:column;color:#242424}
+  .os-preview-menu[hidden]{display:none}
+  .os-preview-menu button{width:100%;min-height:34px;padding:7px 9px;border:0;border-radius:6px;background:transparent;color:inherit;display:flex;align-items:center;gap:9px;text-align:left;font:12px inherit;cursor:pointer}
+  .os-preview-menu button:hover{background:#f1f1f1}
+  .os-preview-menu button svg{width:14px;height:14px;color:#5d5d5d}
+  .os-preview-edit{height:32px;margin-left:2px;padding:0 12px;border:0;border-radius:8px;background:#f5f5f5;color:#181818;font:650 12px inherit;white-space:nowrap;cursor:pointer}
+  .os-preview-edit:hover{background:#fff}
+  .os-preview-bar-reveal{position:fixed;right:12px;bottom:12px;z-index:6;height:36px;padding:5px 8px 5px 6px;border:1px solid #383838;border-radius:10px;background:#181818;color:#f4f4f4;display:none;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(0,0,0,.25);cursor:pointer}
+  .os-preview-bar-reveal>svg{width:15px;height:15px}
+  .os-preview-shell.bar-hidden .os-preview-bar{display:none}
+  .os-preview-shell.bar-hidden .os-preview-bar-reveal{display:flex}
+  .os-preview-render-fail{width:min(440px,calc(100% - 32px));margin:auto;padding:38px 32px;border:1px solid var(--hair);border-radius:14px;background:#fff;text-align:center;box-shadow:0 10px 32px rgba(15,23,42,.08)}
+  .os-preview-render-fail>svg{width:34px;height:34px;color:var(--ink-muted)}
+  .os-preview-render-fail h2{margin:16px 0 7px;font-size:18px;color:var(--ink)}
+  .os-preview-render-fail p{margin:0 0 20px;color:var(--ink-muted);font-size:13px;line-height:1.6}
+  .os-preview-failure{display:grid;place-items:center;background:linear-gradient(180deg,#f4f5f7 0%,#eef0f3 100%);padding:24px;box-sizing:border-box}
+  .os-preview-empty{width:min(420px,100%);padding:8px 12px 0;text-align:center}
+  .os-preview-empty-icon{width:56px;height:56px;margin:0 auto;border-radius:50%;display:grid;place-items:center;background:rgba(15,23,42,.06);color:#6b7280}
+  .os-preview-empty.is-expired .os-preview-empty-icon{background:rgba(146,64,14,.08);color:#92400e}
+  .os-preview-empty-icon>svg{width:26px;height:26px}
+  .os-preview-empty h1{margin:22px 0 10px;font-size:24px;line-height:1.25;letter-spacing:-.02em;color:#111827;font-weight:650}
+  .os-preview-empty p{margin:0 auto;max-width:34ch;color:#6b7280;font-size:14px;line-height:1.65}
+  .os-preview-empty-note{margin-top:10px !important;font-size:13px !important;color:#9ca3af !important}
+  .os-preview-empty .btn{margin-top:28px}
+  @media(max-width:640px){
+    .os-preview-bar{gap:8px;padding:6px}
+    .os-preview-bar-theme{max-width:110px}
+    .os-preview-limits-trigger span{display:none}
+    .os-preview-limits-trigger{width:32px;padding:0;justify-content:center}
+    .os-preview-limits-panel{right:6px}
+    .os-preview-edit{padding:0 10px}
+  }
+  @media(max-width:420px){.os-preview-bar-theme{display:none}}
+
   /* toast */
-  .os-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:300;box-shadow:var(--float-shadow);display:flex;align-items:center;gap:8px}
+  .os-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:600;box-shadow:var(--float-shadow);display:flex;align-items:center;gap:8px}
+  body.os-preview-merchant:not(.os-preview-bar-hidden) .os-toast{bottom:64px}
   .os-toast i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
   .os-toast.err{background:#b3261e}.os-toast.err i{background:#fff}
 
