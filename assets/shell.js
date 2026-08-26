@@ -173,7 +173,7 @@
     if (loaded[id]) return loaded[id];
     // Online store is a self-contained Theme editor. Version it independently so
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
-    var moduleV = id === 'settings' ? '20260820-psp-dash5'
+    var moduleV = id === 'settings' ? '20260826-email-cust1'
       : id === 'online-store' ? '20260822theme-sync1'
       : id === 'analytics' ? '20260818-yaxis-six1' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every

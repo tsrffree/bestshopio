@@ -281,8 +281,8 @@
 
   // an Ant-style Switch (visual)
   let sw = 0;
-  const toggle = (on, label) => {
-    const id = 'sw' + (++sw);
+  const toggle = (on, label, key) => {
+    const id = key || ('sw' + (++sw));
     return '<label class="set-switch' + (on ? ' on' : '') + '" data-toggle="' + id + '"' + (label ? ' aria-label="' + esc(label) + '"' : '') + '><span class="set-knob"></span></label>';
   };
 
@@ -440,8 +440,21 @@
           ) +
           block(
             '<div class="flex items-center gap-3 mb-1"><span class="text-sm" style="font-weight:600;color:var(--ink)">Order Auto-Cancel Time</span>' +
-              '<div class="set-addon"><input class="input" type="number" value="' + b.order.autoCancelMinutes + '" min="1" max="1440" style="width:140px;border-top-right-radius:0;border-bottom-right-radius:0" /><span class="set-addon-suffix">Minutes</span></div></div>' +
-            '<div class="muted" style="font-size:12.5px">Duration for To pay orders after Place order.</div>'
+              '<div class="set-addon"><input class="input" type="number" id="ord-autocancel" value="' + b.order.autoCancelMinutes + '" min="1" max="1440" style="width:140px;border-top-right-radius:0;border-bottom-right-radius:0" /><span class="set-addon-suffix">Minutes</span></div></div>' +
+            '<div class="muted" style="font-size:12.5px">Cancels unpaid checkouts that never collected an email or phone number. These never become abandoned checkouts. Abandoned checkouts use the recovery window instead.</div>' +
+            '<div class="muted" style="font-size:12.5px;color:#c2410c;display:none;margin-top:6px" id="ord-autocancel-err"></div>'
+          ) +
+          block(
+            '<div class="flex items-center gap-3 mb-1"><span class="text-sm" style="font-weight:600;color:var(--ink)">Abandoned checkout delay</span>' +
+              '<div class="set-addon"><input class="input" type="number" id="ord-abandon-delay" value="' + (b.order.abandonThresholdMinutes || 60) + '" min="15" max="1440" style="width:140px;border-top-right-radius:0;border-bottom-right-radius:0" /><span class="set-addon-suffix">Minutes</span></div></div>' +
+            '<div class="muted" style="font-size:12.5px">After the buyer leaves an email or phone number and then stays unpaid for this idle time, the checkout becomes abandoned. No contact means no abandoned checkout. Buyers still on the page are not marked abandoned.</div>' +
+            '<div class="muted" style="font-size:12.5px;color:#c2410c;display:none;margin-top:6px" id="ord-abandon-delay-err"></div>'
+          ) +
+          block(
+            '<div class="flex items-center gap-3 mb-1"><span class="text-sm" style="font-weight:600;color:var(--ink)">Recovery window</span>' +
+              '<div class="set-addon"><input class="input" type="number" id="ord-recovery-window" value="' + (b.order.recoveryWindowHours || 48) + '" min="24" max="336" style="width:140px;border-top-right-radius:0;border-bottom-right-radius:0" /><span class="set-addon-suffix">Hours</span></div></div>' +
+            '<div class="muted" style="font-size:12.5px">Recoverable unpaid checkouts stay open for this window so a reminder can be sent. Default 48 hours.</div>' +
+            '<div class="muted" style="font-size:12.5px;color:#c2410c;display:none;margin-top:6px" id="ord-recovery-window-err"></div>'
           ) +
           block(
             '<div class="flex items-center gap-3 mb-1"><span class="text-sm" style="font-weight:600;color:var(--ink)">Order Auto-Receive Time</span>' +
@@ -502,6 +515,22 @@
     root.querySelectorAll('[data-social]').forEach((b2) => b2.onclick = () => openLoginModal(b2.getAttribute('data-social')));
     const pfx = root.querySelector('#ord-prefix');
     if (pfx) pfx.oninput = () => { const v = pfx.value || ''; const eg = root.querySelector('#ord-prefix-eg'); if (eg) eg.textContent = v + '1001, ' + v + '1002, ' + v + '1003...'; };
+    const bindNumberField = (id, errId, min, max, emptyMsg, rangeMsg, onOk) => {
+      const input = root.querySelector('#' + id);
+      const err = root.querySelector('#' + errId);
+      if (!input || !err) return;
+      input.onblur = () => {
+        const raw = String(input.value || '').trim();
+        const n = Number(raw);
+        if (!raw) { err.textContent = emptyMsg; err.style.display = 'block'; input.classList.add('err'); return; }
+        if (!Number.isFinite(n) || n < min || n > max) { err.textContent = rangeMsg; err.style.display = 'block'; input.classList.add('err'); return; }
+        err.textContent = ''; err.style.display = 'none'; input.classList.remove('err');
+        onOk(n);
+      };
+    };
+    bindNumberField('ord-autocancel', 'ord-autocancel-err', 1, 1440, 'Enter an auto-cancel time.', 'Enter a time between 1 and 1440 minutes.', (n) => { b.order.autoCancelMinutes = n; });
+    bindNumberField('ord-abandon-delay', 'ord-abandon-delay-err', 15, 1440, 'Enter an abandoned checkout delay.', 'Enter a time between 15 and 1440 minutes.', (n) => { b.order.abandonThresholdMinutes = n; });
+    bindNumberField('ord-recovery-window', 'ord-recovery-window-err', 24, 336, 'Enter a recovery window.', 'Enter a recovery window between 24 and 336 hours.', (n) => { b.order.recoveryWindowHours = n; });
   }
 
   // Add font — mirrors fontModel.tsx: "Font:" label + Ant Select(mode=multiple) of
@@ -632,9 +661,9 @@
   const pLogo = (p, hh) => p.logo
     ? payImg(p.logo, hh || 20)
     : '<span class="pm-mono">' + esc(p.name) + '</span>';
-  function pMethPill(connected, on) {
+  function pMethPill(connected) {
     if (!connected) return '<span class="pill pill-gray"><span class="dot"></span>Not connected</span>';
-    return on ? '<span class="pill pill-green"><span class="dot"></span>Connected</span>' : '<span class="pill pill-gray"><span class="dot"></span>Disabled</span>';
+    return '<span class="pill pill-green"><span class="dot"></span>Connected</span>';
   }
   // ① 卡 + Express 单处理方槽位（picker 内连接/切换/管理）
   function pSlot() {
@@ -680,11 +709,11 @@
   // ② 独立支付方式（PayPal / Klarna 自有直连）
   function pIndep() {
     let html = ''; const pp = D.payments.paypal;
-    html += '<div class="panel imeth paypal-method"><div class="imeth-head"><span class="lg">' + payImg('paypal-logo.svg', 24) + '</span><div><div class="nm">PayPal Wallet</div><div class="sub">Independent wallet, self-settling · runs alongside the card processor</div></div><div class="right">' + pMethPill(pp.connected, pp.walletOn) + (pp.connected ? '<span class="sw' + (pp.walletOn ? ' on' : '') + '" data-itg="paypal"><i></i></span><button class="set-prim" data-cfg="paypal">Manage</button>' : '<button class="btn btn-primary" data-cfg="paypal">Connect</button>') + '</div></div></div>';
+    html += '<div class="panel imeth paypal-method"><div class="imeth-head"><span class="lg">' + payImg('paypal-logo.svg', 24) + '</span><div><div class="nm">PayPal Wallet</div><div class="sub">Independent wallet, self-settling · runs alongside the card processor</div></div><div class="right">' + pMethPill(pp.connected) + (pp.connected ? '<button class="set-prim" data-cfg="paypal">Manage</button>' : '<button class="btn btn-primary" data-cfg="paypal">Connect</button>') + '</div></div></div>';
     {
       const k = D.payments.klarna;
       if (k.directConnected) {
-        html += '<div class="panel imeth" style="display:block"><div style="display:flex;align-items:center;gap:13px"><span class="lg">' + payImg('klarna.svg', 24) + '</span><div><div class="nm">Klarna · own direct account</div><div class="sub">Your own Klarna direct account · rates usually better than via a PSP</div></div><div class="right">' + pMethPill(true, k.directOn) + '<span class="sw' + (k.directOn ? ' on' : '') + '" data-itg="klarna_direct"><i></i></span><button class="set-prim" data-cfg="klarna_direct">Manage</button></div></div><div class="dnote">💡 Klarna at checkout uses your direct account; if the active processor also has Klarna enabled, it defers to the direct account automatically to avoid showing twice to buyers.</div></div>';
+        html += '<div class="panel imeth" style="display:block"><div style="display:flex;align-items:center;gap:13px"><span class="lg">' + payImg('klarna.svg', 24) + '</span><div><div class="nm">Klarna · own direct account</div><div class="sub">Your own Klarna direct account · rates usually better than via a PSP</div></div><div class="right">' + pMethPill(true) + '<button class="set-prim" data-cfg="klarna_direct">Manage</button></div></div><div class="dnote">💡 Klarna at checkout uses your direct account; if the active processor also has Klarna enabled, it defers to the direct account automatically to avoid showing twice to buyers.</div></div>';
       } else {
         html += '<div class="panel imeth"><span class="lg">' + payImg('klarna.svg', 24) + '</span><div><div class="nm">Klarna · own direct account</div><div class="sub">Have your own Klarna account? Connect it for better rates and platform routing (otherwise it is rendered by the active processor).</div></div><div class="right"><span class="pill pill-gray"><span class="dot"></span>Not connected</span><button class="btn btn-primary" data-cfg="klarna_direct">Connect</button></div></div>';
       }
@@ -696,8 +725,8 @@
   function pPreview() {
     const a = pActive();
     const express = a ? pExpressFor(a) : [];
-    const hasPaypal = D.payments.paypal.connected && D.payments.paypal.walletOn;
-    const klarnaDirect = D.payments.klarna.directConnected && D.payments.klarna.directOn;
+    const hasPaypal = D.payments.paypal.connected;
+    const klarnaDirect = D.payments.klarna.directConnected;
     const hasCard = !!a;
     if (!express.length && !hasPaypal && !klarnaDirect && !hasCard) return '<div class="muted" style="text-align:center;padding:24px 0;font-size:13px">No payment provider connected yet, buyers can\'t pay.</div>';
     const order = { applepay: 0, googlepay: 1, link: 2, amazonpay: 3, klarna: 4 };
@@ -896,7 +925,7 @@
     const preview =
       '<div class="preview-col"><div class="phone"><div class="phone-notch"></div>' +
         '<div class="ck-h">Checkout · methods buyers see</div>' + pPreview() + '</div>' +
-        '<div class="preview-note">What buyers see are the methods lit up by connected providers; flip the switches above and this updates live.</div></div>';
+        '<div class="preview-note">What buyers see are the methods lit up by connected providers.</div></div>';
     paint(
       '<style>' + PAY_CSS + '</style>' +
       '<div class="payv2">' +
@@ -907,7 +936,6 @@
       false
     );
     root.querySelectorAll('[data-setproc]').forEach((el) => el.onclick = () => pConfirmSwitch(el.dataset.setproc));
-    root.querySelectorAll('[data-itg]').forEach((el) => el.onclick = () => { const k = el.dataset.itg; if (k === 'paypal') D.payments.paypal.walletOn = !D.payments.paypal.walletOn; else if (k === 'klarna_direct') D.payments.klarna.directOn = !D.payments.klarna.directOn; renderPayments(); });
     root.querySelectorAll('[data-cfg]').forEach((el) => el.onclick = () => pOpenConnect(el.dataset.cfg));
     root.querySelectorAll('[data-refresh]').forEach((el) => el.onclick = () => toast('Synced from the active processor'));
   }
@@ -1626,6 +1654,7 @@
     { title: 'Products', children: ['Product list', 'Add product', 'Edit product', 'Collections'] },
     { title: 'Discounts', children: ['Discount list', 'Add discount', 'Edit discount'] },
     { title: 'Customers', children: ['Customer list', 'Customer detail'] },
+    { title: 'Inbox', children: ['Inbox', 'Reply', 'Close', 'Knowledge', 'Hours', 'Inbox settings'] },
     { title: 'Content', children: ['Blog', 'Page', 'Menu'] },
     { title: 'Google', children: ['Google sync'] },
     { title: 'Settings', children: ['Basic settings', 'Payments', 'Staff and permissions'] },
@@ -1634,7 +1663,7 @@
   let rolesData = [
     { role: 'Administrator', desc: 'Full access to all features and settings', members: 5, perms: ALL_LEAVES.slice() },
     { role: 'Operations Specialist', desc: 'Manages products, marketing, and orders', members: 4, perms: ['Product list', 'Add product', 'Edit product', 'Collections', 'Discount list', 'Add discount', 'Order list', 'Order detail'] },
-    { role: 'Customer Service Representative', desc: 'Manages customer inquiries, returns, and exchanges', members: 3, perms: ['Customer list', 'Customer detail', 'Order list', 'Order detail', 'Note', 'Refund'] },
+    { role: 'Customer Service Representative', desc: 'Manages customer inquiries, returns, and exchanges', members: 3, perms: ['Customer list', 'Customer detail', 'Order list', 'Order detail', 'Note', 'Refund', 'Inbox', 'Reply', 'Close', 'Knowledge'] },
     { role: 'Order Specialist', desc: '', members: 0, perms: ['Order list', 'Order detail', 'Shipping', 'Edit shipping address'] },
   ];
   let staffData = [
@@ -2768,7 +2797,9 @@
       { method: 'Visa', amount: 'US$ 55.98' },
       { method: 'Visa', amount: 'US$ 28.80' },
     ],
+    'checkout.recovery_url': 'https://lovocross.com/checkout?token=rcv_1042_demo',
   };
+  let nfPreviewEvent = '';
   const NF_ITEMS = [
     {
       kind: 'bundle', name: 'Coffee Office Pack', qty: 1, originalPrice: 'US$ 69.97', price: 'US$ 55.98',
@@ -2809,7 +2840,8 @@
   }
   function nfVariablePanel(ev) {
     const tx = (text) => window.I18N && typeof window.I18N.t === 'function' ? window.I18N.t(text) : text;
-    const isOrderEmail = ['order_paid', 'order_shipped', 'order_refunded'].includes(ev.code);
+    const isAbandoned = ev.code === 'abandoned_checkout';
+    const isOrderEmail = ['order_paid', 'order_shipped', 'order_refunded', 'abandoned_checkout'].includes(ev.code);
     const item = (token, kind) =>
       '<span class="nf-var-token"><button type="button" class="nf-var-insert" data-insert-token="' + esc(token) + '" data-token-kind="' + kind + '" title="' + tx('Click a variable to insert it at the cursor. Blocks are inserted into the email body.') + '"><code>{{' + esc(token) + '}}</code></button><button type="button" class="nf-var-copy" data-copy-token="' + esc(token) + '" title="' + tx('Copy') + '">' + tx('Copy') + '</button></span>';
     const group = (title, tokens, kind) => tokens.length
@@ -2829,12 +2861,15 @@
           ? ['block.cta_button', 'block.tracking', 'block.shipment_items']
           : ev.code === 'order_refunded'
             ? ['block.refund_summary']
-            : ['block.cta_button', 'block.order_summary', 'block.customer_information'];
+            : isAbandoned
+              ? ['block.cta_button', 'block.order_summary']
+              : ['block.cta_button', 'block.order_summary', 'block.customer_information'];
     return '<section class="nf-variable-panel"><div class="nf-variable-panel-head"><div><div class="nf-variable-panel-title">' + tx('Available variables') + '</div><div class="nf-variable-panel-copy">' + tx('Click a variable to insert it at the cursor. Blocks are inserted into the email body.') + '</div></div><div class="nf-variable-panel-note">' + tx('Only the variables and blocks listed here are supported.') + '</div></div><div class="nf-variable-grid">' +
       group('Customer', ['customer.first_name', 'customer.name'], 'scalar') +
       group('Store', ['store.name', 'store.url', 'store.contact_email'], 'scalar') +
+      group('Checkout', isAbandoned ? ['checkout.recovery_url'] : [], 'scalar') +
       group('Verification', verificationTokens, 'scalar') +
-      (isOrderEmail ? group('Order', orderTokens, 'scalar') + group('Order amounts', amountTokens, 'scalar') + group('Addresses', addressTokens, 'scalar') : '') +
+      (isOrderEmail ? group('Order', orderTokens, 'scalar') + group('Order amounts', amountTokens, 'scalar') + (isAbandoned ? '' : group('Addresses', addressTokens, 'scalar')) : '') +
       group('Shipment', shipmentTokens, 'scalar') + group('Refund', refundTokens, 'scalar') + group('Prebuilt blocks', blockTokens, 'block') +
     '</div></section>';
   }
@@ -2884,6 +2919,7 @@
       const refundCopy = esc(copy || '').replace(/\{\{\s*refund\.amount\s*\}\}/gi, '<strong>{{refund.amount}}</strong>');
       return '<h2 class="nf-h">' + esc(headline || '') + '</h2><p class="nf-lead">' + refundCopy + '</p>{{block.refund_summary}}';
     }
+    if (ev.code === 'abandoned_checkout') return opening + '{{block.cta_button}}\n{{block.order_summary}}';
     return opening + '{{block.cta_button}}\n{{block.order_summary}}\n{{block.shipping_address}}';
   }
   function nfTemplateSource(ev, headline, copy) {
@@ -2933,24 +2969,31 @@
       '</div>';
     }).join('');
     const totalRow = (label, val) => '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;color:#6b7480"><span>' + label + '</span><span>' + val + '</span></div>';
-    const shopifyProductDiscount = (label, amount) => '<div class="nf-email-product-discount"><img src="settings/assets/shopify-discount-tag.png" alt="" aria-hidden="true"><span>' + esc(label) + (amount ? ' (' + esc(amount) + ')' : '') + '</span></div>';
+    const nfUnbreakMoney = (value) => String(value || '').replace(/\s+/g, '\u00a0');
+    const shopifyProductDiscount = (label, amount) => '<div class="nf-email-product-discount"><img src="settings/assets/shopify-discount-tag.png" alt="" aria-hidden="true"><span>' + esc(label) + (amount ? ' (' + esc(nfUnbreakMoney(amount)) + ')' : '') + '</span></div>';
     const shopifyItemsRows = (items) => items.map((it) => {
       const discounts = it.discounts || (it.discountCode ? [{ label: it.discountCode, amount: it.discountAmount }] : []);
       const subscription = it.subscription
         ? '<div class="nf-email-subscription"><span>Subscription</span><b>·</b><span>' + esc(it.subscription.cadence) + '</span></div>'
         : '';
       const componentRows = (it.children || []).map((child) =>
-        '<div class="nf-email-bundle-component"><div class="nf-email-bundle-component-image" aria-hidden="true"></div><div class="nf-email-bundle-component-copy"><div><span class="nf-email-included">Included</span><span class="nf-email-bundle-component-title">' + esc(child.name) + '&nbsp;&times;&nbsp;' + child.qty + '</span></div><div class="nf-email-bundle-component-variant">' + esc(child.variant) + '</div></div></div>'
+        '<div class="nf-email-bundle-component"><div class="nf-email-bundle-component-image" aria-hidden="true"></div><div class="nf-email-bundle-component-copy"><div class="nf-email-bundle-component-name"><span class="nf-email-included">Included</span><span class="nf-email-bundle-component-title">' + esc(child.name) + '&nbsp;&times;&nbsp;' + child.qty + '</span></div><div class="nf-email-bundle-component-variant">' + esc(child.variant) + '</div></div></div>'
       ).join('');
+      const variant = it.variant
+        ? '<div class="nf-email-product-variant">' + esc(it.variant) + '</div>'
+        : '';
+      const details = subscription + (discounts.length ? '<div class="nf-email-product-discounts">' + discounts.map((discount) => shopifyProductDiscount(discount.label, discount.amount)).join('') + '</div>' : '') + componentRows;
       return '<div class="nf-email-product-row' + (it.kind === 'bundle' ? ' is-bundle' : '') + '">' +
         '<div class="nf-email-product-image" aria-hidden="true"></div>' +
-        '<div class="nf-email-product-copy"><div class="nf-email-product-title">' + (it.kind === 'bundle' ? '<span class="nf-email-bundle-badge">Bundle</span>' : '') + esc(it.name) + '&nbsp;&times;&nbsp;' + it.qty + '</div>' +
-          '<div class="nf-email-product-variant">' + esc(it.variant || '') + '</div>' + subscription + '<div class="nf-email-product-discounts">' + discounts.map((discount) => shopifyProductDiscount(discount.label, discount.amount)).join('') + '</div>' + componentRows + '</div>' +
+        '<div class="nf-email-product-copy">' +
+          '<div class="nf-email-product-head"><div class="nf-email-product-title">' + (it.kind === 'bundle' ? '<span class="nf-email-bundle-badge">Bundle</span>' : '') + esc(it.name) + '&nbsp;&times;&nbsp;' + it.qty + '</div>' + variant + '</div>' +
+          (details ? '<div class="nf-email-product-details">' + details + '</div>' : '') +
+        '</div>' +
         '<div class="nf-email-product-price">' + (it.originalPrice ? '<del>' + esc(it.originalPrice) + '</del>' : '') + '<span>' + esc(it.price) + '</span></div>' +
       '</div>';
     }).join('');
     const shopifyTotalRow = (label, val, strong) => '<div class="nf-email-total-row' + (strong ? ' is-strong' : '') + '"><span>' + label + '</span><span>' + val + '</span></div>';
-    const shopifyDiscountCode = (code, amount) => '<div class="nf-email-discount-code"><img src="settings/assets/shopify-discount-tag.png" alt="" aria-hidden="true"><span>' + esc(code) + (amount ? ' (' + esc(amount) + ')' : '') + '</span></div>';
+    const shopifyDiscountCode = (code, amount) => '<div class="nf-email-discount-code"><img src="settings/assets/shopify-discount-tag.png" alt="" aria-hidden="true"><span>' + esc(code) + (amount ? ' (' + esc(nfUnbreakMoney(amount)) + ')' : '') + '</span></div>';
     const shopifyShippingRows = () => {
       const freeShipping = NF_SAMPLE['order.shipping_discount_code'];
       const shippingValue = freeShipping
@@ -2964,21 +3007,28 @@
     const shopifyRefundTransactions = () => (NF_SAMPLE['refund.transactions'] || []).map((refund) =>
       '<div class="nf-email-refund-payment-row"><div><span>Refund</span><small>' + esc(refund.method || '') + '</small></div><strong>-' + esc(refund.amount || '') + '</strong></div>'
     ).join('');
-    const addressLines = (value) => esc(value || '').replace(/,\s*/g, '<br>');
+    const addressLines = (value) => {
+      const parts = String(value || '').split(/,\s*/).filter(Boolean);
+      if (parts.length >= 5) {
+        return esc(parts[0]) + '<br>' + esc(parts[1]) + '<br>' + esc(parts[2] + ', ' + parts[3]) + '<br>' + esc(parts[4]);
+      }
+      return parts.map((part) => esc(part)).join('<br>');
+    };
+    const infoBlock = (title, value) =>
+      '<div class="nf-email-info-block"><div class="nf-email-info-title">' + title + '</div><div class="nf-email-info-value">' + value + '</div></div>';
     const customerInfo = () =>
       '<section class="nf-email-section nf-email-customer"><div class="nf-email-section-inner">' +
         '<h3>Customer information</h3>' +
-        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="nf-email-customer-grid"><tr>' +
-          '<td width="50%" valign="top" style="padding:0 18px 26px 0"><div class="nf-email-info-title">Shipping address</div><div class="nf-email-info-value">' + addressLines(NF_SAMPLE['order.shipping_address']) + '</div></td>' +
-          '<td width="50%" valign="top" style="padding:0 0 26px 18px"><div class="nf-email-info-title">Billing address</div><div class="nf-email-info-value">' + addressLines(NF_SAMPLE['order.billing_address']) + '</div></td>' +
-        '</tr><tr>' +
-          '<td width="50%" valign="top" style="padding:0 18px 0 0"><div class="nf-email-info-title">Payment</div><div class="nf-email-info-value"><span class="nf-email-payment-brand">' + NF_SAMPLE['order.payment_brand'] + '</span>' + NF_SAMPLE['order.payment_method'] + '</div></td>' +
-          '<td width="50%" valign="top" style="padding:0 0 0 18px"><div class="nf-email-info-title">Shipping method</div><div class="nf-email-info-value">' + NF_SAMPLE['order.shipping_method'] + '</div></td>' +
-        '</tr></table>' +
+        '<div class="nf-email-customer-grid">' +
+          infoBlock('Shipping address', addressLines(NF_SAMPLE['order.shipping_address'])) +
+          infoBlock('Billing address', addressLines(NF_SAMPLE['order.billing_address'])) +
+          infoBlock('Payment', '<span class="nf-email-payment-brand">' + NF_SAMPLE['order.payment_brand'] + '</span>' + NF_SAMPLE['order.payment_method']) +
+          infoBlock('Shipping method', esc(NF_SAMPLE['order.shipping_method'])) +
+        '</div>' +
       '</div></section>';
     if (tag === 'block.cta_button')
       return '<div class="nf-email-actions">' +
-        '<a href="#" class="nf-email-button" style="background:' + color + '">View your order</a>' +
+        '<a href="' + (nfPreviewEvent === 'abandoned_checkout' ? esc(NF_SAMPLE['checkout.recovery_url']) : '#') + '" class="nf-email-button" style="background:' + color + '">' + (nfPreviewEvent === 'abandoned_checkout' ? 'Complete your checkout' : 'View your order') + '</a>' +
         '<span class="nf-email-action-or">or</span><a href="#" class="nf-email-store-link" style="color:' + color + '">Visit our store</a></div>';
     if (tag === 'block.tracking')
       return '<p class="nf-email-tracking-note">' + esc(NF_SAMPLE['shipment.carrier']) + ' tracking number: <a href="' + esc(NF_SAMPLE['shipment.tracking_url']) + '" style="color:' + color + '">' + esc(NF_SAMPLE['shipment.tracking_number']) + '</a></p>';
@@ -3026,17 +3076,19 @@
 
   // the rendered email card (device = 'desktop' | 'mobile')
   function nfCardHtml(b, st) {
+    nfPreviewEvent = st.eventCode || '';
     const color = b.primaryColor || '#0066e6';
     const mobile = st.device === 'mobile';
     const width = mobile ? 360 : 600;
     const isVerification = st.eventCode === 'email_verification';
+    const isAbandoned = st.eventCode === 'abandoned_checkout';
     const showsOrderNumber = st.eventCode !== 'account_welcome' && st.eventCode !== 'email_verification';
     const header = isVerification
       ? '<div class="nf-email-header"><div class="nf-email-inner"><a href="#" class="nf-email-shop-name">' + esc(b.storeName || 'Your store') + '</a></div></div>'
       : '<div class="nf-email-header"><div class="nf-email-inner"><a href="#" class="nf-email-shop-name">' + esc(b.storeName || 'Your store') + '</a>' + (showsOrderNumber ? '<div class="nf-email-order-number">Order #' + esc(NF_SAMPLE['order.number']) + '</div>' : '') + '</div></div>';
     const footer = isVerification
       ? '<div class="nf-email-footer nf-verification-footer"><div class="nf-email-inner">© ' + esc(b.storeName || 'Your store') + '</div></div>'
-      : '<div class="nf-email-footer"><div class="nf-email-inner">If you have any questions, reply to this email or contact us at <a href="mailto:' + esc(nfReplyToAddress()) + '" style="color:' + color + '">' + esc(nfReplyToAddress()) + '</a></div></div>';
+      : '<div class="nf-email-footer"><div class="nf-email-inner">If you have any questions, reply to this email or contact us at <a href="mailto:' + esc(nfReplyToAddress()) + '" style="color:' + color + '">' + esc(nfReplyToAddress()) + '</a>' + (isAbandoned ? '<div class="nf-email-unsub" style="margin-top:10px"><a href="#" style="color:' + color + '">Unsubscribe from marketing emails</a></div>' : '') + '</div></div>';
     return '<div class="email-card' + (mobile ? ' is-mobile' : '') + (st.eventCode === 'order_shipped' ? ' is-shipment' : '') + (st.eventCode === 'order_refunded' ? ' is-refund' : '') + (isVerification ? ' is-verification' : '') + '" style="width:' + width + 'px">' +
       header +
       '<div class="nf-email-body">' + nfExpand(st.body, b) + '</div>' +
@@ -3552,13 +3604,15 @@
   .email-card .nf-email-subscription span:first-child { color: #555; font-weight: 500; }
   .email-card .nf-email-subscription b { color: #aaa; font-size: 12px; }
   .email-card .nf-email-product-discounts { margin-top: 4px; }
-  .email-card .nf-email-product-discount { display: flex; align-items: center; gap: 5px; margin-top: 3px; color: #777; font-size: 14px; line-height: 1.35; }
-  .email-card .nf-email-product-discount img { display: block; width: 16px; height: 16px; flex: none; }
+  .email-card .nf-email-product-discount { display: flex; align-items: flex-start; gap: 5px; margin-top: 3px; color: #777; font-size: 14px; line-height: 1.35; }
+  .email-card .nf-email-product-discount img { display: block; width: 16px; height: 16px; flex: none; margin-top: 2px; }
+  .email-card .nf-email-product-discount span { min-width: 0; overflow-wrap: break-word; word-break: normal; }
   .email-card .nf-email-bundle-component { display: flex; align-items: flex-start; gap: 9px; margin: 10px 0 0; padding: 10px 0 0 10px; border-top: 1px solid #f0f0f0; }
   .email-card .nf-email-bundle-component-image { width: 36px; height: 36px; flex: none; box-sizing: border-box; border: 1px solid #e4e4e4; border-radius: 3px; background: #fafafa; }
   .email-card .nf-email-bundle-component-copy { min-width: 0; flex: 1; }
-  .email-card .nf-email-included { display: inline-block; margin: 0 6px 0 0; color: #777; font-size: 11px; font-weight: 600; line-height: 1.4; }
-  .email-card .nf-email-bundle-component-title { color: #666; font-size: 13px; font-weight: 500; line-height: 1.4; }
+  .email-card .nf-email-bundle-component-name { display: block; }
+  .email-card .nf-email-included { display: inline-block; margin: 0 6px 0 0; padding: 1px 5px; border-radius: 3px; background: #f4f5f7; color: #8b919c; font-size: 11px; font-weight: 600; line-height: 1.35; vertical-align: 1px; }
+  .email-card .nf-email-bundle-component-title { color: #666; font-size: 13px; font-weight: 500; line-height: 1.4; overflow-wrap: break-word; word-break: normal; }
   .email-card .nf-email-bundle-component-variant { margin-top: 2px; color: #999; font-size: 12px; line-height: 1.4; }
   .email-card .nf-email-product-price { white-space: nowrap; }
   .email-card .nf-email-product-row.is-bundle .nf-email-product-price { padding-top: 1px; }
@@ -3584,6 +3638,8 @@
   .email-card .nf-email-refund-payment-row small { margin-top: 1px; color: #8b8b8b; font-size: 12px; }
   .email-card .nf-email-refund-payment-row strong { color: #545454; font-size: 14px; font-weight: 600; white-space: nowrap; }
   .email-card .nf-email-invoice { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0; padding: 22px 0; border-bottom: 1px solid #e6e6e6; }
+  .email-card .nf-email-customer-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36px; row-gap: 26px; }
+  .email-card .nf-email-info-block { min-width: 0; }
   .email-card .nf-email-info-title { margin: 0 0 5px; color: #555; font-size: 16px; font-weight: 500; line-height: 1.2; }
   .email-card .nf-email-invoice-meta, .email-card .nf-email-info-value { color: #777; font-size: 16px; line-height: 1.5; }
   .email-card .nf-email-invoice a { font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
@@ -3609,17 +3665,202 @@
   .email-card.is-mobile.is-verification .nf-email-header .nf-email-inner { padding: 34px 24px 24px; }
   .email-card.is-mobile.is-verification .nf-email-body { padding: 0 24px; }
   .email-card.is-mobile .nf-email-shop-name { font-size: 18px; }
-  .email-card.is-mobile .nf-email-product-row { align-items: flex-start; gap: 10px; }
-  .email-card.is-mobile .nf-email-product-image { width: 48px; height: 48px; }
-  .email-card.is-mobile .nf-email-customer-grid, .email-card.is-mobile .nf-email-customer-grid tbody, .email-card.is-mobile .nf-email-customer-grid tr, .email-card.is-mobile .nf-email-customer-grid td { display: block; width: 100% !important; box-sizing: border-box; }
-  .email-card.is-mobile .nf-email-customer-grid td { padding: 0 0 22px !important; }
-  .email-card.is-mobile .nf-email-customer-grid tr:last-child td:last-child { padding-bottom: 0 !important; }
+  .email-card.is-mobile .nf-email-product-row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 4px; align-items: start; }
+  .email-card.is-mobile .nf-email-product-image { grid-column: 1; grid-row: 1 / -1; align-self: start; width: 48px; height: 48px; }
+  .email-card.is-mobile .nf-email-product-copy { display: contents; }
+  .email-card.is-mobile .nf-email-product-head { grid-column: 2; grid-row: 1; min-width: 0; }
+  .email-card.is-mobile .nf-email-product-price { grid-column: 3; grid-row: 1; }
+  .email-card.is-mobile .nf-email-product-details { grid-column: 2 / -1; min-width: 0; }
+  .email-card.is-mobile .nf-email-product-details > :first-child { margin-top: 0; }
+  .email-card.is-mobile .nf-email-product-title { overflow-wrap: break-word; word-break: normal; }
+  .email-card.is-mobile .nf-email-subscription { flex-wrap: wrap; white-space: normal; }
+  .email-card.is-mobile .nf-email-product-discount { align-items: flex-start; font-size: 13px; }
+  .email-card.is-mobile .nf-email-product-discount span { white-space: normal; overflow-wrap: break-word; word-break: normal; }
+  .email-card.is-mobile .nf-email-bundle-component { padding-left: 0; gap: 8px; }
+  .email-card.is-mobile .nf-email-bundle-component-image { width: 32px; height: 32px; }
+  .email-card.is-mobile .nf-email-bundle-component-name { display: block; }
+  .email-card.is-mobile .nf-email-included { display: inline-block; margin: 0 6px 0 0; }
+  .email-card.is-mobile .nf-email-bundle-component-title { white-space: normal; overflow-wrap: break-word; }
+  .email-card.is-mobile .nf-email-customer-grid { grid-template-columns: 1fr 1fr; column-gap: 16px; row-gap: 18px; }
+  .email-card.is-mobile .nf-email-info-block:nth-child(1),
+  .email-card.is-mobile .nf-email-info-block:nth-child(2) { grid-column: 1 / -1; }
+  .email-card.is-mobile .nf-email-info-title { font-size: 15px; }
+  .email-card.is-mobile .nf-email-info-value { font-size: 15px; line-height: 1.45; }
   .nf-unktag { background: #fff4d6; color: #92660a; border-radius: 4px; padding: 0 4px; font-size: .92em; }
 
   `;
 
+  function inboxSettings() {
+    if (!window.DATA_INBOX) window.DATA_INBOX = {};
+    if (!window.DATA_INBOX.settings) {
+      window.DATA_INBOX.settings = {
+        chat_enabled: true,
+        greeting: 'Hi, how can we help?',
+        offline_message: "We're away right now. Leave a message and we'll get back to you.",
+        hours_enabled: true,
+        weekly_hours: {
+          mon: { on: true, start: '09:00', end: '17:00' },
+          tue: { on: true, start: '09:00', end: '17:00' },
+          wed: { on: true, start: '09:00', end: '17:00' },
+          thu: { on: true, start: '09:00', end: '17:00' },
+          fri: { on: true, start: '09:00', end: '17:00' },
+          sat: { on: false, start: '09:00', end: '17:00' },
+          sun: { on: false, start: '09:00', end: '17:00' },
+        },
+        timezone: 'GMT-04:00',
+        reply_eta: 'Usually replies within a few hours',
+        widget_position: 'bottom_right',
+        widget_label: 'Chat',
+        new_conversation_email: true,
+        merchant_notify_email: 'hello@lovocross.com',
+      };
+    }
+    return window.DATA_INBOX.settings;
+  }
+
+  const INBOX_DAYS = [
+    ['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'],
+    ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday'],
+  ];
+
+  function renderInboxSettings() {
+    const s = inboxSettings();
+    const dayRows = INBOX_DAYS.map(([key, label]) => {
+      const d = s.weekly_hours[key];
+      return '<div class="flex items-center gap-3" data-ibx-day="' + key + '" style="margin-bottom:8px">' +
+        '<span class="text-sm" style="min-width:90px;font-weight:600">' + label + '</span>' +
+        toggle(d.on, label, 'ibx-day-' + key) +
+        '<input class="input" type="time" data-ibx-start value="' + esc(d.start) + '" style="width:120px"' + (d.on ? '' : ' disabled') + '>' +
+        '<span class="muted">to</span>' +
+        '<input class="input" type="time" data-ibx-end value="' + esc(d.end) + '" style="width:120px"' + (d.on ? '' : ' disabled') + '>' +
+        '<div class="muted" data-ibx-day-err style="color:#c2410c;font-size:12px;display:none"></div></div>';
+    }).join('');
+
+    paint(
+      '<div class="page-title mb-4">Inbox</div>' +
+      '<div class="panel card-pad mb-4">' + sectionTitle('Online store chat', 'Show a chat bubble on the storefront so customers can message your team.') +
+        '<div class="mt-4 flex flex-col gap-4">' +
+          block('<div class="flex items-center justify-between"><div><div class="text-sm" style="font-weight:600">Online store chat</div><div class="muted" style="font-size:12.5px;margin-top:4px">Turning this off hides the bubble. Existing conversations stay in Inbox.</div></div>' + toggle(s.chat_enabled, 'Online store chat', 'ibx-chat') + '</div>') +
+          block('<div class="text-sm" style="font-weight:600;margin-bottom:6px">Greeting</div><input class="input" id="ibx-greeting" maxlength="280" style="width:100%" value="' + esc(s.greeting) + '"><div class="muted" id="ibx-greeting-err" style="color:#c2410c;font-size:12px;display:none;margin-top:6px"></div>') +
+          block('<div class="text-sm" style="font-weight:600;margin-bottom:6px">Offline message</div><input class="input" id="ibx-offline" maxlength="280" style="width:100%" value="' + esc(s.offline_message) + '"><div class="muted" id="ibx-offline-err" style="color:#c2410c;font-size:12px;display:none;margin-top:6px"></div>') +
+        '</div></div>' +
+      '<div class="panel card-pad mb-4">' + sectionTitle('Support hours', 'Hours use the store timezone.') +
+        '<div class="mt-4 flex flex-col gap-4">' +
+          block('<div class="flex items-center justify-between"><div><div class="text-sm" style="font-weight:600">Support hours</div><div class="muted" style="font-size:12.5px;margin-top:4px">Off means the team is treated as available 24/7.</div></div>' + toggle(s.hours_enabled, 'Support hours', 'ibx-hours') + '</div>') +
+          '<div id="ibx-hours-wrap"' + (s.hours_enabled ? '' : ' style="display:none"') + '>' + block(dayRows + '<div class="muted" style="font-size:12.5px;margin-top:8px">Hours use the store timezone. ' + esc(s.timezone) + '</div>') + '</div>' +
+          block('<div class="text-sm" style="font-weight:600;margin-bottom:6px">Typical reply time</div><input class="input" id="ibx-eta" maxlength="80" style="width:100%" value="' + esc(s.reply_eta || '') + '"><div class="muted" id="ibx-eta-err" style="color:#c2410c;font-size:12px;display:none;margin-top:6px"></div>') +
+        '</div></div>' +
+      '<div class="panel card-pad mb-4">' + sectionTitle('Widget') +
+        '<div class="mt-4 flex flex-col gap-4">' +
+          block('<div class="text-sm" style="font-weight:600;margin-bottom:8px">Widget position</div>' +
+            '<label class="set-radio' + (s.widget_position === 'bottom_right' ? ' on' : '') + '" data-ibx-pos="bottom_right"><span class="proc-radio">' + (s.widget_position === 'bottom_right' ? '<span class="proc-dot"></span>' : '') + '</span> Bottom right</label>' +
+            '<label class="set-radio' + (s.widget_position === 'bottom_left' ? ' on' : '') + '" data-ibx-pos="bottom_left" style="margin-left:16px"><span class="proc-radio">' + (s.widget_position === 'bottom_left' ? '<span class="proc-dot"></span>' : '') + '</span> Bottom left</label>') +
+          block('<div class="text-sm" style="font-weight:600;margin-bottom:6px">Widget label</div><input class="input" id="ibx-label" maxlength="20" style="width:240px" value="' + esc(s.widget_label) + '"><div class="muted" id="ibx-label-err" style="color:#c2410c;font-size:12px;display:none;margin-top:6px"></div>') +
+        '</div></div>' +
+      '<div class="panel card-pad mb-4">' + sectionTitle('Notifications') +
+        '<div class="mt-4">' +
+          block('<div class="flex items-center justify-between mb-3"><div><div class="text-sm" style="font-weight:600">Email me about new conversations</div></div>' + toggle(s.new_conversation_email, 'Email me about new conversations', 'ibx-notify') + '</div>' +
+            '<div id="ibx-mail-wrap"' + (s.new_conversation_email ? '' : ' style="display:none"') + '>' +
+            '<div class="text-sm" style="font-weight:600;margin-bottom:6px">Notification email</div>' +
+            '<input class="input" id="ibx-mail" style="width:100%" value="' + esc(s.merchant_notify_email) + '">' +
+            '<div class="muted" id="ibx-mail-err" style="color:#c2410c;font-size:12px;display:none;margin-top:6px"></div></div>') +
+        '</div></div>',
+      true
+    );
+
+    const chatSw = root.querySelector('[data-toggle="ibx-chat"]');
+    const hoursSw = root.querySelector('[data-toggle="ibx-hours"]');
+    const notifySw = root.querySelector('[data-toggle="ibx-notify"]');
+    if (chatSw) chatSw.onclick = () => { chatSw.classList.toggle('on'); s.chat_enabled = chatSw.classList.contains('on'); };
+    if (hoursSw) hoursSw.onclick = () => {
+      hoursSw.classList.toggle('on');
+      s.hours_enabled = hoursSw.classList.contains('on');
+      const wrap = root.querySelector('#ibx-hours-wrap');
+      if (wrap) wrap.style.display = s.hours_enabled ? '' : 'none';
+    };
+    if (notifySw) notifySw.onclick = () => {
+      notifySw.classList.toggle('on');
+      s.new_conversation_email = notifySw.classList.contains('on');
+      const wrap = root.querySelector('#ibx-mail-wrap');
+      if (wrap) wrap.style.display = s.new_conversation_email ? '' : 'none';
+    };
+    root.querySelectorAll('[data-ibx-day]').forEach((row) => {
+      const key = row.getAttribute('data-ibx-day');
+      const sw = row.querySelector('[data-toggle]');
+      if (sw) sw.onclick = () => {
+        sw.classList.toggle('on');
+        s.weekly_hours[key].on = sw.classList.contains('on');
+        row.querySelectorAll('input[type="time"]').forEach((inp) => { inp.disabled = !s.weekly_hours[key].on; });
+      };
+      const start = row.querySelector('[data-ibx-start]');
+      const end = row.querySelector('[data-ibx-end]');
+      const err = row.querySelector('[data-ibx-day-err]');
+      function check() {
+        s.weekly_hours[key].start = start.value;
+        s.weekly_hours[key].end = end.value;
+        if (s.weekly_hours[key].on && end.value <= start.value) {
+          err.style.display = 'block'; err.textContent = 'End time must be after start time.';
+        } else { err.style.display = 'none'; }
+      }
+      if (start) start.onchange = check;
+      if (end) end.onchange = check;
+    });
+    root.querySelectorAll('[data-ibx-pos]').forEach((el) => el.onclick = () => {
+      root.querySelectorAll('[data-ibx-pos]').forEach((x) => { x.classList.remove('on'); const d = x.querySelector('.proc-radio'); if (d) d.innerHTML = ''; });
+      el.classList.add('on');
+      el.querySelector('.proc-radio').innerHTML = '<span class="proc-dot"></span>';
+      s.widget_position = el.getAttribute('data-ibx-pos');
+    });
+    const greeting = root.querySelector('#ibx-greeting');
+    const offline = root.querySelector('#ibx-offline');
+    const label = root.querySelector('#ibx-label');
+    const mail = root.querySelector('#ibx-mail');
+    const eta = root.querySelector('#ibx-eta');
+    if (greeting) greeting.oninput = () => { s.greeting = greeting.value; };
+    if (offline) offline.oninput = () => { s.offline_message = offline.value; };
+    if (label) label.oninput = () => { s.widget_label = label.value; };
+    if (mail) mail.oninput = () => { s.merchant_notify_email = mail.value; };
+    if (eta) eta.oninput = () => { s.reply_eta = eta.value; };
+
+    window.InboxSettingsSave = function () {
+      const gErr = root.querySelector('#ibx-greeting-err');
+      const oErr = root.querySelector('#ibx-offline-err');
+      const lErr = root.querySelector('#ibx-label-err');
+      const mErr = root.querySelector('#ibx-mail-err');
+      const eErr = root.querySelector('#ibx-eta-err');
+      let blocked = false;
+      const g = ((greeting && greeting.value) || '').trim();
+      const o = ((offline && offline.value) || '').trim();
+      const e = ((eta && eta.value) || '').trim();
+      if (!g) { gErr.style.display = 'block'; gErr.textContent = 'Enter a greeting message.'; blocked = true; } else if (g.length > 280) { gErr.style.display = 'block'; gErr.textContent = 'Greeting must be 280 characters or fewer.'; blocked = true; } else gErr.style.display = 'none';
+      if (!o) { oErr.style.display = 'block'; oErr.textContent = 'Enter an offline message.'; blocked = true; } else if (o.length > 280) { oErr.style.display = 'block'; oErr.textContent = 'Offline message must be 280 characters or fewer.'; blocked = true; } else oErr.style.display = 'none';
+      if (!e) { eErr.style.display = 'block'; eErr.textContent = 'Enter a typical reply time.'; blocked = true; } else if (e.length > 80) { eErr.style.display = 'block'; eErr.textContent = 'Typical reply time must be 80 characters or fewer.'; blocked = true; } else if (eErr) eErr.style.display = 'none';
+      if (((label && label.value) || '').trim().length > 20) { lErr.style.display = 'block'; lErr.textContent = 'Button label must be 20 characters or fewer.'; blocked = true; } else if (lErr) lErr.style.display = 'none';
+      if (s.new_conversation_email) {
+        const em = ((mail && mail.value) || '').trim();
+        if (!em) { mErr.style.display = 'block'; mErr.textContent = 'Enter a notification email.'; blocked = true; }
+        else if (em.indexOf('@') < 1 || !em.split('@')[1]) { mErr.style.display = 'block'; mErr.textContent = 'Enter a valid email address.'; blocked = true; }
+        else mErr.style.display = 'none';
+      }
+      root.querySelectorAll('[data-ibx-day]').forEach((row) => {
+        const key = row.getAttribute('data-ibx-day');
+        const d = s.weekly_hours[key];
+        const err = row.querySelector('[data-ibx-day-err]');
+        if (s.hours_enabled && d.on && d.end <= d.start) { err.style.display = 'block'; err.textContent = 'End time must be after start time.'; blocked = true; }
+      });
+      if (blocked) return false;
+      s.greeting = g;
+      s.offline_message = o;
+      s.reply_eta = e;
+      s.widget_label = ((label && label.value) || '').trim() || 'Chat';
+      toast('Inbox settings saved.');
+      return true;
+    };
+  }
+
   const ROUTES = {
     notifications: renderNotifications,
+    inbox: renderInboxSettings,
     base: renderBase,
     domains: renderDomains,
     payments: renderPayments,
@@ -3641,7 +3882,14 @@
       if (!window.SettingsChrome) return;
       window.SettingsChrome.setDirty(true, {
         onDiscard: () => { show(curRest); if (window.SettingsChrome) window.SettingsChrome.setDirty(false); },
-        onUpdate: () => { toast('Updated successfully'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false); },
+        onUpdate: () => {
+          if (typeof window.InboxSettingsSave === 'function' && curRest.split('/')[0] === 'inbox') {
+            if (!window.InboxSettingsSave()) return;
+            if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
+            return;
+          }
+          toast('Updated successfully'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
+        },
       });
     };
     root.addEventListener('input', onEdit);
@@ -3660,6 +3908,7 @@
     domainStep = (key === 'domains' && sub) ? sub : null;
     notifSub = (key === 'notifications' && sub != null && sub !== '') ? decodeURIComponent(sub) : null;
     notifEditorMode = key === 'notifications' && notifSub && parts[2] === 'edit' ? 'code' : 'preview';
+    if (key !== 'inbox') window.InboxSettingsSave = null;
     ROUTES[key]();
     wireDirty();
     if (root && root.parentElement) root.parentElement.scrollTop = 0;

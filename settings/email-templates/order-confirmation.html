@@ -1,0 +1,566 @@
+<style>
+  /* BestShopio order confirmation — Shopify notification geometry.
+     This is the developer email WRAPPER, not the merchant body editor.
+     Merchant body only supports {{block.cta_button}}, {{block.order_summary}},
+     {{block.customer_information}}. {{block.store_logo}}, {{block.order_number}}
+     and {{block.email_footer}} stay in this chrome and must not be pasted into
+     Settings → Notifications → Email body. */
+  #outlook a { padding: 0; }
+  .nf-email-frame, .nf-email-frame td, .nf-email-card, .nf-email-card td {
+    border-collapse: collapse;
+    mso-table-lspace: 0pt;
+    mso-table-rspace: 0pt;
+  }
+  .nf-email-frame {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #f5f5f5;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  .nf-email-card {
+    width: 100%;
+    max-width: 600px;
+    background-color: #ffffff;
+    color: #777777;
+    text-align: left;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  }
+  .nf-email-card td { text-align: left; }
+  .nf-email-card img {
+    border: 0;
+    outline: none;
+    text-decoration: none;
+    -ms-interpolation-mode: bicubic;
+  }
+  .nf-email-header-inner { padding: 32px 40px; }
+  .nf-email-header-inner table { width: 100%; }
+  .nf-email-shop-name,
+  .nf-email-header-inner .nf-email-shop-name,
+  .nf-email-header-inner td:first-child {
+    color: #000000;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-decoration: none;
+    vertical-align: middle;
+  }
+  .nf-email-shop-name img,
+  .nf-email-header-inner img {
+    display: block;
+    max-height: 32px;
+    max-width: 180px;
+    width: auto;
+    height: auto;
+  }
+  .nf-email-order-number {
+    color: #999999;
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: right !important;
+    white-space: nowrap;
+    vertical-align: middle;
+    width: 1%;
+    padding-left: 16px;
+  }
+  .nf-email-body {
+    padding: 34px 40px 0;
+    color: #777777;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .nf-h {
+    margin: 0 0 10px;
+    color: #000000;
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.333;
+  }
+  .nf-lead {
+    margin: 0;
+    color: #777777;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .nf-email-actions {
+    margin: 30px 0 0;
+    border-collapse: collapse;
+  }
+  .nf-email-actions td { vertical-align: middle; }
+  .nf-email-button {
+    display: inline-block;
+    box-sizing: border-box;
+    border-radius: 4px;
+    color: #ffffff !important;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 14px 22px;
+    text-decoration: none;
+  }
+  .nf-email-action-or {
+    display: inline-block;
+    padding: 0 10px;
+    color: #737373;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+  .nf-email-store-link {
+    font-size: 14px;
+    line-height: 1.2;
+    text-decoration: none;
+  }
+  .nf-email-section { margin: 36px 0 0; background: #ffffff; }
+  .nf-email-section-inner { padding: 32px 40px; }
+  .nf-email-section h3,
+  .nf-email-section-inner h3 {
+    margin: 0 0 21px;
+    color: #000000;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.3;
+  }
+  .nf-email-product-list { width: 100%; }
+  .nf-email-product-row {
+    width: 100%;
+    padding: 14px 0;
+    border-top: 1px solid #e6e6e6;
+    border-collapse: collapse;
+  }
+  div.nf-email-product-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .nf-email-product-row:first-child,
+  .nf-email-product-list > .nf-email-product-row:first-child,
+  .nf-email-product-list > table:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .nf-email-product-row.is-bundle,
+  div.nf-email-product-row.is-bundle { align-items: flex-start; }
+  .nf-email-product-image {
+    width: 60px;
+    height: 60px;
+    box-sizing: border-box;
+    border: 1px solid #dedede;
+    border-radius: 4px;
+    background: #f6f6f6;
+    vertical-align: middle;
+  }
+  .nf-email-product-image img,
+  img.nf-email-product-image {
+    display: block;
+    width: 60px;
+    height: 60px;
+    border: 0;
+    border-radius: 4px;
+  }
+  .nf-email-product-copy {
+    min-width: 0;
+    padding: 0 12px 0 14px;
+    vertical-align: middle;
+  }
+  .nf-email-product-title,
+  .nf-email-product-price {
+    color: #555555;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.35;
+  }
+  .nf-email-product-price {
+    white-space: nowrap;
+    text-align: right !important;
+    vertical-align: middle;
+    width: 1%;
+  }
+  .nf-email-product-row.is-bundle .nf-email-product-price { padding-top: 1px; vertical-align: top; }
+  .nf-email-product-price del {
+    display: block;
+    color: #999999;
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .nf-email-bundle-badge {
+    display: inline-block;
+    margin: 0 7px 0 0;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #f0f4ff;
+    color: #526bba;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    vertical-align: 1px;
+  }
+  .nf-email-product-variant {
+    margin-top: 3px;
+    color: #999999;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .nf-email-subscription {
+    margin-top: 5px;
+    color: #777777;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .nf-email-subscription span:first-child { color: #555555; font-weight: 500; }
+  .nf-email-subscription b { color: #aaaaaa; font-size: 12px; padding: 0 5px; font-weight: 400; }
+  .nf-email-product-discounts { margin-top: 4px; }
+  .nf-email-product-discount,
+  .nf-email-discount-code {
+    margin-top: 3px;
+    color: #777777;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  .nf-email-product-discount img,
+  .nf-email-discount-code img {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    vertical-align: -3px;
+  }
+  .nf-email-discount-code {
+    padding: 4px 0 6px 6px;
+  }
+  .nf-email-discount-code img { width: 18px; height: 18px; }
+  .nf-email-bundle-components { width: 100%; max-width: 100%; }
+  .nf-email-bundle-component {
+    margin: 10px 0 0;
+    padding: 10px 0 0 10px;
+    border-top: 1px solid #f0f0f0;
+    max-width: 100%;
+  }
+  div.nf-email-bundle-component {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+  }
+  .nf-email-bundle-component-image {
+    width: 36px;
+    height: 36px;
+    box-sizing: border-box;
+    border: 1px solid #e4e4e4;
+    border-radius: 3px;
+    background: #fafafa;
+    vertical-align: top;
+  }
+  .nf-email-bundle-component-copy { min-width: 0; padding-left: 9px; vertical-align: top; }
+  .nf-email-included {
+    display: inline-block;
+    margin: 0 6px 0 0;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: #f4f5f7;
+    color: #8b919c;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    vertical-align: 1px;
+  }
+  .nf-email-bundle-component-title {
+    color: #666666;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .nf-email-bundle-component-variant {
+    margin-top: 2px;
+    color: #999999;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .nf-email-totals,
+  .nf-email-total-divider,
+  .nf-email-refund-payments {
+    width: 60%;
+    margin: 22px 0 0 auto;
+  }
+  .nf-email-total-divider {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #dedede;
+  }
+  .nf-email-refund-payments {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid #dedede;
+  }
+  .nf-email-total-row {
+    padding: 4px 0;
+    color: #777777;
+    font-size: 16px;
+    line-height: 1.2;
+  }
+  div.nf-email-total-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .nf-email-total-row td { padding: 4px 0; color: #777777; font-size: 16px; line-height: 1.2; }
+  .nf-email-total-row td:last-child,
+  .nf-email-total-row > span:last-child {
+    color: #555555;
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .nf-email-total-row.is-strong { font-weight: 400; }
+  .nf-email-total-row.is-strong td:last-child,
+  .nf-email-total-row.is-strong > span:last-child {
+    color: #555555;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .nf-email-total-paid { margin-top: 14px; }
+  .nf-email-total-paid .nf-email-total-row.is-strong td:last-child,
+  .nf-email-total-paid .nf-email-total-row.is-strong > span:last-child { font-size: 16px; }
+  .nf-email-shipping-original {
+    color: #777777;
+    font-weight: 400;
+    text-decoration: line-through;
+    padding-right: 10px;
+  }
+  .nf-email-total-row strong { color: #555555; font-weight: 600; }
+  .nf-email-total-discount {
+    margin: 10px 0 0;
+    color: #777777;
+    font-size: 16px;
+    line-height: 1.1;
+    text-align: right;
+  }
+  .nf-email-refund-payment-row {
+    padding: 5px 0;
+    color: #737373;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  div.nf-email-refund-payment-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .nf-email-refund-payment-row small {
+    display: block;
+    margin-top: 1px;
+    color: #8b8b8b;
+    font-size: 12px;
+  }
+  .nf-email-refund-payment-row strong {
+    color: #545454;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .nf-email-customer-grid { width: 100%; border-collapse: collapse; }
+  .nf-email-info-title {
+    margin: 0 0 5px;
+    color: #555555;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .nf-email-info-value {
+    color: #777777;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .nf-email-payment-brand {
+    display: inline-block;
+    margin-right: 7px;
+    padding: 1px 4px;
+    border: 1px solid #dedede;
+    border-radius: 2px;
+    color: #2457a6;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    vertical-align: 1px;
+  }
+  .nf-email-footer {
+    margin-top: 36px;
+    border-top: 1px solid #e6e6e6;
+    color: #737373;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: center !important;
+  }
+  .nf-email-footer td,
+  .nf-email-footer-inner {
+    padding: 32px 40px;
+    text-align: center !important;
+  }
+  .nf-email-footer a { color: inherit; text-decoration: none; }
+
+  @media only screen and (max-width: 480px) {
+    .nf-email-card {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    .nf-email-card,
+    .nf-email-card td { text-align: left !important; }
+    .nf-email-order-number,
+    .nf-email-product-price,
+    .nf-email-total-row td:last-child,
+    .nf-email-total-row > span:last-child,
+    .nf-email-total-discount { text-align: right !important; }
+    .nf-email-footer,
+    .nf-email-footer td,
+    .nf-email-footer-inner { text-align: center !important; }
+    .nf-email-header-inner,
+    .nf-email-body,
+    .nf-email-section-inner,
+    .nf-email-footer-inner,
+    .nf-email-footer td {
+      padding-left: 24px !important;
+      padding-right: 24px !important;
+    }
+    .nf-email-header-inner td { vertical-align: middle !important; }
+    .nf-email-shop-name,
+    .nf-email-header-inner td:first-child { font-size: 18px !important; }
+    .nf-email-order-number {
+      padding-left: 12px !important;
+      white-space: nowrap !important;
+      font-size: 14px !important;
+    }
+    .nf-h { font-size: 22px !important; }
+    .nf-email-section { margin-left: 0 !important; margin-right: 0 !important; }
+    div.nf-email-product-row {
+      display: grid !important;
+      grid-template-columns: 48px minmax(0, 1fr) auto !important;
+      column-gap: 10px !important;
+      row-gap: 4px !important;
+      align-items: start !important;
+    }
+    .nf-email-product-image { grid-column: 1; grid-row: 1 / -1; align-self: start; }
+    .nf-email-product-copy { display: contents !important; padding-left: 0 !important; }
+    .nf-email-product-head { grid-column: 2; grid-row: 1; min-width: 0; }
+    .nf-email-product-price { grid-column: 3; grid-row: 1; }
+    .nf-email-product-details { grid-column: 2 / -1; min-width: 0; }
+    .nf-email-product-details > :first-child { margin-top: 0 !important; }
+    .nf-email-product-image,
+    .nf-email-product-image img,
+    img.nf-email-product-image {
+      width: 48px !important;
+      height: 48px !important;
+    }
+    .nf-email-bundle-component-image {
+      width: 32px !important;
+      height: 32px !important;
+    }
+    .nf-email-product-title,
+    .nf-email-bundle-component-title,
+    .nf-email-product-discount span {
+      overflow-wrap: break-word !important;
+      word-break: normal !important;
+      white-space: normal !important;
+    }
+    .nf-email-included { display: inline-block !important; margin: 0 6px 0 0 !important; }
+    .nf-email-bundle-component-title { display: inline !important; }
+    .nf-email-bundle-component { padding-left: 0 !important; }
+    .nf-email-product-price { white-space: nowrap !important; }
+    .nf-email-bundle-components,
+    .nf-email-bundle-component { max-width: 100% !important; }
+    .nf-email-totals,
+    .nf-email-total-divider,
+    .nf-email-refund-payments {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin-left: 0 !important;
+    }
+    .nf-email-customer-grid,
+    .nf-email-customer-grid tbody { display: block !important; width: 100% !important; }
+    .nf-email-customer-grid tr { display: block !important; width: 100% !important; }
+    .nf-email-customer-grid td {
+      display: block !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 0 0 18px !important;
+      text-align: left !important;
+    }
+    .nf-email-customer-grid tr:last-child {
+      display: table !important;
+      width: 100% !important;
+    }
+    .nf-email-customer-grid tr:last-child td {
+      display: table-cell !important;
+      width: 50% !important;
+      padding: 0 12px 0 0 !important;
+      vertical-align: top !important;
+    }
+    .nf-email-customer-grid tr:last-child td:last-child { padding: 0 0 0 12px !important; }
+    .nf-email-actions,
+    .nf-email-actions tbody,
+    .nf-email-actions tr { width: 100% !important; }
+    .nf-email-actions td {
+      display: inline-block !important;
+      width: auto !important;
+      padding: 0 10px 0 0 !important;
+      vertical-align: middle !important;
+    }
+    .nf-email-button {
+      display: inline-block !important;
+      white-space: nowrap !important;
+    }
+    .nf-email-action-or,
+    .nf-email-store-link {
+      display: inline-block !important;
+      width: auto !important;
+      margin: 0 !important;
+      padding: 0 8px 0 0 !important;
+      text-align: left !important;
+    }
+  }
+</style>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="nf-email-frame" style="width:100%;border-collapse:collapse;background-color:#f5f5f5;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
+  <tbody>
+    <tr>
+      <td align="center" style="padding:0">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" class="nf-email-card" style="width:100%;max-width:600px;border-collapse:collapse;background-color:#ffffff;color:#777777;text-align:left;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,'Fira Sans','Droid Sans','Helvetica Neue',sans-serif">
+          <tbody>
+            <tr>
+              <td align="left" style="text-align:left">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse">
+                  <tbody>
+                    <tr>
+                      <td class="nf-email-header-inner" style="padding:32px 40px">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse">
+                          <tbody>
+                            <tr>
+                              <td class="nf-email-shop-name" valign="middle" style="color:#000000;font-size:20px;font-weight:500;line-height:1.25;vertical-align:middle">{{block.store_logo}}</td>
+                              {{block.order_number}}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="nf-email-body" style="padding:34px 40px 0;color:#777777;font-size:16px;line-height:1.5">
+                        <h2 class="nf-h" style="margin:0 0 10px;color:#000000;font-size:24px;font-weight:400;letter-spacing:0;line-height:1.333">Thank you for your order!</h2>
+                        <p class="nf-lead" style="margin:0;color:#777777;font-size:16px;line-height:1.5">We’ve received your payment and your order is being prepared. We’ll send tracking details when it ships.</p>
+                        {{block.cta_button}}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{{block.order_summary}}{{block.customer_information}}</td>
+                    </tr>
+                    <tr>
+                      <td>{{block.email_footer}}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
