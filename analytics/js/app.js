@@ -361,11 +361,9 @@
     const kindFactor = { 'Previous period': 1, 'Previous year': 1.45, Custom: 0.7 }[CHIP_STATE._comparisonKind] || 1;
     return +(baseChangePercent * kindFactor).toFixed(1);
   }
-  function overviewValueRow(currentText, changePercent, comparisonText, changeText, showStandaloneDelta = false, standaloneChangeText = null) {
+  function overviewValueRow(currentText, changePercent, comparisonText, changeText) {
     if (!CHIP_STATE._comparisonRange) {
-      if (!showStandaloneDelta) return `<div class="stat-value">${currentText}</div>`;
-      const standaloneDelta = standaloneChangeText || changeText || `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`;
-      return `<div class="overview-value-row"><div class="stat-value">${currentText}</div><span class="overview-comparison-delta ${changePercent >= 0 ? 'delta-up' : 'delta-down'}">${standaloneDelta}</span></div>`;
+      return `<div class="stat-value">${currentText}</div>`;
     }
     const effectiveChange = overviewComparisonChange(changePercent);
     const compared = comparisonText || overviewComparisonValue(currentText, effectiveChange);
@@ -416,7 +414,7 @@
     document.getElementById('kpis').innerHTML = KPIS.map((k, i) => `
       <div class="panel card-pad" data-report="${(KPI_LINK[k.key] || {}).report || ''}" data-report-metric="${(KPI_LINK[k.key] || {}).metric || ''}" style="cursor:pointer">
         <span class="muted metric-tip-label" style="font-size:13px" data-tip="${(KPI_LINK[k.key] || {}).tip || ''}">${k.label}</span>
-        <div class="mt-1">${overviewValueRow(k.value, k.key === 'conversion_rate' ? 9.5 : parseFloat(k.delta), null, null, true, k.delta)}</div>
+        <div class="mt-1">${overviewValueRow(k.value, k.key === 'conversion_rate' ? 9.5 : parseFloat(k.delta))}</div>
         <div class="flex items-center justify-between mt-2">
           <span></span>
           <div style="width:96px;height:28px" id="spark-${i}"></div>
@@ -542,7 +540,8 @@
           const offset = Math.round((date - origin) / 86400000);
           const sourceIndex = ((offset % trend.values.length) + trend.values.length) % trend.values.length;
           labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-          values.push(Math.round((trend.values[sourceIndex] || 0) * multiplier));
+          const raw = (trend.values[sourceIndex] || 0) * multiplier;
+          values.push((trend.values || []).some((v) => !Number.isInteger(v)) ? +raw.toFixed(2) : Math.round(raw));
         }
         return { labels, values };
       };
@@ -1983,9 +1982,7 @@
                 <button type="button" class="performance-metric-tab${item.id === metric.id ? ' active' : ''}" data-performance-metric="${item.id}" role="tab" aria-selected="${item.id === metric.id}">
                   <span class="performance-metric-label metric-tip-label" data-tip="${item.tip}">${item.label}</span>
                   <strong>${performanceFormat(item, currentTotal)}</strong>
-                  ${comparisonValue == null
-                    ? `<span class="${comparison.up ? 'delta-up' : 'delta-down'}">${comparison.delta}</span>`
-                    : `<span class="performance-metric-comparison"><span class="performance-metric-compare-value" aria-label="${performanceI18n('Compared')} ${performanceFormat(item, comparisonValue)}">${performanceFormat(item, comparisonValue)}</span><span class="${comparison.up ? 'delta-up' : 'delta-down'}">${comparison.delta}</span></span>`}
+                  ${comparisonValue == null ? '' : `<span class="performance-metric-comparison"><span class="performance-metric-compare-value" aria-label="${performanceI18n('Compared')} ${performanceFormat(item, comparisonValue)}">${performanceFormat(item, comparisonValue)}</span><span class="${comparison.up ? 'delta-up' : 'delta-down'}">${comparison.delta}</span></span>`}
                 </button>
               </div>`;
             }).join('')}
