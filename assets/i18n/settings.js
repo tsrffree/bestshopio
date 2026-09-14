@@ -676,7 +676,8 @@ window.I18N.extend({
   "Edit successfully": "修改成功",
   "＊ Cards + Express has one active processor at a time, switchable among connected providers; specific wallets / dynamic methods follow each provider's dashboard — we only reflect + deep-link. PayPal / Klarna direct are independent methods, running alongside the card processor on their own rails.": "＊ 卡 + Express 同一时间只有一个处理方（active），可在已连机构间切换；具体钱包 / 动态方式以处理方后台为准，我们只反映 + 深链。PayPal / Klarna 直连为独立方式，与卡处理方并存、各走各的通道。",
   "Coming soon": "敬请期待",
-  "Platform acquiring — one-click setup, instant settlement, smart routing + retries behind the scenes. No account of your own needed.": "平台收单——一键开通、即时收款，背后自动智能路由 + 失败重试。无需自带账户。"
+  "Platform acquiring — one-click setup, instant settlement, smart routing + retries behind the scenes. No account of your own needed.": "平台收单——一键开通、即时收款，背后自动智能路由 + 失败重试。无需自带账户。",
+  "Sandbox is for test payments only. Bind the payment provider's sandbox merchant account. Switch to Live before accepting real customer payments.": "沙盒仅用于测试支付收单，需绑定该支付机构的沙盒商户账号。向买家正式收款前，请切换到正式模式。"
 });
 window.I18N.addRules([
   { re: /^Processed by (.+)$/, zh: function (m) { return '由 ' + m[1] + ' 处理'; } },

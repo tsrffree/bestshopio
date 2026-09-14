@@ -145,13 +145,13 @@ window.DATA_SETTINGS = {
     expressOn: true,          // 结账页是否挂 Express 块
     // 可连接的卡处理方（同一时间只能 active 一个）；phase2 的在一期标「二期」
     processors: [
-      { key: 'stripe',    name: 'Stripe',       logo: 'stripe.svg',    connected: true },
-      { key: 'airwallex', name: 'Airwallex',    logo: 'airwallex.svg', connected: false },
-      { key: 'adyen',     name: 'Adyen',        connected: false, phase2: true },
-      { key: 'checkout',  name: 'Checkout.com', connected: false, phase2: true },
-      { key: 'mollie',    name: 'Mollie',       connected: false, phase2: true },
-      { key: 'nmi',       name: 'NMI',          connected: false, phase2: true }, // Card only (Collect.js); no Apple/Google Pay
-      { key: 'braintree', name: 'Braintree',    connected: false, phase2: true },
+      { key: 'stripe',    name: 'Stripe',       logo: 'stripe.svg',    connected: true, mode: 'live' },
+      { key: 'airwallex', name: 'Airwallex',    logo: 'airwallex.svg', connected: false, mode: 'live' },
+      { key: 'adyen',     name: 'Adyen',        connected: false, phase2: true, mode: 'live' },
+      { key: 'checkout',  name: 'Checkout.com', connected: false, phase2: true, mode: 'live' },
+      { key: 'mollie',    name: 'Mollie',       connected: false, phase2: true, mode: 'live' },
+      { key: 'nmi',       name: 'NMI',          connected: false, phase2: true, mode: 'live' }, // Card only (Collect.js); no Apple/Google Pay
+      { key: 'braintree', name: 'Braintree',    connected: false, phase2: true, mode: 'live' },
     ],
     // PayPal 账户只连一次：Wallet 可独立启用；Cards、Apple Pay、Google Pay
     // 均由同一 PayPal 收款账户提供。钱包是否出现取决于服务端能力、域名状态和买家环境，
@@ -159,12 +159,12 @@ window.DATA_SETTINGS = {
     paypal: {
       connected: true,
       walletOn: true,
-      mode: 'sandbox',
+      mode: 'live',
       capabilities: { cards: 'enabled', wallet: 'enabled', applePay: 'enabled', googlePay: 'enabled' },
       domain: { checkout: 'checkout.lovecross.com', applePay: 'verified' },
       lastSynced: 'just now',
     },
-    klarna: { directConnected: true, directOn: true }, // 自有直连，仅二期展示
+    klarna: { directConnected: true, directOn: true, mode: 'live' }, // 自有直连，仅二期展示
   },
 
   // =========================================================================

@@ -628,7 +628,7 @@
       ], file: { label: 'Airwallex domain verification file', button: 'Upload ZIP', hint: 'Only .zip files up to 1MB are supported.', accept: '.zip' } },
     paypal: { desc: 'Allows users to pay with Visa, Master Card, American Express, Discover, Diners Club, JCB, Apple Pay, Google Pay', fields: [
       { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' }, { k: 'sec', label: 'Secret key', msg: 'Please enter Secret key' },
-    ], mode: true, file: { label: 'PayPal domain verification file', button: 'Upload file', accept: '', marginBottom: 25 } },
+    ], file: { label: 'PayPal domain verification file', button: 'Upload file', accept: '', marginBottom: 16 } },
     adyen: { fields: [{ k: 'api', label: 'API key' }, { k: 'mer', label: 'Merchant account' }, { k: 'ck', label: 'Client key' }, { k: 'hmac', label: 'HMAC key' }] },
     checkout: { fields: [{ k: 'pub', label: 'Public key' }, { k: 'sec', label: 'Secret key' }, { k: 'wsig', label: 'Webhook signature key' }] },
     mollie: { fields: [{ k: 'api', label: 'API key (live)' }, { k: 'pid', label: 'Profile ID' }, { k: 'wsec', label: 'Webhook secret' }] },
@@ -774,6 +774,35 @@
 
   function pIsConnected(key) { if (key === 'paypal') return D.payments.paypal.connected; if (key === 'paypal_cards') return D.payments.paypal.connected && D.payments.paypal.capabilities.cards === 'enabled'; if (key === 'klarna_direct') return D.payments.klarna.directConnected; const p = D.payments.processors.find((p) => p.key === key); return p && p.connected; }
   function pEntName(key) { if (key === 'paypal' || key === 'paypal_cards') return 'PayPal'; if (key === 'klarna_direct') return 'Klarna Direct'; const p = D.payments.processors.find((p) => p.key === key); return p ? p.name : ''; }
+  function pAccountMode(key) {
+    if (key === 'paypal' || key === 'paypal_cards') return (D.payments.paypal && D.payments.paypal.mode) || 'live';
+    if (key === 'klarna_direct') return (D.payments.klarna && D.payments.klarna.mode) || 'live';
+    const p = D.payments.processors.find((x) => x.key === key);
+    return (p && p.mode) || 'live';
+  }
+  function pSetAccountMode(key, mode) {
+    const next = mode === 'sandbox' ? 'sandbox' : 'live';
+    if (key === 'paypal' || key === 'paypal_cards') D.payments.paypal.mode = next;
+    else if (key === 'klarna_direct') D.payments.klarna.mode = next;
+    else { const p = D.payments.processors.find((x) => x.key === key); if (p) p.mode = next; }
+  }
+  function pModeLocale(en, zh) {
+    return (window.I18N && window.I18N.lang === 'zh') ? zh : en;
+  }
+  function pModeFields(key) {
+    const selected = pAccountMode(key);
+    const live = pModeLocale('Live', '正式');
+    const sandbox = pModeLocale('Sandbox', '沙盒');
+    const hint = pModeLocale(
+      'Sandbox is for test payments only. Bind the payment provider\'s sandbox merchant account. Switch to Live before accepting real customer payments.',
+      '沙盒仅用于测试支付收单，需绑定该支付机构的沙盒商户账号。向买家正式收款前，请切换到正式模式。'
+    );
+    return '<div class="i18n-skip" style="margin:8px 0 4px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">' + pModeLocale('Mode', '模式') + '</div>' +
+      '<div style="display:flex;gap:22px;align-items:center;font-size:13px;color:var(--ink-body)">' +
+        '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="payment-mode" data-payment-mode value="live"' + (selected === 'live' ? ' checked' : '') + '> ' + live + '</label>' +
+        '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="payment-mode" data-payment-mode value="sandbox"' + (selected === 'sandbox' ? ' checked' : '') + '> ' + sandbox + '</label></div>' +
+      '<div class="muted" style="font-size:12px;margin-top:8px;line-height:1.55">' + hint + '</div></div>';
+  }
 
   // 连接 / 管理弹窗（复用 SPA modal()；凭证按 shop_id 隔离 + webhook 提示）
   function pConnect(key) {
@@ -813,12 +842,7 @@
         : spec.file;
       body += '<div style="margin:' + (file.marginTop || 0) + 'px 0 ' + (file.marginBottom == null ? 4 : file.marginBottom) + 'px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">' + esc(file.label) + '</div><button class="btn btn-default" type="button" data-file-upload data-file-accept="' + esc(file.accept || '') + '">' + esc(file.button || 'Upload file') + '</button>' + (file.hint ? '<div class="muted" style="font-size:11.5px;margin-top:4px">' + esc(file.hint) + '</div>' : '') + '</div>';
     }
-    if (spec.mode) {
-      const selected = (D.payments.paypal || {}).mode || 'sandbox';
-      body += '<div style="margin-bottom:4px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">Mode</div><div style="display:flex;gap:22px;align-items:center;font-size:13px;color:var(--ink-body)">' +
-        '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="paypal-mode" data-paypal-mode value="live"' + (selected === 'live' ? ' checked' : '') + '> Live</label>' +
-        '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="paypal-mode" data-paypal-mode value="sandbox"' + (selected === 'sandbox' ? ' checked' : '') + '> Sandbox</label></div></div>';
-    }
+    body += pModeFields(key);
 
     const dlg = modal({
       title: key === 'paypal' ? (connected ? 'Manage PayPal' : 'Connect PayPal developer account') : ((connected ? 'Manage ' : 'Connect ') + name), width: 520, okText: connected ? 'Save' : 'Connect',
@@ -834,7 +858,8 @@
           if (!val) { okAll = false; if (err) err.textContent = f.msg || ('Please enter ' + f.label); if (inp) inp.style.borderColor = 'var(--err)'; if (!firstBad) firstBad = inp; }
         });
         if (!okAll) { if (firstBad) firstBad.focus(); return; }   // 校验不过不关闭
-        if (key === 'paypal') { const mode = m.querySelector('[data-paypal-mode]:checked'); if (mode) D.payments.paypal.mode = mode.value; }
+        const mode = m.querySelector('[data-payment-mode]:checked');
+        if (mode) pSetAccountMode(key, mode.value);
         if (!connected) pConnect(key);
         close(); renderPayments(); toast(connected ? 'Edit successfully' : 'Connected successfully');
       },
