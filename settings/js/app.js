@@ -622,19 +622,45 @@
       ] },
     airwallex: { desc: 'Allows users to pay with Visa, Master Card, American Express, Discover, Diners Club, JCB, Apple Pay, Google Pay',
       fields: [
-        { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' },
         { k: 'appkey', label: 'App Key', msg: 'Please enter App Key' },
-        { k: 'api', label: 'API endpoints', msg: 'Please enter API endpoints', learn: 'https://www.airwallex.com/docs/api' },
+        { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' },
       ], file: { label: 'Airwallex domain verification file', button: 'Upload ZIP', hint: 'Only .zip files up to 1MB are supported.', accept: '.zip' } },
     paypal: { desc: 'Allows users to pay with Visa, Master Card, American Express, Discover, Diners Club, JCB, Apple Pay, Google Pay', fields: [
       { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' }, { k: 'sec', label: 'Secret key', msg: 'Please enter Secret key' },
     ], file: { label: 'PayPal domain verification file', button: 'Upload file', accept: '', marginBottom: 16 } },
-    adyen: { fields: [{ k: 'api', label: 'API key' }, { k: 'mer', label: 'Merchant account' }, { k: 'ck', label: 'Client key' }, { k: 'hmac', label: 'HMAC key' }] },
-    checkout: { fields: [{ k: 'pub', label: 'Public key' }, { k: 'sec', label: 'Secret key' }, { k: 'wsig', label: 'Webhook signature key' }] },
-    mollie: { fields: [{ k: 'api', label: 'API key (live)' }, { k: 'pid', label: 'Profile ID' }, { k: 'wsec', label: 'Webhook secret' }] },
+    adyen: { fields: [
+      { k: 'api', label: 'API key', msg: 'Please enter API key' },
+      { k: 'ck', label: 'Client key', msg: 'Please enter Client key' },
+      { k: 'mer', label: 'Merchant account', msg: 'Please enter Merchant account' },
+      { k: 'mapi', label: 'Management API key', msg: 'Please enter Management API key' },
+      { k: 'prefix', label: 'Live URL prefix', msg: 'Please enter Live URL prefix', value: '/' },
+    ], file: { label: 'Adyen domain verification file', button: 'Upload file', accept: '', marginBottom: 16 },
+      afterFile: [{ k: 'gpay', label: 'Google Pay merchant ID', optional: true }] },
+    checkout: { fields: [
+      { k: 'sec', label: 'Secret key', msg: 'Please enter Secret key' },
+      { k: 'pub', label: 'Public key', msg: 'Please enter Public key' },
+      { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' },
+      { k: 'chid', label: 'Processing channel ID', optional: true },
+    ], file: { label: 'Checkout domain verification file', button: 'Upload file', accept: '', marginBottom: 16 },
+      afterFile: [
+        { k: 'oauthid', label: 'OAuth client ID', optional: true },
+        { k: 'oauthsec', label: 'OAuth client secret', optional: true },
+      ] },
+    mollie: { fields: [
+      { k: 'api', label: 'API key', msg: 'Please enter API key' },
+      { k: 'pid', label: 'Profile ID', msg: 'Please enter Profile ID' },
+    ], file: { label: 'Mollie domain verification file', button: 'Upload file', accept: '', marginBottom: 16 } },
     nmi: { desc: 'Allows users to pay with Visa, Mastercard, American Express, Discover, Diners Club, and JCB. Apple Pay and Google Pay are not available with NMI.',
-      fields: [{ k: 'sk', label: 'Security key' }, { k: 'tk', label: 'Tokenization key' }, { k: 'wsk', label: 'Webhook signing key' }] },
-    braintree: { fields: [{ k: 'mid', label: 'Merchant ID' }, { k: 'pub', label: 'Public key' }, { k: 'priv', label: 'Private key' }] },
+      fields: [
+        { k: 'sk', label: 'Private Security Key', msg: 'Please enter Private Security Key' },
+        { k: 'tk', label: 'Public Security Key', msg: 'Please enter Public Security Key' },
+      ] },
+    braintree: { fields: [
+      { k: 'pub', label: 'Public key', msg: 'Please enter Public key' },
+      { k: 'priv', label: 'Private key', msg: 'Please enter Private key' },
+      { k: 'mid', label: 'Merchant ID', msg: 'Please enter Merchant ID' },
+      { k: 'gpay', label: 'Google merchant ID', optional: true },
+    ], file: { label: 'Braintree domain verification file', button: 'Upload file', accept: '', marginBottom: 16 } },
     klarna_direct: { fields: [{ k: 'uid', label: 'API username (UID)' }, { k: 'pwd', label: 'API password' }, { k: 'region', label: 'Region（EU / NA / OC）' }] },
   };
 
@@ -789,6 +815,39 @@
   function pModeLocale(en, zh) {
     return (window.I18N && window.I18N.lang === 'zh') ? zh : en;
   }
+  const PAY_MANUAL_WEBHOOK = { nmi: true, braintree: true };
+  const PAY_WEBHOOK_HOST = 'https://api.bestshopio.com';
+  const PAY_WEBHOOK_TOKEN = { nmi: '7c2a91e04b8d4f16a3e55c8f0d12b476', braintree: 'b9e14c70a2f84d3bb6c018e5a47d9f21' };
+  function pEnsureWebhookToken(key) {
+    const p = D.payments.processors.find((x) => x.key === key);
+    if (!p) return '';
+    if (!p.webhookToken) p.webhookToken = PAY_WEBHOOK_TOKEN[key] || (key + 'webhook');
+    return p.webhookToken;
+  }
+  function pWebhookUrl(key) {
+    return PAY_WEBHOOK_HOST + '/api/' + key + '/webhook/' + pEnsureWebhookToken(key);
+  }
+  function pWebhookNote(key, connected) {
+    if (!PAY_MANUAL_WEBHOOK[key]) return '';
+    const name = pEntName(key);
+    if (!connected) {
+      return '<div class="i18n-skip muted" style="font-size:12.5px;margin:4px 0 14px;line-height:1.55">' +
+        esc(pModeLocale(
+          'After you connect, we will show a webhook URL. Create a webhook in the ' + name + ' dashboard with that URL. We will receive payment results automatically.',
+          '连接成功后，这里会给出 Webhook 地址。请到 ' + name + ' 后台创建 Webhook 并粘贴该地址，我们会自动接收支付结果。'
+        )) + '</div>';
+    }
+    return '<div class="i18n-skip" style="margin:8px 0 14px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--ink)">' + pModeLocale('Webhook URL', 'Webhook 地址') + '</div>' +
+        '<button type="button" class="btn btn-default" data-copy-webhook style="height:28px;padding:0 10px;font-size:12px">' + pModeLocale('Copy', '复制') + '</button></div>' +
+      '<div style="font-size:12px;line-height:1.5;word-break:break-all;background:#f6f7fb;border:1px solid var(--ctl);border-radius:8px;padding:9px 11px;color:var(--ink)">' + esc(pWebhookUrl(key)) + '</div>' +
+      '<div class="muted" style="font-size:12px;margin-top:6px;line-height:1.55">' +
+        esc(pModeLocale(
+          'Create a webhook in your ' + name + ' dashboard and paste this URL. We will receive payment results automatically after it is saved.',
+          '请到 ' + name + ' 后台创建 Webhook 并粘贴此地址。保存后我们会自动接收支付结果。'
+        )) + '</div></div>';
+  }
   function pModeFields(key) {
     const selected = pAccountMode(key);
     const live = pModeLocale('Live', '正式');
@@ -804,7 +863,7 @@
       '<div class="muted" style="font-size:12px;margin-top:8px;line-height:1.55">' + hint + '</div></div>';
   }
 
-  // 连接 / 管理弹窗（复用 SPA modal()；凭证按 shop_id 隔离 + webhook 提示）
+  // 连接 / 管理弹窗。仅 Braintree / NMI 需要商家把 Webhook 地址贴回支付机构后台。
   function pConnect(key) {
     if (key === 'paypal') D.payments.paypal.connected = true;
     else if (key === 'paypal_cards') return;
@@ -813,6 +872,7 @@
       const pr = D.payments.processors.find((p) => p.key === key);
       const hadActive = !!pActive();
       pr.connected = true;
+      if (PAY_MANUAL_WEBHOOK[key]) pEnsureWebhookToken(key);
       if (!hadActive) D.payments.cardProcessor = key;
     }
   }
@@ -829,21 +889,54 @@
     const spec = PAY_FORMS[key] || { fields: [{ k: 'k1', label: 'API key' }, { k: 'k2', label: 'Secret' }] };
     let body = '';
     if (spec.desc) body += '<div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5">' + esc(spec.desc) + '</div>';
-    if (key !== 'paypal') body += '<div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">Credentials are used for this store only (isolated by shop_id). Webhook callback URL:<br/><code style="font-size:11.5px;color:var(--brand)">/webhook/' + key + '/{shop_id}</code></div>';
-    body += spec.fields.map((f) => {
+    const fieldHtml = (f) => {
       const learn = f.learn ? '<a href="' + f.learn + '" target="_blank" style="font-size:12px;color:var(--brand);font-weight:400">Learn more</a>' : '';
-      return '<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px"><span>' + esc(f.label) + ' <span style="color:var(--err)">*</span></span>' + learn + '</div>' +
-        '<input class="input" data-pf="' + f.k + '" placeholder="Please enter ' + esc(f.label) + '"' + (connected ? ' value="•••••••••••• (saved)"' : '') + ' />' +
+      const star = f.optional ? '' : ' <span style="color:var(--err)">*</span>';
+      return '<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px"><span>' + esc(f.label) + star + '</span>' + learn + '</div>' +
+        '<input class="input" data-pf="' + f.k + '" placeholder="Please enter ' + esc(f.label) + '"' + (connected ? ' value="•••••••••••• (saved)"' : (f.value ? ' value="' + esc(f.value) + '"' : '')) + ' />' +
         '<div data-perr="' + f.k + '" style="min-height:18px;font-size:12px;color:var(--err);margin-top:3px"></div></div>';
-    }).join('');
+    };
+    body += spec.fields.map(fieldHtml).join('');
     if (spec.file) {
       const file = typeof spec.file === 'string'
         ? { label: spec.file, button: 'Upload ZIP', hint: 'Only .zip files up to 1MB are supported.', accept: '.zip' }
         : spec.file;
       body += '<div style="margin:' + (file.marginTop || 0) + 'px 0 ' + (file.marginBottom == null ? 4 : file.marginBottom) + 'px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">' + esc(file.label) + '</div><button class="btn btn-default" type="button" data-file-upload data-file-accept="' + esc(file.accept || '') + '">' + esc(file.button || 'Upload file') + '</button>' + (file.hint ? '<div class="muted" style="font-size:11.5px;margin-top:4px">' + esc(file.hint) + '</div>' : '') + '</div>';
     }
+    if (spec.afterFile) body += spec.afterFile.map(fieldHtml).join('');
+    body += '<div data-webhook-slot>' + pWebhookNote(key, connected) + '</div>';
     body += pModeFields(key);
 
+    const bindWebhookCopy = (root) => {
+      root.querySelectorAll('[data-copy-webhook]').forEach((button) => {
+        button.onclick = () => {
+          const url = pWebhookUrl(key);
+          try { navigator.clipboard.writeText(url); } catch (e) {}
+          toast(pModeLocale('Webhook URL copied', '已复制 Webhook 地址'));
+        };
+      });
+    };
+    const revealWebhookAfterConnect = (m, close) => {
+      const slot = m.querySelector('[data-webhook-slot]');
+      if (slot) {
+        slot.innerHTML = pWebhookNote(key, true);
+        slot.scrollIntoView({ block: 'nearest' });
+      }
+      const titleEl = m.querySelector('.modal-head span');
+      if (titleEl) titleEl.textContent = 'Manage ' + name;
+      const okBtn = m.querySelector('[data-ok]');
+      if (okBtn) okBtn.textContent = 'Save';
+      const foot = m.querySelector('.modal-foot');
+      if (foot && !m.querySelector('[data-disc]')) {
+        foot.style.justifyContent = 'space-between';
+        const disc = h('<button class="btn" style="background:var(--err);color:#fff" data-disc>Cancel connection</button>');
+        foot.insertBefore(disc, foot.firstChild);
+        disc.onclick = () => { pDisconnect(key); close(); renderPayments(); toast('Cancelled connection successfully'); };
+      }
+      bindWebhookCopy(m);
+    };
+
+    let liveConnected = connected;
     const dlg = modal({
       title: key === 'paypal' ? (connected ? 'Manage PayPal' : 'Connect PayPal developer account') : ((connected ? 'Manage ' : 'Connect ') + name), width: 520, okText: connected ? 'Save' : 'Connect',
       body,
@@ -851,17 +944,28 @@
       onOk: (m, close) => {
         // 校验：必填字段不能为空（对齐线上 validateForm）
         let okAll = true, firstBad = null;
-        spec.fields.forEach((f) => {
+        spec.fields.concat(spec.afterFile || []).forEach((f) => {
           const inp = m.querySelector('[data-pf="' + f.k + '"]');
           const err = m.querySelector('[data-perr="' + f.k + '"]');
           const val = ((inp && inp.value) || '').trim();
-          if (!val) { okAll = false; if (err) err.textContent = f.msg || ('Please enter ' + f.label); if (inp) inp.style.borderColor = 'var(--err)'; if (!firstBad) firstBad = inp; }
+          if (!f.optional && !val) { okAll = false; if (err) err.textContent = f.msg || ('Please enter ' + f.label); if (inp) inp.style.borderColor = 'var(--err)'; if (!firstBad) firstBad = inp; }
         });
         if (!okAll) { if (firstBad) firstBad.focus(); return; }   // 校验不过不关闭
         const mode = m.querySelector('[data-payment-mode]:checked');
         if (mode) pSetAccountMode(key, mode.value);
-        if (!connected) pConnect(key);
-        close(); renderPayments(); toast(connected ? 'Edit successfully' : 'Connected successfully');
+        if (!liveConnected) {
+          pConnect(key);
+          liveConnected = true;
+          renderPayments();
+          toast('Connected successfully');
+          if (PAY_MANUAL_WEBHOOK[key]) {
+            revealWebhookAfterConnect(m, close);
+            return;
+          }
+          close();
+          return;
+        }
+        close(); renderPayments(); toast('Edit successfully');
       },
       onExtra: (m, close) => { pDisconnect(key); close(); renderPayments(); toast('Cancelled connection successfully'); },
     });
@@ -870,6 +974,7 @@
     dlg.m.querySelectorAll('[data-file-upload]').forEach((button) => {
       button.onclick = () => openFilePicker({ accept: button.dataset.fileAccept || '', onSelected: (file) => { button.textContent = file.name; toast('Selected ' + file.name); } });
     });
+    bindWebhookCopy(dlg.m);
   }
 
   const PAY_CSS =
