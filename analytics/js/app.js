@@ -292,7 +292,7 @@
     add_to_cart: ['Add to cart', 'Unique visitors who triggered Add to cart.', 'Deduplicated in the selected range. Same visitor counts as 1'],
     begin_checkout: ['Begin checkout', 'Unique visitors who triggered Checkout.', 'Deduplicated in the selected range. Same visitor counts as 1'],
     add_contact_info: ['Add contact info', 'Unique visitors who reached contact info.', 'Deduplicated in the selected range. Same visitor counts as 1'],
-    add_shipping_info: ['Add shipping info', 'Unique visitors who reached shipping address.', 'Deduplicated in the selected range. Same visitor counts as 1'],
+    add_shipping_info: ['Add address info', 'Unique visitors who reached shipping address.', 'Deduplicated in the selected range. Same visitor counts as 1'],
     select_shipping_method: ['Select shipping method', 'Unique visitors who reached shipping method.', 'Deduplicated in the selected range. Same visitor counts as 1'],
     add_payment_info: ['Add payment info', 'Unique visitors who reached payment info.', 'Deduplicated in the selected range. Same visitor counts as 1'],
     complete_checkout: ['Complete checkout', 'Unique visitors who completed checkout.', 'Deduplicated in the selected range. Different from Orders, which counts paid orders by payment time'],
@@ -342,7 +342,7 @@
     'Add to cart': 'add_to_cart',
     'Begin checkout': 'begin_checkout',
     'Add contact info': 'add_contact_info',
-    'Add shipping info': 'add_shipping_info',
+    'Add address info': 'add_shipping_info',
     'Select shipping method': 'select_shipping_method',
     'Add payment info': 'add_payment_info',
     'Complete checkout': 'complete_checkout',
@@ -2292,7 +2292,7 @@
   }
   function viewConversionFunnel(view) {
     onChipChange = () => render();
-    const STAGES = [['Visit store', 1326165], ['Add to cart', 158520], ['Begin checkout', 79560], ['Add contact info', 68200], ['Add shipping info', 61300], ['Select shipping method', 58350], ['Add payment info', 56721], ['Complete checkout', 30559]];
+    const STAGES = [['Visit store', 1326165], ['Add to cart', 158520], ['Begin checkout', 79560], ['Add contact info', 68200], ['Add address info', 61300], ['Select shipping method', 58350], ['Add payment info', 56721], ['Complete checkout', 30559]];
     const state = { filters: [] };
     function render() {
       disposeCharts();

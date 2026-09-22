@@ -157,7 +157,7 @@ window.I18N.extend({
   "Add to cart": "加入购物车",
   "Begin checkout": "开始结账",
   "Add contact info": "添加联系信息",
-  "Add shipping info": "填写收货地址",
+  "Add address info": "填写收货地址",
   "Select shipping method": "选择物流方案",
   "Add payment info": "提交支付信息",
   "Complete checkout": "完成结账",

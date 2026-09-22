@@ -87,7 +87,7 @@ window.DATA = (function () {
     { stage: 'Add to cart', pct: '11.95%', value: '158,520' },
     { stage: 'Begin checkout', pct: '6.00%', value: '79,560' },
     { stage: 'Add contact info', pct: '5.14%', value: '68,200' },
-    { stage: 'Add shipping info', pct: '4.62%', value: '61,300' },
+    { stage: 'Add address info', pct: '4.62%', value: '61,300' },
     { stage: 'Select shipping method', pct: '4.40%', value: '58,350' },
     { stage: 'Add payment info', pct: '4.28%', value: '56,721' },
     { stage: 'Complete checkout', pct: '2.3%', value: '30,559' },
