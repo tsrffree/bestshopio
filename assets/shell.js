@@ -173,7 +173,7 @@
     if (loaded[id]) return loaded[id];
     // Online store is a self-contained Theme editor. Version it independently so
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
-    var moduleV = id === 'settings' ? '20260917-pay-wh'
+    var moduleV = id === 'settings' ? '20261008-ocean-note'
       : id === 'online-store' ? '20260822theme-sync1'
       : id === 'analytics' ? '20260922-address-info1' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every

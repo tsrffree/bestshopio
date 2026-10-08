@@ -150,8 +150,13 @@ window.DATA_SETTINGS = {
       { key: 'adyen',     name: 'Adyen',        connected: false, phase2: true, mode: 'live' },
       { key: 'checkout',  name: 'Checkout.com', connected: false, phase2: true, mode: 'live' },
       { key: 'mollie',    name: 'Mollie',       connected: false, phase2: true, mode: 'live' },
-      { key: 'nmi',       name: 'NMI',          connected: false, phase2: true, mode: 'live' }, // Card only (Collect.js); no Apple/Google Pay
+      { key: 'nmi',       name: 'NMI',          connected: false, phase2: true, mode: 'live' }, // Apple Pay / Google Pay under Cards; fixed address; no subscription or additional charge
       { key: 'braintree', name: 'Braintree',    connected: false, phase2: true, mode: 'live' },
+      { key: 'worldpay',  name: 'Worldpay',     connected: false, mode: 'live' }, // Access Checkout SDK: cards only
+      { key: 'nuvei',     name: 'Nuvei',        connected: false, mode: 'live' }, // Web SDK cards + Apple Pay + Google Pay; no local APMs
+      { key: 'antom',     name: 'Antom',        connected: false, mode: 'live' }, // Cards plus wallets from the same account
+      { key: 'useepay',   name: 'UseePay',      connected: false, mode: 'live' }, // Cards + Apple Pay
+      { key: 'oceanpay',  name: 'Oceanpay',     connected: false, mode: 'live' }, // Google Pay under Cards; fixed address; no Apple Pay
     ],
     // PayPal 账户只连一次：Wallet 可独立启用；Cards、Apple Pay、Google Pay
     // 均由同一 PayPal 收款账户提供。钱包是否出现取决于服务端能力、域名状态和买家环境，
@@ -160,7 +165,7 @@ window.DATA_SETTINGS = {
       connected: true,
       walletOn: true,
       mode: 'live',
-      capabilities: { cards: 'enabled', wallet: 'enabled', applePay: 'enabled', googlePay: 'enabled' },
+      capabilities: { cards: 'enabled', wallet: 'enabled', applePay: 'enabled', googlePay: 'enabled', venmo: 'enabled' },
       domain: { checkout: 'checkout.lovecross.com', applePay: 'verified' },
       lastSynced: 'just now',
     },
