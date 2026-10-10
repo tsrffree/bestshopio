@@ -1,48 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BestShopio · Admin</title>
-  <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="assets/tailwind-config.js?v=20260607k"></script>
-  <link rel="stylesheet" href="assets/theme.css?v=20260820-home-apps1" />
-  <!-- ECharts GL must register after ECharts. `defer` keeps the page non-blocking
-       while preserving execution order for the Live View globe. -->
-  <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+  <title>BestShopio 原型</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 48px auto; max-width: 640px; color: #111; line-height: 1.5; }
+    a { color: #0b57d0; }
+    ul { padding-left: 1.2em; }
+    .pending { color: #666; }
+  </style>
 </head>
-<body class="bg-page text-ink font-sans antialiased">
-  <!-- Single-page app: the shell (sidebar + header) and every module view are rendered by shell.js. -->
-  <div id="app" class="flex h-screen overflow-hidden"></div>
-
-  <script src="assets/nav.js?v=20260820-home-apps1"></script>
-  <!-- Bundle catalog is loaded eagerly so the shared bundle picker (used by Subscriptions → Add plan) always has data,
-       even before the Bundles module is visited. Pure data; the lazy module loader re-uses the same cached file. -->
-  <script src="bundles/js/data.js?v=20260706ab"></script>
-  <!-- Subscription data is also a read-only dependency of order-detail deep links. -->
-  <script src="subscriptions/js/data.js?v=20260713k"></script>
-  <script src="assets/shell.js?v=20261008-ocean-note"></script>
-  <script src="assets/widgets.js?v=20260817-date-range1"></script>
-  <!-- Runtime i18n overlay: engine + shared-chrome dict, then the per-module dictionary.
-       Default language is ZH; the top-right toggle switches and persists. -->
-  <script src="assets/i18n.js?v=20260820-home-apps1"></script>
-  <script src="assets/i18n/orders-customers.js?v=20260711cu"></script>
-  <script src="assets/i18n/products-collections.js?v=20260710a"></script>
-  <script src="assets/i18n/content.js?v=20260624a"></script>
-  <script src="assets/i18n/reviews-discounts-google.js?v=20260624a"></script>
-  <script src="assets/i18n/facebook.js?v=20260630a"></script>
-  <script src="assets/i18n/google.js?v=20260630a"></script>
-  <script src="assets/i18n/settings.js?v=20261008-ocean-gpay"></script>
-  <script src="assets/i18n/analytics-widgets.js?v=20260922-address-info1"></script>
-  <script src="assets/i18n/online-store-apps.js?v=20260706a"></script>
-  <script src="assets/i18n/selling-apps.js?v=20260706a"></script>
-  <script src="assets/i18n/clarity.js?v=20260811clarityapp6"></script>
-  <!-- QA polish: interpolated templates + split-node fixes from the live preview sweep -->
-  <script src="assets/i18n/zz-polish.js?v=20260624a"></script>
-  <!-- final overrides: cross-module ambiguous-word resolutions (loads last → wins) -->
-  <script src="assets/i18n-dict.js?v=20260628a"></script>
+<body>
+  <h1>BestShopio 原型</h1>
+  <ul>
+    <li><a href="bestshopio%20merchant/index.html">商家端</a></li>
+    <li class="pending">用户端：还没有原型</li>
+    <li class="pending">SaaS 中台：还没有原型</li>
+  </ul>
 </body>
 </html>
