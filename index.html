@@ -5,18 +5,75 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BestShopio 原型</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 48px auto; max-width: 640px; color: #111; line-height: 1.5; }
+    html { color-scheme: light; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 48px auto; max-width: 760px; background: #fff; color: #111; line-height: 1.5; }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    h2 { font-size: 18px; margin: 36px 0 12px; }
+    p { margin: 0 0 12px; }
+    .lead, .note { color: #555; }
     a { color: #0b57d0; }
-    ul { padding-left: 1.2em; }
-    .pending { color: #666; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid #e6e6e6; vertical-align: top; }
+    th { color: #666; font-size: 13px; font-weight: 600; }
+    code { font-size: 12px; color: #333; word-break: break-all; }
+    .name { font-weight: 600; white-space: nowrap; }
   </style>
 </head>
 <body>
   <h1>BestShopio 原型</h1>
-  <ul>
-    <li><a href="bestshopio-merchant/index.html">商家端</a></li>
-    <li class="pending">用户端：还没有原型</li>
-    <li class="pending">SaaS 中台：还没有原型</li>
-  </ul>
+  <p class="lead">商家端、用户端、SaaS 中台的汇总入口。云端链接在这里和 GitHub Pages 上都能打开。本地链接只在本机打开这个页面时可用。</p>
+
+  <h2>云端</h2>
+  <table>
+    <thead>
+      <tr><th>端</th><th>预览</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="name">商家端</td>
+        <td><a href="https://tsrffree.github.io/bestshopio-merchant/bestshopio-merchant/index.html">https://tsrffree.github.io/bestshopio-merchant/bestshopio-merchant/index.html</a></td>
+      </tr>
+      <tr>
+        <td class="name">用户端</td>
+        <td><a href="https://tsrffree.github.io/bestshopio-storefront/">https://tsrffree.github.io/bestshopio-storefront/</a></td>
+      </tr>
+      <tr>
+        <td class="name">SaaS 中台</td>
+        <td><a href="https://tsrffree.github.io/bestshopio-saas/">https://tsrffree.github.io/bestshopio-saas/</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>本地</h2>
+  <table>
+    <thead>
+      <tr><th>端</th><th>预览</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="name">商家端</td>
+        <td><a class="local" href="bestshopio-merchant/index.html">bestshopio-merchant/index.html</a></td>
+      </tr>
+      <tr>
+        <td class="name">用户端</td>
+        <td><a class="local" href="bestshopio%20storefront/index.html">bestshopio storefront/index.html</a></td>
+      </tr>
+      <tr>
+        <td class="name">SaaS 中台</td>
+        <td><a class="local" href="bestshopio%20saas/prototype/index.html">bestshopio saas/prototype/index.html</a></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note" id="local-note" hidden>当前打开的是云端汇总页。本地三个原型请在本机打开 /Users/lidongjie/Desktop/BestShopio/index.html。</p>
+  <script>
+    if (location.hostname.endsWith("github.io")) {
+      document.getElementById("local-note").hidden = false;
+      document.querySelectorAll("a.local").forEach(function (link) {
+        var text = document.createElement("code");
+        text.textContent = link.textContent;
+        link.replaceWith(text);
+      });
+    }
+  </script>
 </body>
 </html>
