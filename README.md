@@ -20,10 +20,14 @@ BestCheckout 可以作为 BestShopio 体系中的 Checkout 增长能力接入，
 - `assets/`：共享 shell、设计系统和导航 manifest。
 - `analytics/`、`orders/`、`products/` 等：按业务模块拆分的原型。
 
+## 预览
+
+https://tsrffree.github.io/bestshopio-merchant/
+
 ## GitHub
 
-- 仓库：`zjc66666-pm/bestshopio-prototypes`
+- 仓库：`tsrffree/bestshopio-merchant`
 - 分支：`main`
-- GitHub Pages：`https://zjc66666-pm.github.io/bestshopio-prototypes/`
+- GitHub Pages：`https://tsrffree.github.io/bestshopio-merchant/`
 
-本目录是独立发布镜像。不得混入 `BestShopio Workspace` 中的 `docs/`、`reference/` 或历史文件。
+本仓库只放商家后台原型。不得混入 SaaS 中台、前台或规划地图。
